@@ -55,6 +55,20 @@ export async function proxy(request: NextRequest) {
     return redirectWithCookies(request, getResponse(), resolved.path);
   }
 
+  if (pathname.startsWith("/oglasi/novi")) {
+    if (profile.role !== "client") {
+      return redirectWithCookies(
+        request,
+        getResponse(),
+        profile.role === "provider" ? "/oglasi" : expectedDashboardPath,
+      );
+    }
+
+    if (resolved.path !== expectedDashboardPath) {
+      return redirectWithCookies(request, getResponse(), resolved.path);
+    }
+  }
+
   if (
     pathname.startsWith("/dashboard/client") &&
     profile.role !== "client"
@@ -109,5 +123,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*"],
+  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/oglasi/novi/:path*"],
 };

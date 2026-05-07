@@ -14,7 +14,6 @@ type AdminProfileFormProps = {
     phone: string | null;
     country: string | null;
     city: string | null;
-    avatar_url: string | null;
   };
 };
 
@@ -76,18 +75,6 @@ export function AdminProfileForm({ profile }: AdminProfileFormProps) {
           />
           {fieldError(state, "city") ? (
             <p className="text-sm text-red-300">{fieldError(state, "city")}</p>
-          ) : null}
-        </label>
-        <label className="block space-y-2 sm:col-span-2">
-          <span className="text-sm font-medium text-[#f3fff7]">Avatar URL</span>
-          <input
-            name="avatar_url"
-            type="url"
-            defaultValue={profile.avatar_url ?? ""}
-            className="w-full rounded-2xl border border-line bg-[#0d1425] px-4 py-3 text-sm text-foreground outline-none transition focus:border-accent"
-          />
-          {fieldError(state, "avatar_url") ? (
-            <p className="text-sm text-red-300">{fieldError(state, "avatar_url")}</p>
           ) : null}
         </label>
       </div>

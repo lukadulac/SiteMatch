@@ -4,24 +4,112 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { DashboardActionState } from "@/app/dashboard/action-state";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Database } from "@/types/supabase";
 
-const optionalText = z
-  .string()
-  .trim()
-  .transform((value) => (value === "" ? null : value))
-  .nullable();
+function normalizeWhitespace(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function requiredText(
+  label: string,
+  {
+    min,
+    max,
+    pattern,
+    patternMessage,
+  }: {
+    min: number;
+    max: number;
+    pattern?: RegExp;
+    patternMessage?: string;
+  },
+) {
+  return z
+    .string()
+    .transform(normalizeWhitespace)
+    .pipe(
+      z
+        .string()
+        .min(min, `${label} must be at least ${min} characters long.`)
+        .max(max, `${label} must be ${max} characters or fewer.`),
+    )
+    .superRefine((value, ctx) => {
+      if (pattern && !pattern.test(value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: patternMessage ?? `${label} contains invalid characters.`,
+        });
+      }
+    });
+}
+
+function optionalText(
+  label: string,
+  {
+    min,
+    max,
+    pattern,
+    patternMessage,
+  }: {
+    min?: number;
+    max: number;
+    pattern?: RegExp;
+    patternMessage?: string;
+  },
+) {
+  return z
+    .string()
+    .transform(normalizeWhitespace)
+    .transform((value) => (value === "" ? null : value))
+    .nullable()
+    .superRefine((value, ctx) => {
+      if (value == null) {
+        return;
+      }
+
+      if (min != null && value.length < min) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} must be at least ${min} characters long.`,
+        });
+      }
+
+      if (value.length > max) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} must be ${max} characters or fewer.`,
+        });
+      }
+
+      if (pattern && !pattern.test(value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: patternMessage ?? `${label} contains invalid characters.`,
+        });
+      }
+    });
+}
 
 const optionalUrl = z
   .string()
-  .trim()
+  .transform(normalizeWhitespace)
   .transform((value, ctx) => {
     if (value === "") {
       return null;
     }
 
     try {
-      new URL(value);
-      return value;
+      const url = new URL(value);
+
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "URL must start with http:// or https://.",
+        });
+        return z.NEVER;
+      }
+
+      return url.toString();
     } catch {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -34,7 +122,7 @@ const optionalUrl = z
 
 const optionalNonNegativeNumber = z
   .string()
-  .trim()
+  .transform(normalizeWhitespace)
   .transform((value, ctx) => {
     if (value === "") {
       return null;
@@ -56,7 +144,7 @@ const optionalNonNegativeNumber = z
 
 const optionalInteger = z
   .string()
-  .trim()
+  .transform(normalizeWhitespace)
   .transform((value, ctx) => {
     if (value === "") {
       return null;
@@ -76,28 +164,103 @@ const optionalInteger = z
   })
   .nullable();
 
+const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
+const placeNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
+const businessNamePattern = /^[\p{L}\p{M}\d&'",./()\- ]+$/u;
+const businessTypePattern = /^[\p{L}\p{M}\d&'",/()\- ]+$/u;
+const companySizePattern = /^[\p{L}\p{M}\d+,/()\- ]+$/u;
+const phonePattern = /^\+?[0-9().\-\s]{7,20}$/;
+
 const profileSchema = z.object({
-  full_name: z.string().trim().min(2, "Full name is required."),
-  phone: optionalText,
-  country: optionalText,
-  city: optionalText,
-  avatar_url: optionalUrl,
+  full_name: requiredText("Full name", {
+    min: 2,
+    max: 80,
+    pattern: personNamePattern,
+    patternMessage:
+      "Full name can only contain letters, spaces, apostrophes, periods, and hyphens.",
+  }),
+  phone: optionalText("Phone", {
+    max: 20,
+    pattern: phonePattern,
+    patternMessage:
+      "Phone can only contain numbers, spaces, parentheses, dots, hyphens, and an optional leading +.",
+  }).superRefine((value, ctx) => {
+    if (value == null) {
+      return;
+    }
+
+    const digitCount = value.replace(/\D/g, "").length;
+
+    if (digitCount < 7 || digitCount > 15) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Phone must contain between 7 and 15 digits.",
+      });
+    }
+  }),
+  country: optionalText("Country", {
+    min: 2,
+    max: 56,
+    pattern: placeNamePattern,
+    patternMessage:
+      "Country can only contain letters, spaces, apostrophes, periods, and hyphens.",
+  }),
+  city: optionalText("City", {
+    min: 2,
+    max: 56,
+    pattern: placeNamePattern,
+    patternMessage:
+      "City can only contain letters, spaces, apostrophes, periods, and hyphens.",
+  }),
 });
 
 const clientProfileSchema = profileSchema.extend({
-  business_name: z.string().trim().min(2, "Business name is required."),
-  business_type: optionalText,
-  business_description: optionalText,
+  business_name: requiredText("Business name", {
+    min: 2,
+    max: 100,
+    pattern: businessNamePattern,
+    patternMessage:
+      "Business name can only contain letters, numbers, spaces, and common business punctuation.",
+  }),
+  business_type: requiredText("Business type", {
+    min: 2,
+    max: 60,
+    pattern: businessTypePattern,
+    patternMessage:
+      "Business type can only contain letters, numbers, spaces, and common punctuation.",
+  }),
+  business_description: requiredText("Business description", {
+    min: 30,
+    max: 1200,
+  }),
   website_url: optionalUrl,
-  company_size: optionalText,
-  preferred_language: optionalText,
+  company_size: optionalText("Company size", {
+    min: 1,
+    max: 40,
+    pattern: companySizePattern,
+    patternMessage:
+      "Company size can only contain letters, numbers, spaces, plus signs, commas, slashes, and hyphens.",
+  }),
+  preferred_language: requiredText("Preferred language", {
+    min: 2,
+    max: 40,
+    pattern: placeNamePattern,
+    patternMessage:
+      "Preferred language can only contain letters, spaces, apostrophes, periods, and hyphens.",
+  }),
 });
 
 const providerProfileSchema = profileSchema
   .extend({
     provider_type: z.enum(["freelancer", "agency", "studio"]),
-    headline: optionalText,
-    bio: optionalText,
+    headline: optionalText("Headline", {
+      min: 3,
+      max: 120,
+    }),
+    bio: optionalText("Bio", {
+      min: 20,
+      max: 2000,
+    }),
     years_of_experience: optionalInteger,
     portfolio_url: optionalUrl,
     hourly_rate_min: optionalNonNegativeNumber,
@@ -171,7 +334,6 @@ export async function updateClientProfileAction(
     phone: getFormValue(formData, "phone"),
     country: getFormValue(formData, "country"),
     city: getFormValue(formData, "city"),
-    avatar_url: getFormValue(formData, "avatar_url"),
     business_name: getFormValue(formData, "business_name"),
     business_type: getFormValue(formData, "business_type"),
     business_description: getFormValue(formData, "business_description"),
@@ -201,7 +363,6 @@ export async function updateClientProfileAction(
       phone: parsed.data.phone,
       country: parsed.data.country,
       city: parsed.data.city,
-      avatar_url: parsed.data.avatar_url,
     })
     .eq("id", user.id);
 
@@ -255,7 +416,6 @@ export async function updateProviderProfileAction(
     phone: getFormValue(formData, "phone"),
     country: getFormValue(formData, "country"),
     city: getFormValue(formData, "city"),
-    avatar_url: getFormValue(formData, "avatar_url"),
     provider_type: getFormValue(formData, "provider_type"),
     headline: getFormValue(formData, "headline"),
     bio: getFormValue(formData, "bio"),
@@ -289,7 +449,6 @@ export async function updateProviderProfileAction(
       phone: parsed.data.phone,
       country: parsed.data.country,
       city: parsed.data.city,
-      avatar_url: parsed.data.avatar_url,
     })
     .eq("id", user.id);
 
@@ -301,24 +460,24 @@ export async function updateProviderProfileAction(
     };
   }
 
+  const providerProfilePayload: Database["public"]["Tables"]["provider_profiles"]["Insert"] =
+    {
+      user_id: user.id,
+      provider_type: parsed.data.provider_type,
+      headline: parsed.data.headline,
+      bio: parsed.data.bio,
+      years_of_experience: parsed.data.years_of_experience,
+      portfolio_url: parsed.data.portfolio_url,
+      hourly_rate_min: parsed.data.hourly_rate_min,
+      hourly_rate_max: parsed.data.hourly_rate_max,
+      fixed_price_min: parsed.data.fixed_price_min,
+      fixed_price_max: parsed.data.fixed_price_max,
+      availability: parsed.data.availability,
+    };
+
   const { error: providerProfileError } = await supabase
     .from("provider_profiles")
-    .upsert(
-      {
-        user_id: user.id,
-        provider_type: parsed.data.provider_type,
-        headline: parsed.data.headline,
-        bio: parsed.data.bio,
-        years_of_experience: parsed.data.years_of_experience,
-        portfolio_url: parsed.data.portfolio_url,
-        hourly_rate_min: parsed.data.hourly_rate_min,
-        hourly_rate_max: parsed.data.hourly_rate_max,
-        fixed_price_min: parsed.data.fixed_price_min,
-        fixed_price_max: parsed.data.fixed_price_max,
-        availability: parsed.data.availability,
-      },
-      { onConflict: "user_id" },
-    );
+    .upsert(providerProfilePayload, { onConflict: "user_id" });
 
   if (providerProfileError) {
     return {
@@ -347,7 +506,6 @@ export async function updateAdminProfileAction(
     phone: getFormValue(formData, "phone"),
     country: getFormValue(formData, "country"),
     city: getFormValue(formData, "city"),
-    avatar_url: getFormValue(formData, "avatar_url"),
   });
 
   if (!parsed.success) {
@@ -371,7 +529,6 @@ export async function updateAdminProfileAction(
       phone: parsed.data.phone,
       country: parsed.data.country,
       city: parsed.data.city,
-      avatar_url: parsed.data.avatar_url,
     })
     .eq("id", user.id);
 

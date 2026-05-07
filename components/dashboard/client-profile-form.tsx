@@ -14,7 +14,6 @@ type ClientProfileFormProps = {
     phone: string | null;
     country: string | null;
     city: string | null;
-    avatar_url: string | null;
   };
   clientProfile: {
     business_name: string | null;
@@ -107,15 +106,6 @@ export function ClientProfileForm({
           defaultValue={profile.city}
           error={fieldError(state, "city")}
         />
-        <div className="sm:col-span-2">
-          <InputField
-            label="Avatar URL"
-            name="avatar_url"
-            type="url"
-            defaultValue={profile.avatar_url}
-            error={fieldError(state, "avatar_url")}
-          />
-        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

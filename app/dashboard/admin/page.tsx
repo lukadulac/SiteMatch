@@ -15,7 +15,7 @@ export default async function AdminDashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, phone, country, city, avatar_url")
+    .select("full_name, email, role, phone, country, city")
     .eq("id", user.id)
     .single();
 
@@ -116,7 +116,6 @@ export default async function AdminDashboardPage() {
                   phone: profile.phone,
                   country: profile.country,
                   city: profile.city,
-                  avatar_url: profile.avatar_url,
                 }}
               />
             </div>
