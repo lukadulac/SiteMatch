@@ -797,6 +797,7 @@ export type Database = {
       provider_profiles: {
         Row: {
           availability: Database["public"]["Enums"]["availability_status"];
+          about: string | null;
           average_rating: number;
           bio: string | null;
           business_domain_other_text: string | null;
@@ -817,7 +818,11 @@ export type Database = {
           project_budget_max: number | null;
           project_budget_min: number | null;
           provider_type: Database["public"]["Enums"]["provider_type"];
+          service_categories: Database["public"]["Enums"]["provider_service_category"][];
+          service_category_other_text: string | null;
           services_text: string | null;
+          social_link: string | null;
+          tax_id: string | null;
           team_size: number | null;
           tech_capabilities_text: string | null;
           total_reviews: number;
@@ -827,6 +832,7 @@ export type Database = {
         };
         Insert: {
           availability?: Database["public"]["Enums"]["availability_status"];
+          about?: string | null;
           average_rating?: number;
           bio?: string | null;
           business_domain_other_text?: string | null;
@@ -847,7 +853,11 @@ export type Database = {
           project_budget_max?: number | null;
           project_budget_min?: number | null;
           provider_type: Database["public"]["Enums"]["provider_type"];
+          service_categories?: Database["public"]["Enums"]["provider_service_category"][];
+          service_category_other_text?: string | null;
           services_text?: string | null;
+          social_link?: string | null;
+          tax_id?: string | null;
           team_size?: number | null;
           tech_capabilities_text?: string | null;
           total_reviews?: number;
@@ -857,6 +867,7 @@ export type Database = {
         };
         Update: {
           availability?: Database["public"]["Enums"]["availability_status"];
+          about?: string | null;
           average_rating?: number;
           bio?: string | null;
           business_domain_other_text?: string | null;
@@ -877,7 +888,11 @@ export type Database = {
           project_budget_max?: number | null;
           project_budget_min?: number | null;
           provider_type?: Database["public"]["Enums"]["provider_type"];
+          service_categories?: Database["public"]["Enums"]["provider_service_category"][];
+          service_category_other_text?: string | null;
           services_text?: string | null;
+          social_link?: string | null;
+          tax_id?: string | null;
           team_size?: number | null;
           tech_capabilities_text?: string | null;
           total_reviews?: number;
@@ -1007,6 +1022,19 @@ export type Database = {
         | "rejected"
         | "archived";
       preferred_provider_type: "freelancer" | "agency" | "studio" | "any";
+      provider_service_category:
+        | "web_development"
+        | "mobile_development"
+        | "ui_ux_design"
+        | "graphic_design"
+        | "video_editing"
+        | "seo"
+        | "marketing"
+        | "copywriting"
+        | "branding"
+        | "ecommerce"
+        | "automation"
+        | "other";
       project_readiness_level:
         | "idea_only"
         | "need_guidance"
@@ -1021,7 +1049,12 @@ export type Database = {
         | "assigned"
         | "completed"
         | "cancelled";
-      provider_type: "freelancer" | "agency" | "studio";
+      provider_type:
+        | "freelancer"
+        | "agency"
+        | "company"
+        | "studio"
+        | "other";
       user_role: "client" | "provider" | "admin";
     };
     CompositeTypes: Record<string, never>;

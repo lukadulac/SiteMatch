@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { AuthActionState } from "@/app/(auth)/action-state";
 import { clientProfileInputSchema } from "@/lib/auth/client-profile";
-import { resolvePostAuthPath } from "@/lib/auth/profile-completion";
-import type { UserRole } from "@/lib/auth/roles";
+import { providerProfileInputSchema } from "@/lib/auth/provider-profile";
+import { getDashboardPathForRole } from "@/lib/auth/profile-completion";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -14,36 +14,113 @@ const passwordSchema = z
   .min(8, "Password must be at least 8 characters long.")
   .max(72, "Password must be 72 characters or fewer.");
 
-const accountSchema = z.object({
-  full_name: z.string().trim().min(2, "Full name is required."),
-  email: z.string().trim().email("Enter a valid email address."),
-  password: passwordSchema,
-});
+const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
+const placeNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
+const phonePattern = /^\+?[0-9().\-\s]{7,20}$/;
 
-const clientRegisterSchema = clientProfileInputSchema.extend({
-  full_name: z.string().trim().min(2, "Full name is required."),
-  email: z.string().trim().email("Enter a valid email address."),
-  password: passwordSchema,
-  role: z.literal("client"),
-});
+function normalizeWhitespace(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
 
-const registerSchema = z.discriminatedUnion("role", [
-  clientRegisterSchema,
-  accountSchema.extend({
-    role: z.literal("provider"),
-    provider_type: z.enum(["freelancer", "agency", "studio"]),
-    headline: z.string().trim().min(3, "Headline is required."),
-    bio: z
+function requiredText(
+  label: string,
+  {
+    min,
+    max,
+    pattern,
+    patternMessage,
+  }: {
+    min: number;
+    max: number;
+    pattern?: RegExp;
+    patternMessage?: string;
+  },
+) {
+  return z
+    .string()
+    .transform(normalizeWhitespace)
+    .pipe(
+      z
+        .string()
+        .min(min, `${label} must be at least ${min} characters long.`)
+        .max(max, `${label} must be ${max} characters or fewer.`),
+    )
+    .superRefine((value, ctx) => {
+      if (pattern && !pattern.test(value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: patternMessage ?? `${label} contains invalid characters.`,
+        });
+      }
+    });
+}
+
+const requiredPhone = z
+  .string()
+  .transform(normalizeWhitespace)
+  .pipe(
+    z
       .string()
-      .trim()
-      .min(20, "Bio must be at least 20 characters long."),
-    years_of_experience: z.coerce
-      .number()
-      .int("Years of experience must be a whole number.")
-      .min(0, "Years of experience cannot be negative."),
-    portfolio_url: z.url("Enter a valid portfolio URL."),
+      .min(7, "Phone is required.")
+      .max(20, "Phone must be 20 characters or fewer."),
+  )
+  .superRefine((value, ctx) => {
+    if (!phonePattern.test(value)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Phone can only contain numbers, spaces, parentheses, dots, hyphens, and an optional leading +.",
+      });
+    }
+
+    const digitCount = value.replace(/\D/g, "").length;
+
+    if (digitCount < 7 || digitCount > 15) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Phone must contain between 7 and 15 digits.",
+      });
+    }
+  });
+
+const accountSchema = z.object({
+  full_name: requiredText("Full name", {
+    min: 2,
+    max: 80,
+    pattern: personNamePattern,
+    patternMessage:
+      "Full name can only contain letters, spaces, apostrophes, periods, and hyphens.",
   }),
-]);
+  email: z.string().trim().email("Enter a valid email address."),
+  phone: requiredPhone,
+  country: requiredText("Country", {
+    min: 2,
+    max: 56,
+    pattern: placeNamePattern,
+    patternMessage:
+      "Country can only contain letters, spaces, apostrophes, periods, and hyphens.",
+  }),
+  city: requiredText("City", {
+    min: 2,
+    max: 56,
+    pattern: placeNamePattern,
+    patternMessage:
+      "City can only contain letters, spaces, apostrophes, periods, and hyphens.",
+  }),
+  password: passwordSchema,
+});
+
+const clientRegisterSchema = accountSchema
+  .extend({
+    role: z.literal("client"),
+  })
+  .and(clientProfileInputSchema);
+
+const providerRegisterSchema = accountSchema
+  .extend({ role: z.literal("provider") })
+  .and(providerProfileInputSchema);
+
+const registerSchema = z.union([clientRegisterSchema, providerRegisterSchema]);
 
 const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email address."),
@@ -60,6 +137,9 @@ function collectRegisterFields(formData: FormData) {
   return {
     full_name: getStringValue(formData, "full_name"),
     email: getStringValue(formData, "email"),
+    phone: getStringValue(formData, "phone"),
+    country: getStringValue(formData, "country"),
+    city: getStringValue(formData, "city"),
     role: getStringValue(formData, "role"),
     business_name: getStringValue(formData, "business_name"),
     business_tax_id: getStringValue(formData, "business_tax_id"),
@@ -71,10 +151,15 @@ function collectRegisterFields(formData: FormData) {
       "interested_solution_other_text",
     ),
     provider_type: getStringValue(formData, "provider_type"),
-    headline: getStringValue(formData, "headline"),
-    bio: getStringValue(formData, "bio"),
+    tax_id: getStringValue(formData, "tax_id"),
     years_of_experience: getStringValue(formData, "years_of_experience"),
     portfolio_url: getStringValue(formData, "portfolio_url"),
+    social_link: getStringValue(formData, "social_link"),
+    service_category_other_text: getStringValue(
+      formData,
+      "service_category_other_text",
+    ),
+    about: getStringValue(formData, "about"),
   };
 }
 
@@ -91,12 +176,13 @@ function validationError(
 }
 
 async function redirectToRoleHome(
-  role: UserRole,
+  role: "client" | "provider" | "admin",
   userId: string,
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
 ): Promise<never> {
-  const resolved = await resolvePostAuthPath(supabase, userId, role);
-  redirect(resolved.path);
+  void userId;
+  void supabase;
+  redirect(getDashboardPathForRole(role));
 }
 
 export async function registerAction(
@@ -109,6 +195,7 @@ export async function registerAction(
     password: getStringValue(formData, "password"),
     years_of_experience: fields.years_of_experience,
     interested_solution_types: formData.getAll("interested_solution_types"),
+    service_categories: formData.getAll("service_categories"),
   });
 
   if (!parsed.success) {
@@ -125,6 +212,9 @@ export async function registerAction(
         data: {
           full_name: parsed.data.full_name,
           email: parsed.data.email,
+          phone: parsed.data.phone,
+          country: parsed.data.country,
+          city: parsed.data.city,
           role: parsed.data.role,
           ...(parsed.data.role === "client"
             ? {
@@ -139,10 +229,14 @@ export async function registerAction(
               }
             : {
                 provider_type: parsed.data.provider_type,
-                headline: parsed.data.headline,
-                bio: parsed.data.bio,
+                tax_id: parsed.data.tax_id,
                 years_of_experience: parsed.data.years_of_experience,
                 portfolio_url: parsed.data.portfolio_url,
+                social_link: parsed.data.social_link,
+                service_categories: parsed.data.service_categories,
+                service_category_other_text:
+                  parsed.data.service_category_other_text,
+                about: parsed.data.about,
               }),
         },
       },
@@ -178,6 +272,9 @@ export async function registerAction(
       role: parsed.data.role,
       full_name: parsed.data.full_name,
       email: parsed.data.email,
+      phone: parsed.data.phone,
+      country: parsed.data.country,
+      city: parsed.data.city,
     });
 
     if (profileError) {
@@ -205,10 +302,13 @@ export async function registerAction(
       const { error } = await supabase.from("provider_profiles").insert({
         user_id: userId,
         provider_type: parsed.data.provider_type,
-        headline: parsed.data.headline,
-        bio: parsed.data.bio,
+        tax_id: parsed.data.tax_id,
         years_of_experience: parsed.data.years_of_experience,
         portfolio_url: parsed.data.portfolio_url,
+        social_link: parsed.data.social_link,
+        service_categories: parsed.data.service_categories,
+        service_category_other_text: parsed.data.service_category_other_text,
+        about: parsed.data.about,
       });
 
       if (error) {

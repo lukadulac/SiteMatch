@@ -68,6 +68,9 @@ export async function ensureUserProfile(
       role,
       full_name: fullName,
       email: user.email ?? "",
+      phone: getStringValue(metadata.phone),
+      country: getStringValue(metadata.country),
+      city: getStringValue(metadata.city),
     },
     { onConflict: "id" },
   );
@@ -105,18 +108,40 @@ export async function ensureUserProfile(
   if (role === "provider") {
     const providerType = getStringValue(metadata.provider_type);
     const safeProviderType =
-      providerType === "agency" || providerType === "studio"
+      providerType === "agency" ||
+      providerType === "company" ||
+      providerType === "studio" ||
+      providerType === "other"
         ? providerType
         : "freelancer";
+
+    const rawServiceCategories: Database["public"]["Enums"]["provider_service_category"][] =
+      Array.isArray(metadata.service_categories)
+        ? metadata.service_categories.filter(
+            (
+              value,
+            ): value is Database["public"]["Enums"]["provider_service_category"] =>
+              typeof value === "string" && value.trim() !== "",
+          )
+        : [];
+    const serviceCategories: Database["public"]["Enums"]["provider_service_category"][] =
+      rawServiceCategories.length > 0 ? rawServiceCategories : ["other"];
+    const serviceCategoryOtherText =
+      getStringValue(metadata.service_category_other_text) ??
+      getStringValue(metadata.headline) ??
+      "Legacy provider category";
 
     const { error } = await supabase.from("provider_profiles").upsert(
       {
         user_id: user.id,
         provider_type: safeProviderType,
-        headline: getStringValue(metadata.headline),
-        bio: getStringValue(metadata.bio),
+        tax_id: getStringValue(metadata.tax_id),
         years_of_experience: getNumberValue(metadata.years_of_experience),
         portfolio_url: getStringValue(metadata.portfolio_url),
+        social_link: getStringValue(metadata.social_link),
+        service_categories: serviceCategories,
+        service_category_other_text: serviceCategoryOtherText,
+        about: getStringValue(metadata.about),
       },
       { onConflict: "user_id" },
     );
