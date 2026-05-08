@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { DashboardActionState } from "@/app/dashboard/action-state";
 import { clientProfileInputSchema } from "@/lib/auth/client-profile";
+import { providerProfileInputSchema } from "@/lib/auth/provider-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
 
@@ -227,46 +228,29 @@ const clientProfileSchema = profileSchema
   .and(clientProfileInputSchema);
 
 const providerProfileSchema = profileSchema
-  .extend({
-    provider_type: z.enum(["freelancer", "agency", "studio"]),
-    headline: optionalText("Headline", {
-      min: 3,
-      max: 120,
-    }),
-    bio: optionalText("Bio", {
-      min: 20,
-      max: 2000,
-    }),
-    years_of_experience: optionalInteger,
-    portfolio_url: optionalUrl,
-    hourly_rate_min: optionalNonNegativeNumber,
-    hourly_rate_max: optionalNonNegativeNumber,
-    fixed_price_min: optionalNonNegativeNumber,
-    fixed_price_max: optionalNonNegativeNumber,
-    availability: z.enum(["available", "busy", "unavailable"]),
-  })
+  .and(providerProfileInputSchema)
   .superRefine((data, ctx) => {
-    if (
-      data.hourly_rate_min != null &&
-      data.hourly_rate_max != null &&
-      data.hourly_rate_min > data.hourly_rate_max
-    ) {
+    if (!data.phone) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["hourly_rate_max"],
-        message: "Max hourly rate must be greater than or equal to min.",
+        path: ["phone"],
+        message: "Phone is required.",
       });
     }
 
-    if (
-      data.fixed_price_min != null &&
-      data.fixed_price_max != null &&
-      data.fixed_price_min > data.fixed_price_max
-    ) {
+    if (!data.country) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["fixed_price_max"],
-        message: "Max fixed price must be greater than or equal to min.",
+        path: ["country"],
+        message: "Country is required.",
+      });
+    }
+
+    if (!data.city) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["city"],
+        message: "City is required.",
       });
     }
   });
@@ -402,15 +386,16 @@ export async function updateProviderProfileAction(
     country: getFormValue(formData, "country"),
     city: getFormValue(formData, "city"),
     provider_type: getFormValue(formData, "provider_type"),
-    headline: getFormValue(formData, "headline"),
-    bio: getFormValue(formData, "bio"),
+    tax_id: getFormValue(formData, "tax_id"),
     years_of_experience: getFormValue(formData, "years_of_experience"),
     portfolio_url: getFormValue(formData, "portfolio_url"),
-    hourly_rate_min: getFormValue(formData, "hourly_rate_min"),
-    hourly_rate_max: getFormValue(formData, "hourly_rate_max"),
-    fixed_price_min: getFormValue(formData, "fixed_price_min"),
-    fixed_price_max: getFormValue(formData, "fixed_price_max"),
-    availability: getFormValue(formData, "availability"),
+    social_link: getFormValue(formData, "social_link"),
+    service_categories: formData.getAll("service_categories"),
+    service_category_other_text: getFormValue(
+      formData,
+      "service_category_other_text",
+    ),
+    about: getFormValue(formData, "about"),
   });
 
   if (!parsed.success) {
@@ -449,15 +434,13 @@ export async function updateProviderProfileAction(
     {
       user_id: user.id,
       provider_type: parsed.data.provider_type,
-      headline: parsed.data.headline,
-      bio: parsed.data.bio,
+      tax_id: parsed.data.tax_id,
       years_of_experience: parsed.data.years_of_experience,
       portfolio_url: parsed.data.portfolio_url,
-      hourly_rate_min: parsed.data.hourly_rate_min,
-      hourly_rate_max: parsed.data.hourly_rate_max,
-      fixed_price_min: parsed.data.fixed_price_min,
-      fixed_price_max: parsed.data.fixed_price_max,
-      availability: parsed.data.availability,
+      social_link: parsed.data.social_link,
+      service_categories: parsed.data.service_categories,
+      service_category_other_text: parsed.data.service_category_other_text,
+      about: parsed.data.about,
     };
 
   const { error: providerProfileError } = await supabase
