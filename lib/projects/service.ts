@@ -55,7 +55,7 @@ export async function createProject(
   const { data: clientProfile, error: clientProfileError } = await supabase
     .from("client_profiles")
     .select(
-      "business_name, business_type, business_description, preferred_language",
+      "business_name, business_type, business_type_text, project_idea, interested_solution_types, interested_solution_other_text",
     )
     .eq("user_id", userId)
     .maybeSingle();

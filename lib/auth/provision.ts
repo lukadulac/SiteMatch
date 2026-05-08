@@ -82,7 +82,17 @@ export async function ensureUserProfile(
         user_id: user.id,
         business_name: getStringValue(metadata.business_name) ?? fullName,
         business_type: getStringValue(metadata.business_type),
-        preferred_language: getStringValue(metadata.preferred_language),
+        business_type_text: getStringValue(metadata.business_type_text),
+        business_tax_id: getStringValue(metadata.business_tax_id),
+        project_idea: getStringValue(metadata.project_idea),
+        interested_solution_types: Array.isArray(metadata.interested_solution_types)
+          ? metadata.interested_solution_types.filter(
+              (value): value is string => typeof value === "string" && value.trim() !== "",
+            )
+          : [],
+        interested_solution_other_text: getStringValue(
+          metadata.interested_solution_other_text,
+        ),
       },
       { onConflict: "user_id" },
     );

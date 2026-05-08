@@ -1,32 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0b1020;
-  --foreground: #f5f7fb;
+  --background: #f5f5f4;
+  --foreground: #111111;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-panel: #11172a;
-  --color-panel-strong: #171f35;
-  --color-panel-soft: #1a233b;
-  --color-accent: #14a800;
-  --color-accent-strong: #108a00;
-  --color-accent-ink: #041006;
-  --color-secondary: #7ff05f;
-  --color-muted: #9ea8c1;
-  --color-line: rgba(199, 214, 255, 0.11);
-  --color-line-strong: rgba(199, 214, 255, 0.22);
-  --font-sans: "Segoe UI", "Avenir Next", "Helvetica Neue", sans-serif;
+  --color-panel: #ffffff;
+  --color-panel-strong: #f4f4f5;
+  --color-panel-soft: #fafaf9;
+  --color-accent: #111111;
+  --color-accent-strong: #000000;
+  --color-accent-ink: #ffffff;
+  --color-secondary: #52525b;
+  --color-muted: #52525b;
+  --color-line: rgba(17, 17, 17, 0.08);
+  --color-line-strong: rgba(17, 17, 17, 0.12);
+  --font-sans: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
   --font-mono: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09110e;
-    --foreground: #eff7f2;
-  }
 }
 
 * {
@@ -35,11 +28,9 @@
 
 html {
   background:
-    radial-gradient(circle at 8% 10%, rgba(89, 125, 255, 0.18), transparent 24%),
-    radial-gradient(circle at 88% 14%, rgba(32, 201, 151, 0.08), transparent 18%),
-    radial-gradient(circle at 50% 120%, rgba(114, 77, 255, 0.12), transparent 30%),
-    var(--background);
-  color-scheme: dark;
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), transparent 32%),
+    linear-gradient(180deg, #f8f7f4 0%, #efeee9 100%);
+  color-scheme: light;
 }
 
 body {
@@ -54,6 +45,6 @@ a {
 }
 
 ::selection {
-  background: rgba(111, 218, 68, 0.28);
+  background: rgba(17, 17, 17, 0.18);
   color: var(--foreground);
 }

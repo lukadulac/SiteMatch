@@ -7,13 +7,22 @@ import {
 } from "@/app/dashboard/action-state";
 import { completeClientOnboardingAction } from "@/app/onboarding/actions";
 import { FormSubmitButton } from "@/components/dashboard/form-submit-button";
+import {
+  clientBusinessTypeLabels,
+  clientBusinessTypes,
+  clientSolutionTypeLabels,
+  clientSolutionTypes,
+} from "@/lib/auth/client-profile";
 
 type ClientOnboardingFormProps = {
   clientProfile: {
     business_name: string | null;
+    business_tax_id: string | null;
     business_type: string | null;
-    business_description: string | null;
-    preferred_language: string | null;
+    business_type_text: string | null;
+    project_idea: string | null;
+    interested_solution_types: string[];
+    interested_solution_other_text: string | null;
   } | null;
 };
 
@@ -72,37 +81,100 @@ export function ClientOnboardingForm({
           placeholder="Acme Dental Studio"
         />
         <InputField
-          label="Business type"
-          name="business_type"
-          defaultValue={clientProfile?.business_type}
-          error={fieldError(state, "business_type")}
-          placeholder="Local service business"
+          label="PIB"
+          name="business_tax_id"
+          defaultValue={clientProfile?.business_tax_id}
+          error={fieldError(state, "business_tax_id")}
+          placeholder="Optional"
         />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-[#f3fff7]">
+            Business category
+          </span>
+          <select
+            name="business_type"
+            defaultValue={clientProfile?.business_type ?? ""}
+            className="w-full rounded-2xl border border-line bg-[#0d1425] px-4 py-3 text-sm text-foreground outline-none transition focus:border-accent"
+          >
+            <option value="" disabled>
+              Choose category
+            </option>
+            {clientBusinessTypes.map((option) => (
+              <option key={option} value={option}>
+                {clientBusinessTypeLabels[option]}
+              </option>
+            ))}
+          </select>
+          {fieldError(state, "business_type") ? (
+            <p className="text-sm text-red-300">{fieldError(state, "business_type")}</p>
+          ) : null}
+        </label>
         <InputField
-          label="Preferred language"
-          name="preferred_language"
-          defaultValue={clientProfile?.preferred_language}
-          error={fieldError(state, "preferred_language")}
-          placeholder="English"
+          label="Other business category"
+          name="business_type_text"
+          defaultValue={clientProfile?.business_type_text}
+          error={fieldError(state, "business_type_text")}
+          placeholder="Only if you selected Other"
         />
         <div className="sm:col-span-2">
           <label className="block space-y-2">
             <span className="text-sm font-medium text-[#f3fff7]">
-              Business description
+              Project idea
             </span>
             <textarea
-              name="business_description"
+              name="project_idea"
               rows={5}
-              defaultValue={clientProfile?.business_description ?? ""}
-              placeholder="Tell providers what your business does and what kind of website you need."
+              defaultValue={clientProfile?.project_idea ?? ""}
+              placeholder="Describe your business, what you want to build, and what outcome you expect."
               className="w-full rounded-2xl border border-line bg-[#0d1425] px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-accent"
             />
-            {fieldError(state, "business_description") ? (
+            {fieldError(state, "project_idea") ? (
               <p className="text-sm text-red-300">
-                {fieldError(state, "business_description")}
+                {fieldError(state, "project_idea")}
               </p>
             ) : null}
           </label>
+        </div>
+        <fieldset className="space-y-3 sm:col-span-2">
+          <legend className="text-sm font-medium text-[#f3fff7]">
+            Digital solution types
+          </legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {clientSolutionTypes.map((option) => {
+              const isChecked =
+                clientProfile?.interested_solution_types?.includes(option) ?? false;
+
+              return (
+                <label
+                  key={option}
+                  className="flex items-center gap-3 rounded-2xl border border-line bg-[#0d1425] px-4 py-3 text-sm text-foreground"
+                >
+                  <input
+                    type="checkbox"
+                    name="interested_solution_types"
+                    value={option}
+                    defaultChecked={isChecked}
+                    className="h-4 w-4"
+                  />
+                  <span>{clientSolutionTypeLabels[option]}</span>
+                </label>
+              );
+            })}
+          </div>
+          {fieldError(state, "interested_solution_types") ? (
+            <p className="text-sm text-red-300">
+              {fieldError(state, "interested_solution_types")}
+            </p>
+          ) : null}
+        </fieldset>
+        <div className="sm:col-span-2">
+          <InputField
+            label="Other solution type"
+            name="interested_solution_other_text"
+            defaultValue={clientProfile?.interested_solution_other_text}
+            error={fieldError(state, "interested_solution_other_text")}
+            placeholder="Only if you selected Other"
+          />
         </div>
       </div>
 

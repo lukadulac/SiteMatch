@@ -10,6 +10,12 @@ import {
   registerAction,
 } from "@/app/(auth)/actions";
 import { SubmitButton } from "@/components/auth/submit-button";
+import {
+  clientBusinessTypeLabels,
+  clientBusinessTypes,
+  clientSolutionTypeLabels,
+  clientSolutionTypes,
+} from "@/lib/auth/client-profile";
 
 function fieldError(
   state: AuthActionState,
@@ -155,19 +161,91 @@ export function RegisterForm() {
             placeholder="Acme Inc."
           />
           <TextField
-            label="Business type"
-            name="business_type"
-            defaultValue={state.fields?.business_type}
-            error={fieldError(state, "business_type")}
-            placeholder="SaaS, startup, local business"
+            label="PIB"
+            name="business_tax_id"
+            defaultValue={state.fields?.business_tax_id}
+            error={fieldError(state, "business_tax_id")}
+            placeholder="Optional"
+          />
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-[#f3fff7]">
+              Business category
+            </span>
+            <select
+              name="business_type"
+              defaultValue={state.fields?.business_type || ""}
+              className="w-full rounded-2xl border border-line bg-[#0a120f] px-4 py-3 text-sm text-foreground outline-none transition focus:border-accent"
+            >
+              <option value="" disabled>
+                Choose category
+              </option>
+              {clientBusinessTypes.map((option) => (
+                <option key={option} value={option}>
+                  {clientBusinessTypeLabels[option]}
+                </option>
+              ))}
+            </select>
+            {fieldError(state, "business_type") ? (
+              <p className="text-sm text-red-700">{fieldError(state, "business_type")}</p>
+            ) : null}
+          </label>
+          <TextField
+            label="Other business category"
+            name="business_type_text"
+            defaultValue={state.fields?.business_type_text}
+            error={fieldError(state, "business_type_text")}
+            placeholder="Only if you selected Other"
           />
           <div className="sm:col-span-2">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-[#f3fff7]">
+                Project idea
+              </span>
+              <textarea
+                name="project_idea"
+                rows={5}
+                defaultValue={state.fields?.project_idea}
+                placeholder="Describe your business, what you want to build, and the type of result you expect."
+                className="w-full rounded-2xl border border-line bg-[#0a120f] px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-[#6f8d80] focus:border-accent focus:bg-[#0d1713]"
+              />
+              {fieldError(state, "project_idea") ? (
+                <p className="text-sm text-red-700">{fieldError(state, "project_idea")}</p>
+              ) : null}
+            </label>
+          </div>
+          <fieldset className="space-y-3 sm:col-span-2">
+            <legend className="text-sm font-medium text-[#f3fff7]">
+              Digital solution types
+            </legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {clientSolutionTypes.map((option) => (
+                <label
+                  key={option}
+                  className="flex items-center gap-3 rounded-2xl border border-line bg-[#0a120f] px-4 py-3 text-sm text-foreground"
+                >
+                  <input
+                    type="checkbox"
+                    name="interested_solution_types"
+                    value={option}
+                    className="h-4 w-4"
+                  />
+                  <span>{clientSolutionTypeLabels[option]}</span>
+                </label>
+              ))}
+            </div>
+            {fieldError(state, "interested_solution_types") ? (
+              <p className="text-sm text-red-700">
+                {fieldError(state, "interested_solution_types")}
+              </p>
+            ) : null}
+          </fieldset>
+          <div className="sm:col-span-2">
             <TextField
-              label="Preferred language"
-              name="preferred_language"
-              defaultValue={state.fields?.preferred_language}
-              error={fieldError(state, "preferred_language")}
-              placeholder="English"
+              label="Other solution type"
+              name="interested_solution_other_text"
+              defaultValue={state.fields?.interested_solution_other_text}
+              error={fieldError(state, "interested_solution_other_text")}
+              placeholder="Only if you selected Other"
             />
           </div>
         </div>

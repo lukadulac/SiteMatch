@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { DashboardActionState } from "@/app/dashboard/action-state";
+import { clientProfileInputSchema } from "@/lib/auth/client-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
 
@@ -166,8 +167,6 @@ const optionalInteger = z
 
 const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
 const placeNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
-const businessNamePattern = /^[\p{L}\p{M}\d&'",./()\- ]+$/u;
-const businessTypePattern = /^[\p{L}\p{M}\d&'",/()\- ]+$/u;
 const companySizePattern = /^[\p{L}\p{M}\d+,/()\- ]+$/u;
 const phonePattern = /^\+?[0-9().\-\s]{7,20}$/;
 
@@ -214,41 +213,18 @@ const profileSchema = z.object({
   }),
 });
 
-const clientProfileSchema = profileSchema.extend({
-  business_name: requiredText("Business name", {
-    min: 2,
-    max: 100,
-    pattern: businessNamePattern,
-    patternMessage:
-      "Business name can only contain letters, numbers, spaces, and common business punctuation.",
-  }),
-  business_type: requiredText("Business type", {
-    min: 2,
-    max: 60,
-    pattern: businessTypePattern,
-    patternMessage:
-      "Business type can only contain letters, numbers, spaces, and common punctuation.",
-  }),
-  business_description: requiredText("Business description", {
-    min: 30,
-    max: 1200,
-  }),
-  website_url: optionalUrl,
-  company_size: optionalText("Company size", {
-    min: 1,
-    max: 40,
-    pattern: companySizePattern,
-    patternMessage:
-      "Company size can only contain letters, numbers, spaces, plus signs, commas, slashes, and hyphens.",
-  }),
-  preferred_language: requiredText("Preferred language", {
-    min: 2,
-    max: 40,
-    pattern: placeNamePattern,
-    patternMessage:
-      "Preferred language can only contain letters, spaces, apostrophes, periods, and hyphens.",
-  }),
-});
+const clientProfileSchema = profileSchema
+  .extend({
+    website_url: optionalUrl,
+    company_size: optionalText("Company size", {
+      min: 1,
+      max: 40,
+      pattern: companySizePattern,
+      patternMessage:
+        "Company size can only contain letters, numbers, spaces, plus signs, commas, slashes, and hyphens.",
+    }),
+  })
+  .and(clientProfileInputSchema);
 
 const providerProfileSchema = profileSchema
   .extend({
@@ -335,11 +311,17 @@ export async function updateClientProfileAction(
     country: getFormValue(formData, "country"),
     city: getFormValue(formData, "city"),
     business_name: getFormValue(formData, "business_name"),
+    business_tax_id: getFormValue(formData, "business_tax_id"),
     business_type: getFormValue(formData, "business_type"),
-    business_description: getFormValue(formData, "business_description"),
+    business_type_text: getFormValue(formData, "business_type_text"),
+    project_idea: getFormValue(formData, "project_idea"),
+    interested_solution_types: formData.getAll("interested_solution_types"),
+    interested_solution_other_text: getFormValue(
+      formData,
+      "interested_solution_other_text",
+    ),
     website_url: getFormValue(formData, "website_url"),
     company_size: getFormValue(formData, "company_size"),
-    preferred_language: getFormValue(formData, "preferred_language"),
   });
 
   if (!parsed.success) {
@@ -380,11 +362,14 @@ export async function updateClientProfileAction(
       {
         user_id: user.id,
         business_name: parsed.data.business_name,
+        business_tax_id: parsed.data.business_tax_id,
         business_type: parsed.data.business_type,
-        business_description: parsed.data.business_description,
+        business_type_text: parsed.data.business_type_text,
+        project_idea: parsed.data.project_idea,
+        interested_solution_types: parsed.data.interested_solution_types,
+        interested_solution_other_text: parsed.data.interested_solution_other_text,
         website_url: parsed.data.website_url,
         company_size: parsed.data.company_size,
-        preferred_language: parsed.data.preferred_language,
       },
       { onConflict: "user_id" },
     );

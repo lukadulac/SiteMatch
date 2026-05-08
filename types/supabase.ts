@@ -97,12 +97,16 @@ export type Database = {
         Row: {
           business_description: string | null;
           business_name: string;
+          business_tax_id: string | null;
           business_type_text: string | null;
           business_type: string | null;
           company_size: string | null;
           created_at: string;
           id: string;
+          interested_solution_other_text: string | null;
+          interested_solution_types: string[];
           preferred_language: string | null;
+          project_idea: string | null;
           target_market_text: string | null;
           user_id: string;
           website_url: string | null;
@@ -110,12 +114,16 @@ export type Database = {
         Insert: {
           business_description?: string | null;
           business_name: string;
+          business_tax_id?: string | null;
           business_type_text?: string | null;
           business_type?: string | null;
           company_size?: string | null;
           created_at?: string;
           id?: string;
+          interested_solution_other_text?: string | null;
+          interested_solution_types?: string[];
           preferred_language?: string | null;
+          project_idea?: string | null;
           target_market_text?: string | null;
           user_id: string;
           website_url?: string | null;
@@ -123,12 +131,16 @@ export type Database = {
         Update: {
           business_description?: string | null;
           business_name?: string;
+          business_tax_id?: string | null;
           business_type_text?: string | null;
           business_type?: string | null;
           company_size?: string | null;
           created_at?: string;
           id?: string;
+          interested_solution_other_text?: string | null;
+          interested_solution_types?: string[];
           preferred_language?: string | null;
+          project_idea?: string | null;
           target_market_text?: string | null;
           user_id?: string;
           website_url?: string | null;

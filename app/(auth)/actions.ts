@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { AuthActionState } from "@/app/(auth)/action-state";
+import { clientProfileInputSchema } from "@/lib/auth/client-profile";
 import { resolvePostAuthPath } from "@/lib/auth/profile-completion";
 import type { UserRole } from "@/lib/auth/roles";
 import { ensureUserProfile } from "@/lib/auth/provision";
@@ -13,23 +14,22 @@ const passwordSchema = z
   .min(8, "Password must be at least 8 characters long.")
   .max(72, "Password must be 72 characters or fewer.");
 
+const accountSchema = z.object({
+  full_name: z.string().trim().min(2, "Full name is required."),
+  email: z.string().trim().email("Enter a valid email address."),
+  password: passwordSchema,
+});
+
+const clientRegisterSchema = clientProfileInputSchema.extend({
+  full_name: z.string().trim().min(2, "Full name is required."),
+  email: z.string().trim().email("Enter a valid email address."),
+  password: passwordSchema,
+  role: z.literal("client"),
+});
+
 const registerSchema = z.discriminatedUnion("role", [
-  z.object({
-    full_name: z.string().trim().min(2, "Full name is required."),
-    email: z.string().trim().email("Enter a valid email address."),
-    password: passwordSchema,
-    role: z.literal("client"),
-    business_name: z.string().trim().min(2, "Business name is required."),
-    business_type: z.string().trim().min(1, "Business type is required."),
-    preferred_language: z
-      .string()
-      .trim()
-      .min(1, "Preferred language is required."),
-  }),
-  z.object({
-    full_name: z.string().trim().min(2, "Full name is required."),
-    email: z.string().trim().email("Enter a valid email address."),
-    password: passwordSchema,
+  clientRegisterSchema,
+  accountSchema.extend({
     role: z.literal("provider"),
     provider_type: z.enum(["freelancer", "agency", "studio"]),
     headline: z.string().trim().min(3, "Headline is required."),
@@ -62,8 +62,14 @@ function collectRegisterFields(formData: FormData) {
     email: getStringValue(formData, "email"),
     role: getStringValue(formData, "role"),
     business_name: getStringValue(formData, "business_name"),
+    business_tax_id: getStringValue(formData, "business_tax_id"),
     business_type: getStringValue(formData, "business_type"),
-    preferred_language: getStringValue(formData, "preferred_language"),
+    business_type_text: getStringValue(formData, "business_type_text"),
+    project_idea: getStringValue(formData, "project_idea"),
+    interested_solution_other_text: getStringValue(
+      formData,
+      "interested_solution_other_text",
+    ),
     provider_type: getStringValue(formData, "provider_type"),
     headline: getStringValue(formData, "headline"),
     bio: getStringValue(formData, "bio"),
@@ -102,6 +108,7 @@ export async function registerAction(
     ...fields,
     password: getStringValue(formData, "password"),
     years_of_experience: fields.years_of_experience,
+    interested_solution_types: formData.getAll("interested_solution_types"),
   });
 
   if (!parsed.success) {
@@ -122,8 +129,13 @@ export async function registerAction(
           ...(parsed.data.role === "client"
             ? {
                 business_name: parsed.data.business_name,
+                business_tax_id: parsed.data.business_tax_id,
                 business_type: parsed.data.business_type,
-                preferred_language: parsed.data.preferred_language,
+                business_type_text: parsed.data.business_type_text,
+                project_idea: parsed.data.project_idea,
+                interested_solution_types: parsed.data.interested_solution_types,
+                interested_solution_other_text:
+                  parsed.data.interested_solution_other_text,
               }
             : {
                 provider_type: parsed.data.provider_type,
@@ -176,8 +188,12 @@ export async function registerAction(
       const { error } = await supabase.from("client_profiles").insert({
         user_id: userId,
         business_name: parsed.data.business_name,
+        business_tax_id: parsed.data.business_tax_id,
         business_type: parsed.data.business_type,
-        preferred_language: parsed.data.preferred_language,
+        business_type_text: parsed.data.business_type_text,
+        project_idea: parsed.data.project_idea,
+        interested_solution_types: parsed.data.interested_solution_types,
+        interested_solution_other_text: parsed.data.interested_solution_other_text,
       });
 
       if (error) {

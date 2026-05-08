@@ -4,20 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { DashboardActionState } from "@/app/dashboard/action-state";
+import { clientProfileInputSchema } from "@/lib/auth/client-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-const clientOnboardingSchema = z.object({
-  business_name: z.string().trim().min(2, "Business name is required."),
-  business_type: z.string().trim().min(2, "Business type is required."),
-  business_description: z
-    .string()
-    .trim()
-    .min(20, "Business description must be at least 20 characters long."),
-  preferred_language: z
-    .string()
-    .trim()
-    .min(1, "Preferred language is required."),
-});
 
 const providerOnboardingSchema = z.object({
   provider_type: z.enum(["freelancer", "agency", "studio"]),
@@ -69,11 +57,17 @@ export async function completeClientOnboardingAction(
   _previousState: DashboardActionState,
   formData: FormData,
 ): Promise<DashboardActionState> {
-  const parsed = clientOnboardingSchema.safeParse({
+  const parsed = clientProfileInputSchema.safeParse({
     business_name: getFormValue(formData, "business_name"),
+    business_tax_id: getFormValue(formData, "business_tax_id"),
     business_type: getFormValue(formData, "business_type"),
-    business_description: getFormValue(formData, "business_description"),
-    preferred_language: getFormValue(formData, "preferred_language"),
+    business_type_text: getFormValue(formData, "business_type_text"),
+    project_idea: getFormValue(formData, "project_idea"),
+    interested_solution_types: formData.getAll("interested_solution_types"),
+    interested_solution_other_text: getFormValue(
+      formData,
+      "interested_solution_other_text",
+    ),
   });
 
   if (!parsed.success) {
@@ -94,9 +88,12 @@ export async function completeClientOnboardingAction(
     {
       user_id: user.id,
       business_name: parsed.data.business_name,
+      business_tax_id: parsed.data.business_tax_id,
       business_type: parsed.data.business_type,
-      business_description: parsed.data.business_description,
-      preferred_language: parsed.data.preferred_language,
+      business_type_text: parsed.data.business_type_text,
+      project_idea: parsed.data.project_idea,
+      interested_solution_types: parsed.data.interested_solution_types,
+      interested_solution_other_text: parsed.data.interested_solution_other_text,
     },
     { onConflict: "user_id" },
   );

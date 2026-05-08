@@ -7,8 +7,10 @@ type ClientCompletionProfile =
       Database["public"]["Tables"]["client_profiles"]["Row"],
       | "business_name"
       | "business_type"
-      | "business_description"
-      | "preferred_language"
+      | "business_type_text"
+      | "project_idea"
+      | "interested_solution_types"
+      | "interested_solution_other_text"
     >
   | null;
 type ProviderCompletionProfile =
@@ -35,8 +37,11 @@ export function isClientProfileComplete(profile: ClientCompletionProfile) {
   return (
     hasText(profile.business_name) &&
     hasText(profile.business_type) &&
-    hasText(profile.business_description) &&
-    hasText(profile.preferred_language)
+    (profile.business_type !== "other" || hasText(profile.business_type_text)) &&
+    hasText(profile.project_idea) &&
+    profile.interested_solution_types.length > 0 &&
+    (!profile.interested_solution_types.includes("other") ||
+      hasText(profile.interested_solution_other_text))
   );
 }
 
@@ -92,7 +97,7 @@ export async function getProfileCompletionStatus(
     const { data, error } = await supabase
       .from("client_profiles")
       .select(
-        "id, business_name, business_type, business_description, preferred_language, website_url, company_size, created_at, user_id",
+        "id, business_name, business_type, business_type_text, business_tax_id, project_idea, interested_solution_types, interested_solution_other_text, website_url, company_size, created_at, user_id",
       )
       .eq("user_id", userId)
       .maybeSingle();
