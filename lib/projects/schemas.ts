@@ -151,3 +151,28 @@ export const createProjectSchema = z
   });
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
+export const updateProjectSchema = createProjectSchema;
+export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
+
+const optionalApplicationMoney = z
+  .number()
+  .finite()
+  .min(0)
+  .nullable()
+  .optional();
+
+export const createApplicationSchema = z.object({
+  cover_message: requiredText(20, 2000),
+  proposed_price: optionalApplicationMoney,
+  estimated_delivery_days: z.number().int().positive().max(365).nullable().optional(),
+});
+
+export type CreateApplicationInput = z.infer<typeof createApplicationSchema>;
+
+export const updateApplicationStatusSchema = z.object({
+  status: z.enum(["viewed", "accepted", "rejected"]),
+});
+
+export type UpdateApplicationStatusInput = z.infer<
+  typeof updateApplicationStatusSchema
+>;
