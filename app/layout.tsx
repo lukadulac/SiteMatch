@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { SiteHeader } from "@/components/navigation/site-header";
+import Header from "@/components/header/Header";
+import SiteContainer from "@/components/layout/SiteContainer";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,8 +15,10 @@ export default function RootLayout({
 	return (
 		<html lang="en" className="h-full antialiased">
 			<body className="min-h-full flex flex-col bg-background text-foreground">
-				<SiteHeader />
-				<div className="flex-1">{children}</div>
+				<Header />
+				<main className="flex-1 w-full">
+					<SiteContainer>{children}</SiteContainer>
+				</main>
 			</body>
 		</html>
 	);

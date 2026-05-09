@@ -1,11 +1,10 @@
-import { BackendOnlyShell } from "@/components/navigation/backend-only-shell";
-
 export default async function ClientDashboardPage() {
   return (
-    <BackendOnlyShell
-      eyebrow="Client Dashboard Disabled"
-      title="Client dashboard je ugasen."
-      description="Nema aktivnog profila, edit forme ni korisnickog toka dok se backend ne zavrsi do kraja."
-    />
+    <section>
+      <h1 className="text-3xl font-bold text-black">Client Dashboard</h1>
+      <p className="mt-4 text-base text-zinc-600">
+        Placeholder client dashboard stranica.
+      </p>
+    </section>
   );
 }

@@ -48,3 +48,23 @@ a {
   background: rgba(17, 17, 17, 0.18);
   color: var(--foreground);
 }
+
+.mobile-menu-panel {
+  transform-origin: top;
+}
+
+details[open] > .mobile-menu-panel {
+  animation: mobile-menu-drop 220ms ease-out;
+}
+
+@keyframes mobile-menu-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
