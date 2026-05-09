@@ -1,11 +1,10 @@
-import { BackendOnlyShell } from "@/components/navigation/backend-only-shell";
-
 export default async function AdminDashboardPage() {
   return (
-    <BackendOnlyShell
-      eyebrow="Admin Dashboard Disabled"
-      title="Admin UI je ugasen."
-      description="Ceo admin frontend je uklonjen iz upotrebe dok traje backend-first razvoj."
-    />
+    <section>
+      <h1 className="text-3xl font-bold text-black">Admin Dashboard</h1>
+      <p className="mt-4 text-base text-zinc-600">
+        Placeholder admin dashboard stranica.
+      </p>
+    </section>
   );
 }

@@ -1,11 +1,10 @@
-import { BackendOnlyShell } from "@/components/navigation/backend-only-shell";
-
 export default async function ProviderDashboardPage() {
   return (
-    <BackendOnlyShell
-      eyebrow="Provider Dashboard Disabled"
-      title="Provider dashboard je ugasen."
-      description="Sve provider stranice su svedene na staticki prikaz dok ne zavrsimo backend i novi interfejs."
-    />
+    <section>
+      <h1 className="text-3xl font-bold text-black">Provider Dashboard</h1>
+      <p className="mt-4 text-base text-zinc-600">
+        Placeholder provider dashboard stranica.
+      </p>
+    </section>
   );
 }

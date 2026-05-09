@@ -1,11 +1,10 @@
-import { BackendOnlyShell } from "@/components/navigation/backend-only-shell";
-
 export default async function DashboardPage() {
   return (
-    <BackendOnlyShell
-      eyebrow="Dashboard Disabled"
-      title="Dashboard je privremeno sklonjen."
-      description="Postojeci dashboard tokovi i edit forme su uklonjeni iz upotrebe dok backend ne bude kompletan."
-    />
+    <section>
+      <h1 className="text-3xl font-bold text-black">Dashboard</h1>
+      <p className="mt-4 text-base text-zinc-600">
+        Placeholder dashboard stranica.
+      </p>
+    </section>
   );
 }

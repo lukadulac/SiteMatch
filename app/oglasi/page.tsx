@@ -1,11 +1,10 @@
-import { BackendOnlyShell } from "@/components/navigation/backend-only-shell";
-
 export default async function ListingsPage() {
   return (
-    <BackendOnlyShell
-      eyebrow="Listings Disabled"
-      title="Oglasi nisu dostupni."
-      description="Marketplace i listing UI su uklonjeni dok ne zavrsimo backend za projekte, statuse, filtere i autorizaciju."
-    />
+    <section>
+      <h1 className="text-3xl font-bold text-black">Listings Page</h1>
+      <p className="mt-4 text-base text-zinc-600">
+        Placeholder listings stranica sa istim globalnim layoutom.
+      </p>
+    </section>
   );
 }

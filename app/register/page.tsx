@@ -1,11 +1,10 @@
-import { BackendOnlyShell } from "@/components/navigation/backend-only-shell";
-
 export default async function RegisterPage() {
   return (
-    <BackendOnlyShell
-      eyebrow="Register Disabled"
-      title="Registracija je privremeno iskljucena."
-      description="Ne zelimo polovicne forme ni aktivan user flow dok ne zakljucamo backend. Stranica ostaje ugasena do sledece faze."
-    />
+    <section>
+      <h1 className="text-3xl font-bold text-black">Register Page</h1>
+      <p className="mt-4 text-base text-zinc-600">
+        Placeholder register stranica spremna za frontend implementaciju.
+      </p>
+    </section>
   );
 }
