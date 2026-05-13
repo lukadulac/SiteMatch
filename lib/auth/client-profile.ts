@@ -43,9 +43,10 @@ export const clientSolutionTypes = [
   "ecommerce_store",
   "web_application",
   "portfolio",
-  "landing_page",
   "booking_platform",
-  "blog_media",
+  "Web_design",
+  "Video_Editing",
+  "Digital_Markteing",
   "other",
 ] as const;
 
@@ -75,9 +76,10 @@ export const clientSolutionTypeLabels: Record<
   ecommerce_store: "E-commerce store",
   web_application: "Web application",
   portfolio: "Portfolio",
-  landing_page: "Landing page",
   booking_platform: "Booking platform",
-  blog_media: "Blog / media site",
+  Web_design: "Web design",
+  Video_Editing: "Video editing",
+  Digital_Markteing:"Digital markteing",
   other: "Other",
 };
 

@@ -160,6 +160,14 @@ function collectRegisterFields(formData: FormData) {
       "service_category_other_text",
     ),
     about: getStringValue(formData, "about"),
+    interested_solution_types: formData
+      .getAll("interested_solution_types")
+      .filter((value): value is string => typeof value === "string")
+      .join("||"),
+    service_categories: formData
+      .getAll("service_categories")
+      .filter((value): value is string => typeof value === "string")
+      .join("||"),
   };
 }
 

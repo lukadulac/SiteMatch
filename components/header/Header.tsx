@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
@@ -7,7 +8,15 @@ import { headerTheme } from "@/theme/header-theme";
 
 const CLOSE_ANIMATION_MS = 260;
 
-export default function Header() {
+type HeaderProps = {
+	isAuthenticated?: boolean;
+	profileHref?: string;
+};
+
+export default function Header({
+	isAuthenticated = false,
+	profileHref = "/dashboard",
+}: HeaderProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isMenuMounted, setIsMenuMounted] = useState(false);
 	const menuRef = useRef<HTMLDivElement>(null);
@@ -34,12 +43,7 @@ export default function Header() {
 	};
 
 	useEffect(() => {
-		if (isOpen) {
-			setIsMenuMounted(true);
-			return;
-		}
-
-		if (!isMenuMounted) {
+		if (isOpen || !isMenuMounted) {
 			return;
 		}
 
@@ -103,10 +107,13 @@ export default function Header() {
 		>
 			<div className="mx-auto flex max-w-300 items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
 				<Link href="/" className="shrink-0" onClick={closeMenu}>
-					<img
+					<Image
 						src="/images/workbridge-logo.png"
 						alt="WorkBridge"
 						className="h-16 w-auto object-contain sm:h-16 lg:h-20"
+						width={240}
+						height={80}
+						priority
 					/>
 				</Link>
 
@@ -152,22 +159,45 @@ export default function Header() {
 				</nav>
 
 				<div className="hidden items-center gap-4 lg:flex">
-					<Link
-						href="/login"
-						className="text-[16px] font-semibold transition hover:opacity-70"
-						style={{ color: headerTheme.text }}
-					>
-						Log In
-					</Link>
-					<Link
-						href="/register"
-						className="rounded-full px-6 py-3 text-[16px] font-semibold text-white transition hover:opacity-90"
-						style={{
-							background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
-						}}
-					>
-						Sign Up
-					</Link>
+					{isAuthenticated ? (
+						<>
+							<Link
+								href="/dashboard"
+								className="text-[16px] font-semibold transition hover:opacity-70"
+								style={{ color: headerTheme.text }}
+							>
+								Dashboard
+							</Link>
+							<Link
+								href={profileHref}
+								className="rounded-full px-6 py-3 text-[16px] font-semibold text-white transition hover:opacity-90"
+								style={{
+									background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
+								}}
+							>
+								Profile
+							</Link>
+						</>
+					) : (
+						<>
+							<Link
+								href="/login"
+								className="text-[16px] font-semibold transition hover:opacity-70"
+								style={{ color: headerTheme.text }}
+							>
+								Log In
+							</Link>
+							<Link
+								href="/register"
+								className="rounded-full px-6 py-3 text-[16px] font-semibold text-white transition hover:opacity-90"
+								style={{
+									background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
+								}}
+							>
+								Sign Up
+							</Link>
+						</>
+					)}
 				</div>
 
 				<button
@@ -178,7 +208,7 @@ export default function Header() {
 					aria-expanded={isOpen}
 					aria-label={isOpen ? "Close menu" : "Open menu"}
 				>
-					<img
+					<Image
 						src="/icons/mobile-menu-icon.svg"
 						alt=""
 						aria-hidden="true"
@@ -186,8 +216,10 @@ export default function Header() {
 							isOpen ? "rotate-90 scale-75 opacity-0" : "rotate-0 scale-100 opacity-100"
 						}`}
 						style={{ pointerEvents: "none" }}
+						width={20}
+						height={20}
 					/>
-					<img
+					<Image
 						src="/icons/close-icon.svg"
 						alt=""
 						aria-hidden="true"
@@ -195,6 +227,8 @@ export default function Header() {
 							isOpen ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-75 opacity-0"
 						}`}
 						style={{ pointerEvents: "none" }}
+						width={20}
+						height={20}
 					/>
 				</button>
 			</div>
@@ -249,28 +283,57 @@ export default function Header() {
 									Enterprise
 								</Link>
 							</li>
-							<li className="pt-3">
-								<Link
-									href="/login"
-									onClick={closeMenu}
-									className="block py-2 text-[16px] font-semibold"
-									style={{ color: headerTheme.text }}
-								>
-									Log In
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/register"
-									onClick={closeMenu}
-									className="block rounded-full px-6 py-3 text-center text-[16px] font-semibold text-white"
-									style={{
-										background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
-									}}
-								>
-									Sign Up
-								</Link>
-							</li>
+							{isAuthenticated ? (
+								<>
+									<li className="pt-3">
+										<Link
+											href="/dashboard"
+											onClick={closeMenu}
+											className="block py-2 text-[16px] font-semibold"
+											style={{ color: headerTheme.text }}
+										>
+											Dashboard
+										</Link>
+									</li>
+									<li>
+										<Link
+											href={profileHref}
+											onClick={closeMenu}
+											className="block rounded-full px-6 py-3 text-center text-[16px] font-semibold text-white"
+											style={{
+												background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
+											}}
+										>
+											Profile
+										</Link>
+									</li>
+								</>
+							) : (
+								<>
+									<li className="pt-3">
+										<Link
+											href="/login"
+											onClick={closeMenu}
+											className="block py-2 text-[16px] font-semibold"
+											style={{ color: headerTheme.text }}
+										>
+											Log In
+										</Link>
+									</li>
+									<li>
+										<Link
+											href="/register"
+											onClick={closeMenu}
+											className="block rounded-full px-6 py-3 text-center text-[16px] font-semibold text-white"
+											style={{
+												background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
+											}}
+										>
+											Sign Up
+										</Link>
+									</li>
+								</>
+							)}
 						</ul>
 					</nav>
 				</div>

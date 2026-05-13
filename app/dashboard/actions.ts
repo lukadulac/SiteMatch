@@ -122,50 +122,6 @@ const optionalUrl = z
   })
   .nullable();
 
-const optionalNonNegativeNumber = z
-  .string()
-  .transform(normalizeWhitespace)
-  .transform((value, ctx) => {
-    if (value === "") {
-      return null;
-    }
-
-    const parsed = Number(value);
-
-    if (Number.isNaN(parsed) || parsed < 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Enter a number greater than or equal to 0.",
-      });
-      return z.NEVER;
-    }
-
-    return parsed;
-  })
-  .nullable();
-
-const optionalInteger = z
-  .string()
-  .transform(normalizeWhitespace)
-  .transform((value, ctx) => {
-    if (value === "") {
-      return null;
-    }
-
-    const parsed = Number(value);
-
-    if (!Number.isInteger(parsed) || parsed < 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Enter a whole number greater than or equal to 0.",
-      });
-      return z.NEVER;
-    }
-
-    return parsed;
-  })
-  .nullable();
-
 const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
 const placeNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
 const companySizePattern = /^[\p{L}\p{M}\d+,/()\- ]+$/u;
