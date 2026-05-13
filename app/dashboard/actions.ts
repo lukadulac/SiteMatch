@@ -181,7 +181,32 @@ const clientProfileSchema = profileSchema
         "Company size can only contain letters, numbers, spaces, plus signs, commas, slashes, and hyphens.",
     }),
   })
-  .and(clientProfileInputSchema);
+  .and(clientProfileInputSchema)
+  .superRefine((data, ctx) => {
+    if (!data.phone) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phone"],
+        message: "Phone is required.",
+      });
+    }
+
+    if (!data.country) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["country"],
+        message: "Country is required.",
+      });
+    }
+
+    if (!data.city) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["city"],
+        message: "City is required.",
+      });
+    }
+  });
 
 const providerProfileSchema = profileSchema
   .and(providerProfileInputSchema)
@@ -219,12 +244,14 @@ function getFormValue(formData: FormData, key: string) {
 }
 
 function validationError(
+  fields: Record<string, string> = {},
   fieldErrors: Record<string, string[] | undefined>,
 ): DashboardActionState {
   return {
     formError: "Please fix the highlighted fields.",
     formSuccess: undefined,
     fieldErrors,
+    fields,
   };
 }
 
@@ -245,7 +272,7 @@ export async function updateClientProfileAction(
   _previousState: DashboardActionState,
   formData: FormData,
 ): Promise<DashboardActionState> {
-  const parsed = clientProfileSchema.safeParse({
+  const fields = {
     full_name: getFormValue(formData, "full_name"),
     phone: getFormValue(formData, "phone"),
     country: getFormValue(formData, "country"),
@@ -255,17 +282,36 @@ export async function updateClientProfileAction(
     business_type: getFormValue(formData, "business_type"),
     business_type_text: getFormValue(formData, "business_type_text"),
     project_idea: getFormValue(formData, "project_idea"),
-    interested_solution_types: formData.getAll("interested_solution_types"),
+    interested_solution_types: formData
+      .getAll("interested_solution_types")
+      .filter((value): value is string => typeof value === "string")
+      .join("||"),
     interested_solution_other_text: getFormValue(
       formData,
       "interested_solution_other_text",
     ),
     website_url: getFormValue(formData, "website_url"),
     company_size: getFormValue(formData, "company_size"),
+  };
+
+  const parsed = clientProfileSchema.safeParse({
+    full_name: fields.full_name,
+    phone: fields.phone,
+    country: fields.country,
+    city: fields.city,
+    business_name: fields.business_name,
+    business_tax_id: fields.business_tax_id,
+    business_type: fields.business_type,
+    business_type_text: fields.business_type_text,
+    project_idea: fields.project_idea,
+    interested_solution_types: formData.getAll("interested_solution_types"),
+    interested_solution_other_text: fields.interested_solution_other_text,
+    website_url: fields.website_url,
+    company_size: fields.company_size,
   });
 
   if (!parsed.success) {
-    return validationError(parsed.error.flatten().fieldErrors);
+    return validationError(fields, parsed.error.flatten().fieldErrors);
   }
 
   const { supabase, user } = await getAuthenticatedUser();
@@ -275,6 +321,7 @@ export async function updateClientProfileAction(
       formError: "You must be signed in to update your profile.",
       formSuccess: undefined,
       fieldErrors: {},
+      fields,
     };
   }
 
@@ -293,6 +340,7 @@ export async function updateClientProfileAction(
       formError: profileError.message,
       formSuccess: undefined,
       fieldErrors: {},
+      fields,
     };
   }
 
@@ -319,6 +367,7 @@ export async function updateClientProfileAction(
       formError: clientProfileError.message,
       formSuccess: undefined,
       fieldErrors: {},
+      fields,
     };
   }
 
@@ -329,6 +378,7 @@ export async function updateClientProfileAction(
     formError: undefined,
     formSuccess: "Your client profile was updated.",
     fieldErrors: {},
+    fields: {},
   };
 }
 
@@ -336,7 +386,7 @@ export async function updateProviderProfileAction(
   _previousState: DashboardActionState,
   formData: FormData,
 ): Promise<DashboardActionState> {
-  const parsed = providerProfileSchema.safeParse({
+  const fields = {
     full_name: getFormValue(formData, "full_name"),
     phone: getFormValue(formData, "phone"),
     country: getFormValue(formData, "country"),
@@ -346,16 +396,34 @@ export async function updateProviderProfileAction(
     years_of_experience: getFormValue(formData, "years_of_experience"),
     portfolio_url: getFormValue(formData, "portfolio_url"),
     social_link: getFormValue(formData, "social_link"),
-    service_categories: formData.getAll("service_categories"),
+    service_categories: formData
+      .getAll("service_categories")
+      .filter((value): value is string => typeof value === "string")
+      .join("||"),
     service_category_other_text: getFormValue(
       formData,
       "service_category_other_text",
     ),
     about: getFormValue(formData, "about"),
+  };
+
+  const parsed = providerProfileSchema.safeParse({
+    full_name: fields.full_name,
+    phone: fields.phone,
+    country: fields.country,
+    city: fields.city,
+    provider_type: fields.provider_type,
+    tax_id: fields.tax_id,
+    years_of_experience: fields.years_of_experience,
+    portfolio_url: fields.portfolio_url,
+    social_link: fields.social_link,
+    service_categories: formData.getAll("service_categories"),
+    service_category_other_text: fields.service_category_other_text,
+    about: fields.about,
   });
 
   if (!parsed.success) {
-    return validationError(parsed.error.flatten().fieldErrors);
+    return validationError(fields, parsed.error.flatten().fieldErrors);
   }
 
   const { supabase, user } = await getAuthenticatedUser();
@@ -365,6 +433,7 @@ export async function updateProviderProfileAction(
       formError: "You must be signed in to update your profile.",
       formSuccess: undefined,
       fieldErrors: {},
+      fields,
     };
   }
 
@@ -383,6 +452,7 @@ export async function updateProviderProfileAction(
       formError: profileError.message,
       formSuccess: undefined,
       fieldErrors: {},
+      fields,
     };
   }
 
@@ -408,6 +478,7 @@ export async function updateProviderProfileAction(
       formError: providerProfileError.message,
       formSuccess: undefined,
       fieldErrors: {},
+      fields,
     };
   }
 
@@ -418,6 +489,7 @@ export async function updateProviderProfileAction(
     formError: undefined,
     formSuccess: "Your provider profile was updated.",
     fieldErrors: {},
+    fields: {},
   };
 }
 
@@ -433,7 +505,7 @@ export async function updateAdminProfileAction(
   });
 
   if (!parsed.success) {
-    return validationError(parsed.error.flatten().fieldErrors);
+    return validationError({}, parsed.error.flatten().fieldErrors);
   }
 
   const { supabase, user } = await getAuthenticatedUser();

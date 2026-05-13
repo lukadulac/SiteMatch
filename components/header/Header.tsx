@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import { logoutAction } from "@/app/(auth)/actions";
 import { headerTheme } from "@/theme/header-theme";
 
 const CLOSE_ANIMATION_MS = 260;
@@ -161,13 +162,13 @@ export default function Header({
 				<div className="hidden items-center gap-4 lg:flex">
 					{isAuthenticated ? (
 						<>
-							<Link
+							{/* <Link
 								href="/dashboard"
 								className="text-[16px] font-semibold transition hover:opacity-70"
 								style={{ color: headerTheme.text }}
 							>
 								Dashboard
-							</Link>
+							</Link> */}
 							<Link
 								href={profileHref}
 								className="rounded-full px-6 py-3 text-[16px] font-semibold text-white transition hover:opacity-90"
@@ -177,6 +178,15 @@ export default function Header({
 							>
 								Profile
 							</Link>
+							<form action={logoutAction}>
+								<button
+									type="submit"
+									className="text-[16px] font-semibold transition hover:opacity-70"
+									style={{ color: headerTheme.text }}
+								>
+									Log out
+								</button>
+							</form>
 						</>
 					) : (
 						<>
@@ -306,6 +316,18 @@ export default function Header({
 										>
 											Profile
 										</Link>
+									</li>
+									<li>
+										<form action={logoutAction}>
+											<button
+												type="submit"
+												onClick={closeMenu}
+												className="block py-2 text-[16px] font-semibold"
+												style={{ color: headerTheme.text }}
+											>
+												Log out
+											</button>
+										</form>
 									</li>
 								</>
 							) : (
