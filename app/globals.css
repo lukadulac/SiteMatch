@@ -68,3 +68,28 @@ details[open] > .mobile-menu-panel {
     transform: translateY(0) scaleY(1);
   }
 }
+
+.whiteIcon{
+  filter: brightness(0) saturate(100%) invert(100%) sepia(75%) saturate(255%) hue-rotate(348deg) brightness(119%) contrast(100%) !important;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+input:autofill,
+textarea:autofill,
+select:autofill {
+  -webkit-text-fill-color: #111111 !important;
+  caret-color: #111111;
+  border-color: rgba(107, 114, 128, 1);
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  background-color: #ffffff !important;
+  transition: background-color 9999s ease-out 0s;
+}
