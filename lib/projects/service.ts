@@ -52,6 +52,7 @@ type ClientProjectSummary = Pick<
   | "budget_max"
   | "deadline_type"
   | "deadline_date"
+  | "desired_start_date"
   | "updated_at"
   | "created_at"
 >;
@@ -378,7 +379,7 @@ export async function getClientProjects(
   const { data, error } = await supabase
     .from("projects")
     .select(
-      "id, slug, title, status, description, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, updated_at, created_at",
+      "id, slug, title, status, description, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, desired_start_date, updated_at, created_at",
     )
     .eq("client_id", userId)
     .order("updated_at", { ascending: false });

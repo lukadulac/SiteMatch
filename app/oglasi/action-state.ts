@@ -1,13 +1,11 @@
-export type DashboardActionState = {
+export type ListingsActionState = {
   formError?: string;
-  formSuccess?: string;
   fieldErrors?: Record<string, string[] | undefined>;
   fields?: Record<string, string>;
 };
 
-export const initialDashboardActionState: DashboardActionState = {
+export const initialListingsActionState: ListingsActionState = {
   formError: undefined,
-  formSuccess: undefined,
   fieldErrors: {},
   fields: {},
 };
