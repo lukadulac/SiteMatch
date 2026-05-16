@@ -71,6 +71,48 @@ function statusClasses(status: string) {
   }
 }
 
+function formatBudgetLabel(
+  budgetType: string,
+  budgetMin: number | null,
+  budgetMax: number | null,
+) {
+  const formatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+
+  if (budgetType === "fixed") {
+    if (budgetMin != null) {
+      return `Fixed: ${formatter.format(budgetMin)}`;
+    }
+
+    if (budgetMax != null) {
+      return `Fixed: ${formatter.format(budgetMax)}`;
+    }
+
+    return "Fixed budget";
+  }
+
+  if (budgetType === "negotiable") {
+    return "Negotiable";
+  }
+
+  if (budgetMin != null && budgetMax != null) {
+    return `${formatter.format(budgetMin)} - ${formatter.format(budgetMax)}`;
+  }
+
+  if (budgetMin != null) {
+    return `From ${formatter.format(budgetMin)}`;
+  }
+
+  if (budgetMax != null) {
+    return `Up to ${formatter.format(budgetMax)}`;
+  }
+
+  return "Budget not set";
+}
+
 export default async function ClientDashboardPage() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -208,19 +250,19 @@ export default async function ClientDashboardPage() {
               activeProjects.slice(0, 3).map((project) => (
                 <article
                   key={project.id}
-                  className="rounded-[1.5rem] border border-line p-5"
+                  className="rounded-3xl border border-line p-5"
                 >
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="text-xl font-semibold text-black">
                         {project.title}
                       </h3>
-                      <p className="mt-2 max-w-2xl text-sm leading-6 text-secondary">
+                      <p className="mt-2 max-w-2xl line-clamp-3 break-all text-sm leading-6 text-secondary">
                         {project.description}
                       </p>
                     </div>
                     <span
-                      className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${statusClasses(
+                      className={`inline-flex shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${statusClasses(
                         project.status,
                       )}`}
                     >
@@ -228,24 +270,43 @@ export default async function ClientDashboardPage() {
                     </span>
                   </div>
 
-                  <div className="mt-5 grid gap-4 text-sm text-secondary md:grid-cols-3">
-                    <p>Created: {formatDateLabel(project.created_at)}</p>
-                    <p>Updated: {formatDateLabel(project.updated_at)}</p>
+                  <div className="mt-5 grid gap-4 text-sm text-secondary md:grid-cols-2 xl:grid-cols-4">
+                    <p>
+                      Budget:{" "}
+                      {formatBudgetLabel(
+                        project.budget_type,
+                        project.budget_min,
+                        project.budget_max,
+                      )}
+                    </p>
                     <p>Deadline: {formatDateLabel(project.deadline_date)}</p>
+                    <p>
+                      Preferred start date:{" "}
+                      {formatDateLabel(project.desired_start_date)}
+                    </p>
+                    <p>Created: {formatDateLabel(project.created_at)}</p>
                   </div>
 
                   <div className="mt-5 flex flex-wrap gap-3">
                     <Link
-                      href={`/oglasi/${project.slug}`}
+                      href={`/oglasi/${project.id}`}
                       className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
                     >
                       View Details
                     </Link>
+                    {(project.status === "draft" || project.status === "published") ? (
+                      <Link
+                        href={`/oglasi/${project.id}/edit`}
+                        className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                      >
+                        {project.status === "draft" ? "Continue editing" : "Edit listing"}
+                      </Link>
+                    ) : null}
                   </div>
                 </article>
               ))
             ) : (
-              <div className="rounded-[1.5rem] border border-dashed border-line p-8 text-sm text-secondary">
+              <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
                 You do not have active projects yet. Create your first listing to
                 start receiving provider interest.
               </div>
@@ -266,7 +327,7 @@ export default async function ClientDashboardPage() {
                   return (
                     <article
                       key={conversation.id}
-                      className="rounded-[1.5rem] border border-line p-4"
+                      className="rounded-3xl border border-line p-4"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>
@@ -304,7 +365,7 @@ export default async function ClientDashboardPage() {
                 </Link>
               </>
             ) : (
-              <div className="rounded-[1.5rem] border border-dashed border-line p-8 text-sm text-secondary">
+              <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
                 No conversations yet. Once you connect with providers, messages
                 will appear here.
               </div>
@@ -315,7 +376,7 @@ export default async function ClientDashboardPage() {
 
       <div
         id="profile"
-        className={`rounded-[2rem] border p-5 sm:p-6 ${
+        className={`rounded-4xl border p-5 sm:p-6 ${
           isComplete
             ? "border-green-200 bg-green-50"
             : "border-amber-200 bg-amber-50"
