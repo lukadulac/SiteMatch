@@ -131,7 +131,7 @@ export default function Header({
 						</li>
 						<li>
 							<Link
-								href="/"
+								href="/jobs"
 								className="text-[16px] font-semibold transition hover:opacity-70"
 								style={{ color: headerTheme.muted }}
 							>
@@ -265,7 +265,7 @@ export default function Header({
 							</li>
 							<li>
 								<Link
-									href="/"
+									href="/jobs"
 									onClick={closeMenu}
 									className="block py-2 text-[16px] font-semibold"
 									style={{ color: headerTheme.muted }}

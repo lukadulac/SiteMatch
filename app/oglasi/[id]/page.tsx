@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { updateClientApplicationStatusAction } from "@/app/oglasi/actions";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
-import { getClientProjectById } from "@/lib/projects/service";
+import {
+  getClientProjectById,
+  getProjectApplicationsForClient,
+} from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -99,6 +103,52 @@ function statusClasses(status: string) {
   }
 }
 
+function applicationStatusLabel(status: string) {
+  switch (status) {
+    case "pending":
+      return "Pending";
+    case "viewed":
+      return "Viewed";
+    case "shortlisted":
+      return "Shortlisted";
+    case "accepted":
+      return "Accepted";
+    case "rejected":
+      return "Rejected";
+    default:
+      return "Withdrawn";
+  }
+}
+
+function applicationStatusClasses(status: string) {
+  switch (status) {
+    case "pending":
+      return "bg-blue-50 text-blue-700";
+    case "viewed":
+      return "bg-zinc-100 text-zinc-700";
+    case "shortlisted":
+      return "bg-amber-50 text-amber-700";
+    case "accepted":
+      return "bg-emerald-50 text-emerald-700";
+    case "rejected":
+      return "bg-red-50 text-red-700";
+    default:
+      return "bg-zinc-100 text-zinc-700";
+  }
+}
+
+function formatPrice(value: number | null) {
+  if (value == null) {
+    return "Not specified";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export default async function ListingDetailsPage({ params }: PageProps) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -121,10 +171,17 @@ export default async function ListingDetailsPage({ params }: PageProps) {
   }
 
   const { id } = await params;
-  const projectResult = await getClientProjectById(supabase, user.id, id);
+  const [projectResult, applicationsResult] = await Promise.all([
+    getClientProjectById(supabase, user.id, id),
+    getProjectApplicationsForClient(supabase, user.id, id),
+  ]);
 
   if (projectResult.error) {
     throw new Error(projectResult.error);
+  }
+
+  if (applicationsResult.error) {
+    throw new Error(applicationsResult.error);
   }
 
   if (!projectResult.data) {
@@ -132,6 +189,11 @@ export default async function ListingDetailsPage({ params }: PageProps) {
   }
 
   const project = projectResult.data;
+  const applications = applicationsResult.data ?? [];
+  const activeApplications = applications.filter(
+    (application) =>
+      application.status !== "rejected" && application.status !== "withdrawn",
+  );
 
   return (
     <section className="space-y-8 py-4 sm:py-8">
@@ -209,6 +271,143 @@ export default async function ListingDetailsPage({ params }: PageProps) {
             {formatDateLabel(project.created_at)}
           </p>
         </article>
+      </section>
+
+      <section className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-8">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-secondary">
+              Provider applications
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-black">
+              Review incoming proposals
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-secondary">
+              Compare provider fit, proposed pricing, and delivery estimates before
+              accepting one proposal.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-line bg-panel-soft px-4 py-3 text-sm font-semibold text-black">
+            {activeApplications.length} active / {applications.length} total
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          {applications.length > 0 ? (
+            applications.map((application) => {
+              const canUpdate =
+                application.status !== "accepted" &&
+                application.status !== "rejected" &&
+                application.status !== "withdrawn";
+              const acceptAction = updateClientApplicationStatusAction.bind(
+                null,
+                project.id,
+                application.id,
+                "accepted",
+              );
+              const rejectAction = updateClientApplicationStatusAction.bind(
+                null,
+                project.id,
+                application.id,
+                "rejected",
+              );
+
+              return (
+                <article
+                  key={application.id}
+                  className="rounded-[1.75rem] border border-line bg-white p-5"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="text-xl font-semibold text-black">
+                          {application.provider?.full_name ?? "Provider"}
+                        </h3>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${applicationStatusClasses(
+                            application.status,
+                          )}`}
+                        >
+                          {applicationStatusLabel(application.status)}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-secondary">
+                        {application.provider?.email ? (
+                          <p>{application.provider.email}</p>
+                        ) : null}
+                        {application.provider?.phone ? (
+                          <p>{application.provider.phone}</p>
+                        ) : null}
+                        {application.provider?.city || application.provider?.country ? (
+                          <p>
+                            {[application.provider.city, application.provider.country]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {canUpdate ? (
+                      <div className="flex flex-wrap gap-3">
+                        <form action={acceptAction}>
+                          <button
+                            type="submit"
+                            className="inline-flex items-center justify-center rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/85"
+                          >
+                            Accept
+                          </button>
+                        </form>
+                        <form action={rejectAction}>
+                          <button
+                            type="submit"
+                            className="inline-flex items-center justify-center rounded-2xl border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                          >
+                            Reject
+                          </button>
+                        </form>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-5 grid gap-4 text-sm text-secondary md:grid-cols-3">
+                    <p>
+                      <span className="font-semibold text-black">Price:</span>{" "}
+                      {formatPrice(application.proposed_price)}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-black">Delivery:</span>{" "}
+                      {application.estimated_delivery_days != null
+                        ? `${application.estimated_delivery_days} days`
+                        : "Flexible"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-black">Submitted:</span>{" "}
+                      {formatDateLabel(application.created_at)}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-line bg-panel-soft p-4">
+                    <p className="text-sm font-semibold text-black">Proposal</p>
+                    <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-secondary">
+                      {application.cover_message}
+                    </p>
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <div className="rounded-[1.75rem] border border-dashed border-line-strong bg-panel-soft p-8 text-center">
+              <h3 className="text-xl font-semibold text-black">
+                No applications yet
+              </h3>
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-secondary">
+                Provider proposals will appear here once this published brief starts
+                receiving applications.
+              </p>
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.9fr)]">

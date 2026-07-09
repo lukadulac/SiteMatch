@@ -31,6 +31,7 @@ html {
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), transparent 32%),
     linear-gradient(180deg, #f8f7f4 0%, #efeee9 100%);
   color-scheme: light;
+  scroll-behavior: smooth;
 }
 
 body {
