@@ -20,6 +20,35 @@ type MetaOption = {
   description: string | null;
 };
 
+export type ClientProjectFormInitialValues = {
+  id: string;
+  title: string;
+  description: string;
+  service_type_id: string;
+  business_domain_id: string | null;
+  business_domain_other_text: string | null;
+  business_context_text: string | null;
+  what_do_you_need_text: string;
+  goal_other_text: string | null;
+  budget_type: "fixed" | "range" | "negotiable";
+  budget_min: number | null;
+  budget_max: number | null;
+  deadline_type: "specific_date" | "flexible" | "asap";
+  deadline_date: string | null;
+  desired_start_date: string | null;
+  has_existing_website: boolean;
+  existing_website_url: string | null;
+  needs_design: boolean;
+  needs_seo: boolean;
+  needs_content_writing: boolean;
+  is_remote_friendly: boolean;
+  preferred_language: string | null;
+  preferred_provider_type: "freelancer" | "agency" | "studio" | "any";
+  goal_ids: string[];
+  feature_ids: string[];
+  status: string;
+};
+
 type ClientProjectFormProps = {
   meta: {
     serviceTypes: Database["public"]["Tables"]["service_types"]["Row"][];
@@ -30,34 +59,7 @@ type ClientProjectFormProps = {
   profileComplete: boolean;
   mode?: "create" | "edit";
   projectId?: string;
-  initialValues?: {
-    id: string;
-    title: string;
-    description: string;
-    service_type_id: string;
-    business_domain_id: string | null;
-    business_domain_other_text: string | null;
-    business_context_text: string | null;
-    what_do_you_need_text: string;
-    goal_other_text: string | null;
-    budget_type: "fixed" | "range" | "negotiable";
-    budget_min: number | null;
-    budget_max: number | null;
-    deadline_type: "specific_date" | "flexible" | "asap";
-    deadline_date: string | null;
-    desired_start_date: string | null;
-    has_existing_website: boolean;
-    existing_website_url: string | null;
-    needs_design: boolean;
-    needs_seo: boolean;
-    needs_content_writing: boolean;
-    is_remote_friendly: boolean;
-    preferred_language: string | null;
-    preferred_provider_type: "freelancer" | "agency" | "studio" | "any";
-    goal_ids: string[];
-    feature_ids: string[];
-    status: string;
-  };
+  initialValues?: ClientProjectFormInitialValues;
 };
 
 type FieldProps = {

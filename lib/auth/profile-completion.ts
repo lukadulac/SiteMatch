@@ -1,4 +1,3 @@
-import type { UserRole } from "@/lib/auth/roles";
 import type { Database } from "@/types/supabase";
 
 type ClientCompletionProfile =
@@ -30,16 +29,4 @@ export function isClientProfileComplete(profile: ClientCompletionProfile) {
     (!profile.interested_solution_types.includes("other") ||
       hasText(profile.interested_solution_other_text))
   );
-}
-
-export function getDashboardPathForRole(role: UserRole) {
-  if (role === "client") {
-    return "/dashboard/client";
-  }
-
-  if (role === "provider") {
-    return "/dashboard/provider";
-  }
-
-  return "/dashboard/admin";
 }

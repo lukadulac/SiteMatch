@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getDashboardPathForRole } from "@/lib/auth/profile-completion";
-import { isAppRole } from "@/lib/auth/roles";
+import { getDashboardPath, isAppRole } from "@/lib/auth/roles";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import {
   applySupabaseCookies,
@@ -43,7 +42,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const pathname = request.nextUrl.pathname;
-  const expectedDashboardPath = getDashboardPathForRole(profile.role);
+  const expectedDashboardPath = getDashboardPath(profile.role);
 
   if (pathname === "/dashboard") {
     return redirectWithCookies(request, getResponse(), expectedDashboardPath);

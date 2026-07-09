@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClientProjectForm } from "@/components/projects/client-project-form";
+import {
+  ClientProjectForm,
+  type ClientProjectFormInitialValues,
+} from "@/components/projects/client-project-form";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
 import { getDashboardPath } from "@/lib/auth/roles";
@@ -70,7 +73,7 @@ export default async function EditListingPage({ params }: PageProps) {
   }
 
   const project = projectResult.data;
-  const initialValues = {
+  const initialValues: ClientProjectFormInitialValues = {
     id: project.id,
     title: project.title,
     description: project.description,
@@ -97,7 +100,7 @@ export default async function EditListingPage({ params }: PageProps) {
     goal_ids: project.goal_ids,
     feature_ids: project.feature_ids,
     status: project.status,
-  } as const;
+  };
 
   const profileComplete = isClientProfileComplete(clientProfileResult.data);
 
