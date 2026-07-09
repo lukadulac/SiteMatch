@@ -5,8 +5,8 @@ import { z } from "zod";
 import type { AuthActionState } from "@/app/(auth)/action-state";
 import { clientProfileInputSchema } from "@/lib/auth/client-profile";
 import { providerProfileInputSchema } from "@/lib/auth/provider-profile";
-import { getDashboardPathForRole } from "@/lib/auth/profile-completion";
 import { ensureUserProfile } from "@/lib/auth/provision";
+import { getDashboardPath } from "@/lib/auth/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const passwordSchema = z
@@ -190,7 +190,7 @@ async function redirectToRoleHome(
 ): Promise<never> {
   void userId;
   void supabase;
-  redirect(getDashboardPathForRole(role));
+  redirect(getDashboardPath(role));
 }
 
 export async function registerAction(
