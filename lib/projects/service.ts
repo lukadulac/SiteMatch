@@ -93,6 +93,7 @@ type ClientProjectApplicationSummary = Pick<
   | "project_id"
   | "provider_id"
   | "status"
+  | "cover_message"
   | "proposed_price"
   | "estimated_delivery_days"
   | "created_at"
@@ -678,7 +679,7 @@ export async function getProjectApplicationsForClient(
   const { data, error } = await supabase
     .from("applications")
     .select(
-      "id, project_id, provider_id, status, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, email, phone, country, city)",
+      "id, project_id, provider_id, status, cover_message, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, email, phone, country, city)",
     )
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });

@@ -39,6 +39,7 @@ type ClientProjectFormProps = {
     business_domain_other_text: string | null;
     business_context_text: string | null;
     what_do_you_need_text: string;
+    goal_other_text: string | null;
     budget_type: "fixed" | "range" | "negotiable";
     budget_min: number | null;
     budget_max: number | null;
@@ -49,6 +50,7 @@ type ClientProjectFormProps = {
     existing_website_url: string | null;
     needs_design: boolean;
     needs_seo: boolean;
+    needs_content_writing: boolean;
     is_remote_friendly: boolean;
     preferred_language: string | null;
     preferred_provider_type: "freelancer" | "agency" | "studio" | "any";
@@ -521,6 +523,7 @@ export function ClientProjectForm({
             label="Other goal"
             name="goal_other_text"
             state={state}
+            defaultValue={initialValues?.goal_other_text ?? ""}
             placeholder="Optional custom goal"
           />
 
@@ -730,6 +733,11 @@ export function ClientProjectForm({
                   description: "Search visibility or technical SEO is part of the scope.",
                 },
                 {
+                  name: "needs_content_writing",
+                  title: "Need content writing",
+                  description: "Copywriting, content structure, or page content is needed.",
+                },
+                {
                   name: "is_remote_friendly",
                   title: "Remote friendly",
                   description: "You are open to working fully remote.",
@@ -749,7 +757,9 @@ export function ClientProjectForm({
                         ? (initialValues?.needs_design ?? false)
                         : item.name === "needs_seo"
                           ? (initialValues?.needs_seo ?? false)
-                          : (initialValues?.is_remote_friendly ?? true),
+                          : item.name === "needs_content_writing"
+                            ? (initialValues?.needs_content_writing ?? false)
+                            : (initialValues?.is_remote_friendly ?? true),
                     )}
                     className="mt-1 h-4 w-4 rounded border-line-strong"
                   />

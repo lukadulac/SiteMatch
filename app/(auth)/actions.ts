@@ -211,6 +211,7 @@ export async function registerAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  let redirectUserId: string | null = null;
 
   try {
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
@@ -324,7 +325,7 @@ export async function registerAction(
       }
     }
 
-    await redirectToRoleHome(parsed.data.role, userId, supabase);
+    redirectUserId = userId;
   } catch (error) {
     await supabase.auth.signOut();
 
@@ -337,6 +338,10 @@ export async function registerAction(
       fieldErrors: {},
       fields,
     };
+  }
+
+  if (redirectUserId) {
+    await redirectToRoleHome(parsed.data.role, redirectUserId, supabase);
   }
 
   return {

@@ -3,8 +3,15 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { ListingsActionState } from "@/app/oglasi/action-state";
-import { createProjectSchema } from "@/lib/projects/schemas";
-import { createProject, updateClientProject } from "@/lib/projects/service";
+import {
+  createProjectSchema,
+  updateApplicationStatusSchema,
+} from "@/lib/projects/schemas";
+import {
+  createProject,
+  updateClientProject,
+  updateProjectApplicationStatusForClient,
+} from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const MULTI_VALUE_SEPARATOR = "||";
@@ -241,4 +248,41 @@ export async function updateClientProjectAction(
   revalidatePath("/oglasi");
   revalidatePath("/dashboard/client");
   redirect("/oglasi");
+}
+
+export async function updateClientApplicationStatusAction(
+  projectId: string,
+  applicationId: string,
+  status: "accepted" | "rejected",
+) {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const parsed = updateApplicationStatusSchema.safeParse({ status });
+
+  if (!parsed.success) {
+    throw new Error("Invalid application status.");
+  }
+
+  const result = await updateProjectApplicationStatusForClient(
+    supabase,
+    user.id,
+    applicationId,
+    parsed.data,
+  );
+
+  if (result.error) {
+    throw new Error(result.error);
+  }
+
+  revalidatePath("/oglasi");
+  revalidatePath(`/oglasi/${projectId}`);
+  revalidatePath("/dashboard/client");
+  revalidatePath("/dashboard/provider");
 }
