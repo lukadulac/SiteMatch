@@ -6,7 +6,8 @@ type Result<T> =
   | { data: T; error?: never }
   | { data?: never; error: string };
 
-type ConversationListItem = Database["public"]["Tables"]["conversations"]["Row"] & {
+export type ConversationListItem =
+  Database["public"]["Tables"]["conversations"]["Row"] & {
   project: Pick<
     Database["public"]["Tables"]["projects"]["Row"],
     "id" | "title" | "slug" | "status"
@@ -30,9 +31,45 @@ type ConversationListItem = Database["public"]["Tables"]["conversations"]["Row"]
   unread_count: number;
 };
 
-type ConversationDetail = ConversationListItem & {
+export type ConversationDetail = ConversationListItem & {
   messages: Array<Database["public"]["Tables"]["messages"]["Row"]>;
+  has_older_messages: boolean;
+  oldest_message_cursor: string | null;
 };
+
+type GetConversationMessagesOptions = {
+  limit?: number;
+  before?: string | null;
+};
+
+async function getConversationByApplicationId(
+  supabase: SupabaseClient<Database>,
+  applicationId: string,
+) {
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("id")
+    .eq("application_id", applicationId)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { data: data?.[0] ?? null };
+}
+
+function canSendMessagesForApplication(
+  status: Database["public"]["Enums"]["application_status"] | null | undefined,
+) {
+  return (
+    status === "pending" ||
+    status === "viewed" ||
+    status === "shortlisted" ||
+    status === "accepted"
+  );
+}
 
 function firstOrNull<T>(value: T | T[] | null): T | null {
   if (Array.isArray(value)) {
@@ -42,28 +79,16 @@ function firstOrNull<T>(value: T | T[] | null): T | null {
   return value;
 }
 
-export async function ensureConversationForAcceptedApplication(
+export async function ensureConversationForApplication(
   supabase: SupabaseClient<Database>,
+  userId: string,
   applicationId: string,
 ) {
-  const { data: existingConversation, error: existingConversationError } =
-    await supabase
-      .from("conversations")
-      .select("id")
-      .eq("application_id", applicationId)
-      .maybeSingle();
-
-  if (existingConversationError) {
-    return { error: existingConversationError.message };
-  }
-
-  if (existingConversation) {
-    return { data: existingConversation };
-  }
-
   const { data: application, error: applicationError } = await supabase
     .from("applications")
-    .select("id, project_id, provider_id, project:projects!applications_project_id_fkey(client_id)")
+    .select(
+      "id, project_id, provider_id, status, project:projects!applications_project_id_fkey(client_id)",
+    )
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -81,6 +106,34 @@ export async function ensureConversationForAcceptedApplication(
     return { error: "Project not found." };
   }
 
+  const isProjectClient = project.client_id === userId;
+  const isApplicationProvider = application.provider_id === userId;
+
+  if (!isProjectClient && !isApplicationProvider) {
+    return { error: "Application not found." };
+  }
+
+  const existingConversationResult = await getConversationByApplicationId(
+    supabase,
+    applicationId,
+  );
+
+  if (existingConversationResult.error) {
+    return { error: existingConversationResult.error };
+  }
+
+  if (existingConversationResult.data) {
+    return { data: existingConversationResult.data };
+  }
+
+  if (!isProjectClient) {
+    return { error: "Conversation not found." };
+  }
+
+  if (!canSendMessagesForApplication(application.status)) {
+    return { error: "This application is no longer open for messaging." };
+  }
+
   const { data, error } = await supabase
     .from("conversations")
     .insert({
@@ -93,6 +146,21 @@ export async function ensureConversationForAcceptedApplication(
     .single();
 
   if (error) {
+    if (error.code === "23505") {
+      const duplicateConversationResult = await getConversationByApplicationId(
+        supabase,
+        applicationId,
+      );
+
+      if (duplicateConversationResult.error) {
+        return { error: duplicateConversationResult.error };
+      }
+
+      if (duplicateConversationResult.data) {
+        return { data: duplicateConversationResult.data };
+      }
+    }
+
     return { error: error.message };
   }
 
@@ -174,7 +242,9 @@ export async function getConversationById(
   supabase: SupabaseClient<Database>,
   userId: string,
   conversationId: string,
+  options: GetConversationMessagesOptions = {},
 ): Promise<Result<ConversationDetail>> {
+  const messageLimit = Math.min(Math.max(options.limit ?? 50, 1), 100);
   const { data, error } = await supabase
     .from("conversations")
     .select(
@@ -191,24 +261,57 @@ export async function getConversationById(
     return { error: "Conversation not found." };
   }
 
-  const { data: messages, error: messagesError } = await supabase
+  let messagesQuery = supabase
     .from("messages")
     .select("*")
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(messageLimit + 1);
+
+  if (options.before) {
+    messagesQuery = messagesQuery.lt("created_at", options.before);
+  }
+
+  const { data: messages, error: messagesError } = await messagesQuery;
 
   if (messagesError) {
     return { error: messagesError.message };
   }
 
-  const conversationMessages = messages ?? [];
+  const newestFirstMessages = messages ?? [];
+  const hasOlderMessages = newestFirstMessages.length > messageLimit;
+  const conversationMessages = newestFirstMessages
+    .slice(0, messageLimit)
+    .reverse();
+
+  const { data: latestMessages, error: latestMessageError } = await supabase
+    .from("messages")
+    .select("id, message_text, sender_id, created_at, is_read")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (latestMessageError) {
+    return { error: latestMessageError.message };
+  }
+
+  const { count: unreadCount, error: unreadCountError } = await supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("conversation_id", conversationId)
+    .neq("sender_id", userId)
+    .eq("is_read", false);
+
+  if (unreadCountError) {
+    return { error: unreadCountError.message };
+  }
+
   const lastMessage =
-    conversationMessages.length > 0
-      ? conversationMessages[conversationMessages.length - 1]
+    latestMessages && latestMessages.length > 0
+      ? latestMessages[0]
       : null;
-  const unreadCount = conversationMessages.filter(
-    (message) => !message.is_read && message.sender_id !== userId,
-  ).length;
+  const oldestMessage =
+    conversationMessages.length > 0 ? conversationMessages[0] : null;
 
   return {
     data: {
@@ -224,10 +327,12 @@ export async function getConversationById(
             sender_id: lastMessage.sender_id,
             created_at: lastMessage.created_at,
             is_read: lastMessage.is_read,
-          }
+        }
         : null,
-      unread_count: unreadCount,
+      unread_count: unreadCount ?? 0,
       messages: conversationMessages,
+      has_older_messages: hasOlderMessages,
+      oldest_message_cursor: oldestMessage?.created_at ?? null,
     },
   };
 }
@@ -246,6 +351,14 @@ export async function sendConversationMessage(
 
   if (conversationResult.error) {
     return { error: conversationResult.error };
+  }
+
+  if (!conversationResult.data) {
+    return { error: "Conversation not found." };
+  }
+
+  if (!canSendMessagesForApplication(conversationResult.data.application?.status)) {
+    return { error: "This application is no longer open for messaging." };
   }
 
   const { data, error } = await supabase

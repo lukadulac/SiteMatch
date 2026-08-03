@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 export const metadata: Metadata = {
-	title: "SiteMatch",
+	title: "Finder",
 };
 
 export default async function RootLayout({

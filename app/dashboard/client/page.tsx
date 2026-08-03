@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import {
   DashboardPanel,
   DashboardShell,
-  DashboardStatCard,
 } from "@/components/dashboard/DashboardShell";
 import { ClientProfileForm } from "@/components/dashboard/client-profile-form";
 import { ensureUserProfile } from "@/lib/auth/provision";
@@ -176,10 +175,6 @@ export default async function ClientDashboardPage() {
   const activeProjects = projects.filter((project) =>
     ["published", "in_discussion", "assigned"].includes(project.status),
   );
-  const completedProjects = projects.filter(
-    (project) => project.status === "completed",
-  );
-  const draftProjects = projects.filter((project) => project.status === "draft");
   const unreadConversations = conversations.filter(
     (conversation) => conversation.unread_count > 0,
   );
@@ -199,14 +194,14 @@ export default async function ClientDashboardPage() {
           count: activeProjects.length,
         },
         {
-          href: "/dashboard/client#messages",
+          href: "/dashboard/messages",
           label: "Messages",
           count: unreadConversations.length,
         },
         { href: "/dashboard/client#profile", label: "Profile" },
       ]}
     >
-      <div className="grid gap-5 xl:grid-cols-4">
+      {/* <div className="grid gap-5 xl:grid-cols-4">
         <DashboardStatCard
           value={String(activeProjects.length)}
           label="Active Projects"
@@ -231,7 +226,7 @@ export default async function ClientDashboardPage() {
               : "Finish profile to unlock the full client flow"
           }
         />
-      </div>
+      </div> */}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.9fr)]">
         <DashboardPanel
@@ -325,8 +320,9 @@ export default async function ClientDashboardPage() {
                       : conversation.provider;
 
                   return (
-                    <article
+                    <Link
                       key={conversation.id}
+                      href={`/dashboard/messages?conversation=${conversation.id}`}
                       className="rounded-3xl border border-line p-4"
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -354,11 +350,11 @@ export default async function ClientDashboardPage() {
                           </span>
                         ) : null}
                       </div>
-                    </article>
+                    </Link>
                   );
                 })}
                 <Link
-                  href="/dashboard/client#messages"
+                  href="/dashboard/messages"
                   className="block rounded-2xl border border-line px-4 py-3 text-center text-sm font-semibold text-black transition hover:bg-black/3"
                 >
                   View All

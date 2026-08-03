@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { ListingsActionState } from "@/app/oglasi/action-state";
+import { ensureConversationForApplication } from "@/lib/messaging/service";
 import {
   createProjectSchema,
   updateApplicationStatusSchema,
@@ -253,7 +254,7 @@ export async function updateClientProjectAction(
 export async function updateClientApplicationStatusAction(
   projectId: string,
   applicationId: string,
-  status: "accepted" | "rejected",
+  status: "shortlisted" | "accepted" | "rejected",
 ) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -278,11 +279,56 @@ export async function updateClientApplicationStatusAction(
   );
 
   if (result.error) {
-    throw new Error(result.error);
+    redirect(
+      `/oglasi/${projectId}?applicationError=${encodeURIComponent(result.error)}`,
+    );
   }
 
   revalidatePath("/oglasi");
   revalidatePath(`/oglasi/${projectId}`);
   revalidatePath("/dashboard/client");
   revalidatePath("/dashboard/provider");
+  redirect(
+    `/oglasi/${projectId}?applicationStatus=${encodeURIComponent(
+      status === "accepted"
+        ? "Application accepted."
+        : status === "shortlisted"
+          ? "Application shortlisted."
+          : "Application rejected.",
+    )}`,
+  );
+}
+
+export async function openApplicationConversationAction(
+  projectId: string,
+  applicationId: string,
+) {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const result = await ensureConversationForApplication(
+    supabase,
+    user.id,
+    applicationId,
+  );
+
+  if (result.error) {
+    throw new Error(result.error);
+  }
+
+  if (!result.data) {
+    throw new Error("Conversation could not be opened.");
+  }
+
+  revalidatePath(`/oglasi/${projectId}`);
+  revalidatePath("/dashboard/client");
+  revalidatePath("/dashboard/provider");
+  revalidatePath("/dashboard/messages");
+  redirect(`/dashboard/messages?conversation=${result.data.id}`);
 }

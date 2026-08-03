@@ -18,3 +18,17 @@ export function createSupabaseBrowserClient() {
 
   return browserClient;
 }
+
+export async function authenticateSupabaseRealtime(
+  supabase = createSupabaseBrowserClient(),
+) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (session?.access_token) {
+    supabase.realtime.setAuth(session.access_token);
+  }
+
+  return session?.access_token ?? null;
+}

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { updateClientApplicationStatusAction } from "@/app/oglasi/actions";
+import {
+  openApplicationConversationAction,
+  updateClientApplicationStatusAction,
+} from "@/app/oglasi/actions";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import {
@@ -12,6 +15,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 type PageProps = {
   params: Promise<{
     id: string;
+  }>;
+  searchParams: Promise<{
+    applicationError?: string;
+    applicationStatus?: string;
   }>;
 };
 
@@ -149,7 +156,10 @@ function formatPrice(value: number | null) {
   }).format(value);
 }
 
-export default async function ListingDetailsPage({ params }: PageProps) {
+export default async function ListingDetailsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -171,6 +181,7 @@ export default async function ListingDetailsPage({ params }: PageProps) {
   }
 
   const { id } = await params;
+  const notices = await searchParams;
   const [projectResult, applicationsResult] = await Promise.all([
     getClientProjectById(supabase, user.id, id),
     getProjectApplicationsForClient(supabase, user.id, id),
@@ -273,6 +284,18 @@ export default async function ListingDetailsPage({ params }: PageProps) {
         </article>
       </section>
 
+      {notices.applicationError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+          {notices.applicationError}
+        </div>
+      ) : null}
+
+      {notices.applicationStatus ? (
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-700">
+          {notices.applicationStatus}
+        </div>
+      ) : null}
+
       <section className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -310,6 +333,17 @@ export default async function ListingDetailsPage({ params }: PageProps) {
                 project.id,
                 application.id,
                 "rejected",
+              );
+              const shortlistAction = updateClientApplicationStatusAction.bind(
+                null,
+                project.id,
+                application.id,
+                "shortlisted",
+              );
+              const messageAction = openApplicationConversationAction.bind(
+                null,
+                project.id,
+                application.id,
               );
 
               return (
@@ -350,6 +384,24 @@ export default async function ListingDetailsPage({ params }: PageProps) {
 
                     {canUpdate ? (
                       <div className="flex flex-wrap gap-3">
+                        <form action={messageAction}>
+                          <button
+                            type="submit"
+                            className="inline-flex items-center justify-center rounded-2xl border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                          >
+                            Message
+                          </button>
+                        </form>
+                        {application.status !== "shortlisted" ? (
+                          <form action={shortlistAction}>
+                            <button
+                              type="submit"
+                              className="inline-flex items-center justify-center rounded-2xl border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                            >
+                              Shortlist
+                            </button>
+                          </form>
+                        ) : null}
                         <form action={acceptAction}>
                           <button
                             type="submit"
