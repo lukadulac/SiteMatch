@@ -120,8 +120,6 @@ const providerRegisterSchema = accountSchema
   .extend({ role: z.literal("provider") })
   .and(providerProfileInputSchema);
 
-const registerSchema = z.union([clientRegisterSchema, providerRegisterSchema]);
-
 const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email address."),
   password: z.string().min(1, "Password is required."),
@@ -198,13 +196,26 @@ export async function registerAction(
   formData: FormData,
 ): Promise<AuthActionState> {
   const fields = collectRegisterFields(formData);
-  const parsed = registerSchema.safeParse({
+  const registerInput = {
     ...fields,
     password: getStringValue(formData, "password"),
     years_of_experience: fields.years_of_experience,
     interested_solution_types: formData.getAll("interested_solution_types"),
     service_categories: formData.getAll("service_categories"),
-  });
+  };
+
+  const parsed =
+    fields.role === "client"
+      ? clientRegisterSchema.safeParse(registerInput)
+      : fields.role === "provider"
+        ? providerRegisterSchema.safeParse(registerInput)
+        : null;
+
+  if (!parsed) {
+    return validationError(fields, {
+      role: ["Choose whether you want to hire talent or find work."],
+    });
+  }
 
   if (!parsed.success) {
     return validationError(fields, parsed.error.flatten().fieldErrors);
@@ -275,54 +286,13 @@ export async function registerAction(
     }
 
     const userId = authData.user.id;
+    const provisioned = await ensureUserProfile(supabase, authData.user);
 
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: userId,
-      role: parsed.data.role,
-      full_name: parsed.data.full_name,
-      email: parsed.data.email,
-      phone: parsed.data.phone,
-      country: parsed.data.country,
-      city: parsed.data.city,
-    });
+    if (provisioned.error || !provisioned.role) {
+      throw new Error(
+        provisioned.error ?? "We could not finish creating your profile.",
+      );
 
-    if (profileError) {
-      throw new Error(profileError.message);
-    }
-
-    if (parsed.data.role === "client") {
-      const { error } = await supabase.from("client_profiles").insert({
-        user_id: userId,
-        business_name: parsed.data.business_name,
-        business_tax_id: parsed.data.business_tax_id,
-        business_type: parsed.data.business_type,
-        business_type_text: parsed.data.business_type_text,
-        project_idea: parsed.data.project_idea,
-        interested_solution_types: parsed.data.interested_solution_types,
-        interested_solution_other_text: parsed.data.interested_solution_other_text,
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-    }
-
-    if (parsed.data.role === "provider") {
-      const { error } = await supabase.from("provider_profiles").insert({
-        user_id: userId,
-        provider_type: parsed.data.provider_type,
-        tax_id: parsed.data.tax_id,
-        years_of_experience: parsed.data.years_of_experience,
-        portfolio_url: parsed.data.portfolio_url,
-        social_link: parsed.data.social_link,
-        service_categories: parsed.data.service_categories,
-        service_category_other_text: parsed.data.service_category_other_text,
-        about: parsed.data.about,
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
     }
 
     redirectUserId = userId;

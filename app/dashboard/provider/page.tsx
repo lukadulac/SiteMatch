@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   DashboardPanel,
@@ -176,7 +177,7 @@ export default async function ProviderDashboardPage() {
           count: applications.length,
         },
         {
-          href: "/dashboard/provider#messages",
+          href: "/dashboard/messages",
           label: "Messages",
           count: unreadConversations.length,
         },
@@ -217,7 +218,7 @@ export default async function ProviderDashboardPage() {
               applications.slice(0, 4).map((application) => (
                 <article
                   key={application.id}
-                  className="rounded-[1.5rem] border border-line p-5"
+                  className="rounded-3xl border border-line p-5"
                 >
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
@@ -260,7 +261,7 @@ export default async function ProviderDashboardPage() {
                 </article>
               ))
             ) : (
-              <div className="rounded-[1.5rem] border border-dashed border-line p-8 text-sm text-secondary">
+              <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
                 You have not submitted applications yet. Once you start applying
                 to projects, they will appear here.
               </div>
@@ -268,7 +269,17 @@ export default async function ProviderDashboardPage() {
           </div>
         </DashboardPanel>
 
-        <DashboardPanel title="Messages">
+        <DashboardPanel
+          title="Messages"
+          action={
+            <Link
+              href="/dashboard/messages"
+              className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+            >
+              View All
+            </Link>
+          }
+        >
           <div id="messages" className="space-y-4">
             {conversations.length > 0 ? (
               conversations.slice(0, 4).map((conversation) => {
@@ -278,9 +289,10 @@ export default async function ProviderDashboardPage() {
                     : conversation.client;
 
                 return (
-                  <article
+                  <Link
                     key={conversation.id}
-                    className="rounded-[1.5rem] border border-line p-4"
+                    href={`/dashboard/messages?conversation=${conversation.id}`}
+                    className="rounded-3xl border border-line p-4"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -307,11 +319,11 @@ export default async function ProviderDashboardPage() {
                         </span>
                       ) : null}
                     </div>
-                  </article>
+                  </Link>
                 );
               })
             ) : (
-              <div className="rounded-[1.5rem] border border-dashed border-line p-8 text-sm text-secondary">
+              <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
                 No conversations yet. When clients contact you, your messages
                 will show up here.
               </div>
@@ -322,7 +334,7 @@ export default async function ProviderDashboardPage() {
 
       <div
         id="profile"
-        className={`rounded-[2rem] border p-5 sm:p-6 ${
+        className={`rounded-4xl border p-5 sm:p-6 ${
           isReady ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"
         }`}
       >

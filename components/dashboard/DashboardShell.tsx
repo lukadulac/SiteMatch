@@ -27,7 +27,7 @@ export function DashboardShell({
 }: DashboardShellProps) {
   return (
     <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
-      <aside className="rounded-[2rem] border border-line bg-white/90 p-4 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
+      <aside className="rounded-4xl border border-line bg-white/90 p-4 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
         <nav aria-label="Dashboard navigation">
           <ul className="space-y-2">
             {navItems.map((item) => (
@@ -60,7 +60,7 @@ export function DashboardShell({
       </aside>
 
       <div className="space-y-8">
-        <div className="flex flex-col gap-5 rounded-[2rem] border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-8 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-5 rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-8 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="text-3xl font-semibold text-black sm:text-4xl">
               {title}
@@ -93,7 +93,7 @@ type StatCardProps = {
 
 export function DashboardStatCard({ value, label, detail }: StatCardProps) {
   return (
-    <div className="rounded-[1.75rem] border border-line bg-white p-6 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
+    <div className="rounded-4xl border border-line bg-white p-6 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
       <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-violet-500 to-pink-500 text-lg font-semibold text-white">
         {label.charAt(0)}
       </div>
@@ -116,7 +116,7 @@ export function DashboardPanel({
   children,
 }: DashboardPanelProps) {
   return (
-    <section className="rounded-[2rem] border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-7">
+    <section className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-7">
       <div className="mb-6 flex items-center justify-between gap-4">
         <h2 className="text-2xl font-semibold text-black">{title}</h2>
         {action}

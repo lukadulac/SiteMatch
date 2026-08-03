@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
-import { ensureConversationForAcceptedApplication } from "@/lib/messaging/service";
 import type {
   CreateApplicationInput,
   CreateProjectInput,
@@ -126,6 +125,22 @@ type ProjectResult<T> =
       data?: never;
       error: string;
     };
+
+type AcceptProjectApplicationRpcRow = {
+  application_id: string;
+  application_status: Database["public"]["Enums"]["application_status"];
+  conversation_id: string;
+};
+
+type SupabaseClientWithAcceptRpc = SupabaseClient<Database> & {
+  rpc(
+    fn: "accept_project_application",
+    args: { target_application_id: string },
+  ): Promise<{
+    data: AcceptProjectApplicationRpcRow[] | null;
+    error: { message: string } | null;
+  }>;
+};
 
 async function getClientProjectProfileState(
   supabase: SupabaseClient<Database>,
@@ -787,22 +802,30 @@ export async function updateProjectApplicationStatusForClient(
   }
 
   if (nextStatus === "accepted") {
-    const { data: acceptedApplication, error: acceptedApplicationError } =
-      await supabase
-        .from("applications")
-        .select("id")
-        .eq("project_id", application.project_id)
-        .eq("status", "accepted")
-        .neq("id", applicationId)
-        .maybeSingle();
+    const { data: acceptedRows, error: acceptError } =
+      await (supabase as SupabaseClientWithAcceptRpc).rpc(
+        "accept_project_application",
+        {
+          target_application_id: applicationId,
+        },
+      );
 
-    if (acceptedApplicationError) {
-      return { error: acceptedApplicationError.message };
+    if (acceptError) {
+      return { error: acceptError.message };
     }
 
-    if (acceptedApplication) {
-      return { error: "A provider has already been accepted for this project." };
+    const acceptedApplication = acceptedRows?.[0];
+
+    if (!acceptedApplication) {
+      return { error: "Application could not be accepted." };
     }
+
+    return {
+      data: {
+        id: acceptedApplication.application_id,
+        status: acceptedApplication.application_status,
+      },
+    };
   }
 
   const { data, error } = await supabase
@@ -814,28 +837,6 @@ export async function updateProjectApplicationStatusForClient(
 
   if (error) {
     return { error: error.message };
-  }
-
-  if (nextStatus === "accepted") {
-    const { error: rejectOthersError } = await supabase
-      .from("applications")
-      .update({ status: "rejected" })
-      .eq("project_id", application.project_id)
-      .neq("id", applicationId)
-      .in("status", ["pending", "viewed", "shortlisted"]);
-
-    if (rejectOthersError) {
-      return { error: rejectOthersError.message };
-    }
-
-    const conversationResult = await ensureConversationForAcceptedApplication(
-      supabase,
-      applicationId,
-    );
-
-    if (conversationResult.error) {
-      return { error: conversationResult.error };
-    }
   }
 
   return { data };
