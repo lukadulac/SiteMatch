@@ -55,6 +55,13 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
       navItems={[
         { href: roleDashboardPath, label: "Overview" },
         {
+          href:
+            provisioned.role === "client"
+              ? "/dashboard/client/projects"
+              : "/dashboard/provider/applications",
+          label: provisioned.role === "client" ? "Projects" : "Applications",
+        },
+        {
           href: "/dashboard/messages",
           label: "Messages",
           count: unreadConversations.length,
@@ -63,11 +70,10 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
         {
           href:
             provisioned.role === "client"
-              ? "/dashboard/client#projects"
-              : "/dashboard/provider#applications",
-          label: provisioned.role === "client" ? "Projects" : "Applications",
+              ? "/dashboard/client/profile"
+              : "/dashboard/provider/profile",
+          label: "Profile",
         },
-        { href: `${roleDashboardPath}#profile`, label: "Profile" },
       ]}
     >
       <MessagingApp

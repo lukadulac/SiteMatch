@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
-import { getPublishedProjectByIdForProvider } from "@/lib/projects/service";
+import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
+import { getPublicPublishedProjectById } from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProviderApplicationForm } from "@/components/projects/provider-application-form";
+import { headerTheme } from "@/theme/header-theme";
 
 type PageProps = {
 	params: Promise<{
@@ -113,33 +114,47 @@ function yesNoLabel(value: boolean | null) {
 	return value ? "Yes" : "No";
 }
 
+function deadlineLabel(deadlineType: string, deadlineDate: string | null) {
+	if (deadlineType === "asap") {
+		return "ASAP";
+	}
+
+	return formatDateLabel(deadlineDate);
+}
+
+function getProjectTags(project: {
+	preferred_provider_type: string | null;
+	scope_level: string | null;
+	readiness_level: string | null;
+	needs_design: boolean;
+	needs_seo: boolean;
+	needs_content_writing: boolean;
+}) {
+	return [
+		providerTypeLabel(project.preferred_provider_type),
+		scopeLabel(project.scope_level),
+		readinessLabel(project.readiness_level),
+		project.needs_design ? "Design" : null,
+		project.needs_seo ? "SEO" : null,
+		project.needs_content_writing ? "Content" : null,
+	].filter((tag): tag is string => Boolean(tag));
+}
+
 export default async function JobDetailsPage({ params }: PageProps) {
 	const supabase = await createSupabaseServerClient();
 	const {
 		data: { user },
 	} = await supabase.auth.getUser();
 
-	if (!user) {
-		redirect("/login");
-	}
+	let role: UserRole | null = null;
 
-	const provisioned = await ensureUserProfile(supabase, user);
-
-	if (!provisioned.role) {
-		await supabase.auth.signOut();
-		redirect("/login");
-	}
-
-	if (provisioned.role !== "provider") {
-		redirect(getDashboardPath(provisioned.role));
+	if (user) {
+		const provisioned = await ensureUserProfile(supabase, user);
+		role = provisioned.role ?? null;
 	}
 
 	const { id } = await params;
-	const projectResult = await getPublishedProjectByIdForProvider(
-		supabase,
-		user.id,
-		id,
-	);
+	const projectResult = await getPublicPublishedProjectById(supabase, id);
 
 	if (projectResult.error === "Project not found.") {
 		notFound();
@@ -155,178 +170,103 @@ export default async function JobDetailsPage({ params }: PageProps) {
 		notFound();
 	}
 
-	return (
-		<section className="space-y-8 py-4 sm:py-8">
-			<div className="flex flex-wrap items-center gap-3 text-sm text-secondary">
-				<Link
-					href="/jobs"
-					className="font-semibold text-black transition hover:opacity-70"
-				>
-					Find Work
-				</Link>
-				<span>/</span>
-				<span>{project.title}</span>
-			</div>
+	const isProvider = role === "provider";
+	const dashboardHref = role ? getDashboardPath(role) : null;
+	const projectTags = getProjectTags(project);
+	const gradientBackground = `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`;
 
-			<section className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-8">
-				<div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-					<div className="max-w-4xl">
-						<div className="flex flex-wrap items-center gap-3">
-							<span className="inline-flex rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-								Published
-							</span>
-							<p className="text-sm font-semibold uppercase tracking-[0.24em] text-secondary">
+	return (
+		<section className="space-y-6 py-2 ">
+			<div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+				<div className="min-w-0 space-y-6">
+					<section className="rounded-[1.75rem] border border-line bg-white p-6 shadow-[0_16px_40px_rgba(17,17,17,0.04)] sm:p-8">
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-secondary">
 								Project brief
-							</p>
+							</span>
+							<span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+								Open
+							</span>
 						</div>
 
-						<h1 className="mt-4 text-3xl font-semibold text-black sm:text-4xl">
+						<h1 className="mt-4 wrap-break-word text-3xl font-semibold leading-tight text-black sm:text-4xl">
 							{project.title}
 						</h1>
-						<p className="mt-4 wrap-break-words text-sm leading-7 text-secondary sm:text-base">
+						<p className="mt-4 wrap-break-word text-sm leading-7 text-secondary sm:text-base">
 							{project.description}
 						</p>
-					</div>
 
-					<div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:flex-col">
-						<Link
-							href="#apply"
-							className="inline-flex items-center justify-center rounded-2xl bg-linear-to-r from-violet-500 to-pink-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(168,85,247,0.25)] transition hover:opacity-90"
-						>
-							Apply to this project
-						</Link>
-						<Link
-							href="/jobs"
-							className="inline-flex items-center justify-center rounded-2xl border border-line-strong bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-black/3"
-						>
-							Back to jobs
-						</Link>
-					</div>
-				</div>
-			</section>
-
-			<section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-				<article className="rounded-3xl border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
-					<p className="text-sm font-semibold uppercase tracking-[0.16em] text-secondary">
-						Budget
-					</p>
-					<p className="mt-3 text-lg font-semibold text-black">
-						{formatBudget(
-							project.budget_type,
-							project.budget_min,
-							project.budget_max,
-						)}
-					</p>
-				</article>
-				<article className="rounded-3xl border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
-					<p className="text-sm font-semibold uppercase tracking-[0.16em] text-secondary">
-						Deadline
-					</p>
-					<p className="mt-3 text-lg font-semibold text-black">
-						{formatDateLabel(project.deadline_date)}
-					</p>
-				</article>
-				<article className="rounded-3xl border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
-					<p className="text-sm font-semibold uppercase tracking-[0.16em] text-secondary">
-						Scope
-					</p>
-					<p className="mt-3 text-lg font-semibold text-black">
-						{scopeLabel(project.scope_level)}
-					</p>
-				</article>
-				<article className="rounded-3xl border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
-					<p className="text-sm font-semibold uppercase tracking-[0.16em] text-secondary">
-						Readiness
-					</p>
-					<p className="mt-3 text-lg font-semibold text-black">
-						{readinessLabel(project.readiness_level)}
-					</p>
-				</article>
-			</section>
-
-			<section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.9fr)]">
-				<div className="space-y-6">
-					<article className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
-						<h2 className="text-2xl font-semibold text-black">
-							What needs to be done
-						</h2>
-						<p className="mt-4 wrap-break-words text-sm leading-7 text-secondary sm:text-base">
-							{project.what_do_you_need_text ||
-								"No implementation details added."}
-						</p>
-					</article>
-
-					<article className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
-						<h2 className="text-2xl font-semibold text-black">
-							Business context
-						</h2>
-						<div className="mt-4 space-y-4 wrap-break-words text-sm leading-7 text-secondary sm:text-base">
-							<p>
-								{project.business_context_text ||
-									"No additional business context added."}
-							</p>
-							{project.business_domain_other_text ? (
-								<p>
-									<span className="font-semibold text-black">
-										Custom domain:
-									</span>{" "}
-									{project.business_domain_other_text}
+						<div className="mt-7 grid gap-4 rounded-3xl bg-panel-soft p-5 sm:grid-cols-3">
+							<div>
+								<p className="text-sm text-secondary">Budget</p>
+								<p className="mt-1 text-lg font-semibold text-black">
+									{formatBudget(
+										project.budget_type,
+										project.budget_min,
+										project.budget_max,
+									)}
 								</p>
+							</div>
+							<div>
+								<p className="text-sm text-secondary">Timeline</p>
+								<p className="mt-1 text-lg font-semibold text-black">
+									{deadlineLabel(project.deadline_type, project.deadline_date)}
+								</p>
+							</div>
+							<div>
+								<p className="text-sm text-secondary">Start date</p>
+								<p className="mt-1 text-lg font-semibold text-black">
+									{formatDateLabel(project.desired_start_date)}
+								</p>
+							</div>
+						</div>
+					</section>
+
+					<section className="rounded-[1.75rem] border border-line bg-white p-6 shadow-[0_16px_40px_rgba(17,17,17,0.04)] sm:p-8">
+						<h2 className="text-xl font-semibold text-black">
+							Project description
+						</h2>
+						<div className="mt-4 space-y-4 wrap-break-word text-sm leading-7 text-secondary sm:text-base">
+							<p>
+								{project.what_do_you_need_text ||
+									"No implementation details added."}
+							</p>
+							{project.business_context_text ? (
+								<p>{project.business_context_text}</p>
+							) : null}
+							{project.discovery_notes ? (
+								<p>{project.discovery_notes}</p>
 							) : null}
 						</div>
-					</article>
+					</section>
 
-					<article className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
-						<h2 className="text-2xl font-semibold text-black">Fit signals</h2>
-						<div className="mt-4 space-y-4 wrap-break-words text-sm leading-7 text-secondary sm:text-base">
+					<section className="rounded-[1.75rem] border border-line bg-white p-6 shadow-[0_16px_40px_rgba(17,17,17,0.04)] sm:p-8">
+						<h2 className="text-xl font-semibold text-black">
+							How you match this brief
+						</h2>
+						<div className="mt-5 grid gap-4 text-sm text-secondary sm:grid-cols-2">
 							<p>
-								<span className="font-semibold text-black">
-									Target audience:
-								</span>{" "}
-								{project.target_audience_text || "Not specified"}
+								<span className="font-semibold text-black">Provider type:</span>{" "}
+								{providerTypeLabel(project.preferred_provider_type)}
 							</p>
 							<p>
-								<span className="font-semibold text-black">
-									Success criteria:
-								</span>{" "}
-								{project.success_criteria_text || "Not specified"}
+								<span className="font-semibold text-black">Scope:</span>{" "}
+								{scopeLabel(project.scope_level)}
 							</p>
 							<p>
-								<span className="font-semibold text-black">
-									Discovery notes:
-								</span>{" "}
-								{project.discovery_notes || "No discovery notes added."}
-							</p>
-						</div>
-					</article>
-				</div>
-
-				<div className="space-y-6">
-					<article className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
-						<h2 className="text-2xl font-semibold text-black">Project setup</h2>
-						<div className="mt-5 grid gap-3 text-sm text-secondary">
-							<p>
-								<span className="font-semibold text-black">
-									Preferred start:
-								</span>{" "}
-								{formatDateLabel(project.desired_start_date)}
+								<span className="font-semibold text-black">Readiness:</span>{" "}
+								{readinessLabel(project.readiness_level)}
 							</p>
 							<p>
-								<span className="font-semibold text-black">Needs design:</span>{" "}
-								{yesNoLabel(project.needs_design)}
+								<span className="font-semibold text-black">Language:</span>{" "}
+								{project.preferred_language || "Not specified"}
 							</p>
 							<p>
-								<span className="font-semibold text-black">Needs SEO:</span>{" "}
-								{yesNoLabel(project.needs_seo)}
+								<span className="font-semibold text-black">Remote:</span>{" "}
+								{yesNoLabel(project.is_remote_friendly)}
 							</p>
 							<p>
-								<span className="font-semibold text-black">Needs content:</span>{" "}
-								{yesNoLabel(project.needs_content_writing)}
-							</p>
-							<p>
-								<span className="font-semibold text-black">
-									Existing website:
-								</span>{" "}
+								<span className="font-semibold text-black">Existing site:</span>{" "}
 								{project.existing_website_url ? (
 									<a
 										href={project.existing_website_url}
@@ -334,88 +274,107 @@ export default async function JobDetailsPage({ params }: PageProps) {
 										rel="noreferrer"
 										className="font-semibold text-black underline"
 									>
-										{project.existing_website_url}
+										Provided
 									</a>
 								) : (
 									"Not provided"
 								)}
 							</p>
 						</div>
-					</article>
+					</section>
 
-					<article className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
-						<h2 className="text-2xl font-semibold text-black">
-							Client preferences
+					<section className="rounded-[1.75rem] border border-line bg-white p-6 shadow-[0_16px_40px_rgba(17,17,17,0.04)] sm:p-8">
+						<h2 className="text-xl font-semibold text-black">
+							Skills and expertise
 						</h2>
-						<div className="mt-5 grid gap-3 text-sm text-secondary">
+						<div className="mt-5 flex flex-wrap gap-2">
+							{projectTags.map((tag) => (
+								<span
+									key={tag}
+									className="max-w-full truncate rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-secondary"
+								>
+									{tag}
+								</span>
+							))}
+						</div>
+						<div className="mt-6 grid gap-3 text-sm text-secondary sm:grid-cols-2">
 							<p>
-								<span className="font-semibold text-black">Provider type:</span>{" "}
-								{providerTypeLabel(project.preferred_provider_type)}
+								<span className="font-semibold text-black">
+									Goals selected:
+								</span>{" "}
+								{project.goal_ids.length}
 							</p>
 							<p>
 								<span className="font-semibold text-black">
-									Preferred language:
+									Features selected:
 								</span>{" "}
-								{project.preferred_language || "Not specified"}
-							</p>
-							<p>
-								<span className="font-semibold text-black">
-									Remote friendly:
-								</span>{" "}
-								{yesNoLabel(project.is_remote_friendly)}
+								{project.feature_ids.length}
 							</p>
 						</div>
-					</article>
-
-					<article className="rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
-						<h2 className="text-2xl font-semibold text-black">Selections</h2>
-						<div className="mt-5 grid gap-4 text-sm text-secondary">
-							<div>
-								<p className="font-semibold text-black">Goals selected</p>
-								<p className="mt-1">
-									{project.goal_ids.length > 0
-										? `${project.goal_ids.length} selected`
-										: "No goals selected"}
-								</p>
-							</div>
-							<div>
-								<p className="font-semibold text-black">Features selected</p>
-								<p className="mt-1">
-									{project.feature_ids.length > 0
-										? `${project.feature_ids.length} selected`
-										: "No features selected"}
-								</p>
-							</div>
-						</div>
-					</article>
+					</section>
 				</div>
-			</section>
 
-			<section
-				id="apply"
-				className="scroll-mt-28 rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-8"
-			>
-				<div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-					<div className="max-w-3xl">
-						<p className="text-sm font-semibold uppercase tracking-[0.2em] text-secondary">
-							Ready to propose?
-						</p>
-						<h2 className="mt-2 text-2xl font-semibold text-black">
-							Apply to this project
+				<aside className="xl:sticky xl:top-28 xl:self-start">
+					<section
+						id="apply"
+						className="scroll-mt-28 rounded-[1.75rem] border border-line bg-white p-6 shadow-[0_16px_40px_rgba(17,17,17,0.04)]"
+					>
+						<h2 className="text-xl font-semibold text-black">
+							{isProvider ? "Submit a proposal" : "Explore this opportunity"}
 						</h2>
 						<p className="mt-2 text-sm leading-6 text-secondary">
-							Send a focused proposal with your approach, expected price, and
-							delivery estimate.
+							{isProvider
+								? "Include your approach, relevant experience, and why you are a good fit."
+								: "Review the brief for free. Sign in with a provider account to submit a proposal."}
 						</p>
-					</div>
-					<div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
-						Application review starts after submission
-					</div>
-				</div>
-				<div className="mt-6 max-w-3xl">
-					<ProviderApplicationForm projectId={project.id} />
-				</div>
-			</section>
+
+						<div className="mt-6">
+							{isProvider ? (
+								<ProviderApplicationForm projectId={project.id} />
+							) : user ? (
+								<div>
+									<p className="rounded-2xl border border-line bg-panel-soft p-4 text-sm leading-6 text-secondary">
+										This account can browse project briefs, but only provider
+										accounts can submit proposals.
+									</p>
+									{dashboardHref ? (
+										<Link
+											href={dashboardHref}
+											className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-2xl px-5 text-sm font-semibold text-white transition hover:opacity-90"
+											style={{ background: gradientBackground }}
+										>
+											Go to dashboard
+										</Link>
+									) : null}
+								</div>
+							) : (
+								<div>
+									<Link
+										href="/register"
+										className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl px-5 text-sm font-semibold text-white transition hover:opacity-90"
+										style={{ background: gradientBackground }}
+									>
+										Sign up
+									</Link>
+									<p className="mt-5 text-center text-sm text-secondary">
+										Already have an account?{" "}
+										<Link
+											href="/login"
+											className="font-semibold text-black underline"
+										>
+											Log in
+										</Link>
+									</p>
+								</div>
+							)}
+						</div>
+
+						<div className="mt-6 border-t border-line pt-5 text-sm text-secondary">
+							<p>Application review starts after submission.</p>
+						</div>
+					</section>
+				</aside>
+			</div>
 		</section>
 	);
 }

@@ -1,11 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  DashboardPanel,
-  DashboardShell,
-  DashboardStatCard,
-} from "@/components/dashboard/DashboardShell";
-import { ProviderProfileForm } from "@/components/dashboard/provider-profile-form";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
@@ -23,7 +18,11 @@ function formatTimeAgo(value: string) {
   return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
-function formatDateLabel(value: string) {
+function formatDateLabel(value: string | null) {
+  if (!value) {
+    return "No date set";
+  }
+
   return new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "short",
@@ -80,6 +79,26 @@ function isProviderProfileReady(profile: {
     profile.service_categories.length > 0 &&
     (!profile.service_categories.includes("other") ||
       (profile.service_category_other_text ?? "").trim().length > 0)
+  );
+}
+
+function OverviewStat({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <article className="min-w-0 rounded-[1.5rem] border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
+      <p className="break-words text-3xl font-semibold text-black sm:text-4xl">
+        {value}
+      </p>
+      <p className="mt-3 break-words text-sm font-semibold text-black">{label}</p>
+      <p className="mt-1 break-words text-xs leading-5 text-secondary">{detail}</p>
+    </article>
   );
 }
 
@@ -163,16 +182,23 @@ export default async function ProviderDashboardPage() {
   const acceptedApplications = applications.filter(
     (application) => application.status === "accepted",
   );
+  const activeApplications = applications.filter((application) =>
+    ["pending", "viewed", "shortlisted", "accepted"].includes(application.status),
+  );
   const isReady = isProviderProfileReady(providerProfile);
 
   return (
     <DashboardShell
-      title={`Welcome back, ${profile.full_name.split(" ")[0] || "Provider"}!`}
-      subtitle="Manage your provider profile, active opportunities, and conversations with clients from one place."
+      title="Dashboard"
+      subtitle={`Welcome back, ${
+        profile.full_name.split(" ")[0] || "Provider"
+      }. Here's what's happening today.`}
+      actionHref="/jobs"
+      actionLabel="Browse Jobs"
       navItems={[
         { href: "/dashboard/provider", label: "Overview", active: true },
         {
-          href: "/dashboard/provider#applications",
+          href: "/dashboard/provider/applications",
           label: "Applications",
           count: applications.length,
         },
@@ -181,181 +207,194 @@ export default async function ProviderDashboardPage() {
           label: "Messages",
           count: unreadConversations.length,
         },
-        { href: "/dashboard/provider#profile", label: "Profile" },
+        { href: "/dashboard/provider/profile", label: "Profile" },
       ]}
     >
-      <div className="grid gap-5 xl:grid-cols-4">
-        <DashboardStatCard
-          value={String(applications.length)}
-          label="Applications"
-          detail={`${shortlistedApplications.length} shortlisted right now`}
-        />
-        <DashboardStatCard
-          value={String(acceptedApplications.length)}
-          label="Accepted Deals"
-          detail="Projects you have already secured"
-        />
-        <DashboardStatCard
-          value={String(conversations.length)}
-          label="Conversations"
-          detail={`${unreadConversations.length} with unread updates`}
-        />
-        <DashboardStatCard
-          value={providerProfile.is_verified ? "Verified" : "Pending"}
-          label="Verification"
-          detail={
-            providerProfile.is_verified
-              ? "Provider identity is verified"
-              : "Verification still in progress"
-          }
-        />
-      </div>
+      {!isReady ? (
+        <section className="flex flex-col gap-3 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold">
+            Complete your profile to improve visibility with clients.
+          </p>
+          <Link href="/dashboard/provider/profile" className="font-semibold underline">
+            Complete
+          </Link>
+        </section>
+      ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.9fr)]">
-        <DashboardPanel title="Recent Applications">
-          <div id="applications" className="space-y-4">
+      <section className="grid min-w-0 gap-4 md:grid-cols-3">
+        <OverviewStat
+          label="Submitted Applications"
+          value={String(applications.length)}
+          detail={`${activeApplications.length} currently active`}
+        />
+        <OverviewStat
+          label="Shortlisted"
+          value={String(shortlistedApplications.length)}
+          detail="Clients have marked these proposals as promising"
+        />
+        <OverviewStat
+          label="Unread Messages"
+          value={String(unreadConversations.length)}
+          detail="Client conversations needing a reply"
+        />
+      </section>
+
+      <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 rounded-[1.75rem] border border-line bg-white shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
+          <div className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
+            <h2 className="min-w-0 break-words text-xl font-semibold text-black">
+              Recent Applications
+            </h2>
+            <Link
+              href="/dashboard/provider/applications"
+              className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
+            >
+              View All
+            </Link>
+          </div>
+
+          <div className="divide-y divide-line">
             {applications.length > 0 ? (
-              applications.slice(0, 4).map((application) => (
+              applications.slice(0, 5).map((application) => (
                 <article
                   key={application.id}
-                  className="rounded-3xl border border-line p-5"
+                  className="flex min-w-0 flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between"
                 >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <h3 className="text-xl font-semibold text-black">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="break-words text-base font-semibold text-black">
                         {application.project?.title ?? "Untitled project"}
                       </h3>
-                      <p className="mt-2 text-sm text-secondary">
-                        Submitted on {formatDateLabel(application.created_at)}
-                      </p>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${applicationStatusClasses(
+                          application.status,
+                        )}`}
+                      >
+                        {applicationStatusLabel(application.status)}
+                      </span>
                     </div>
-                    <span
-                      className={`inline-flex rounded-full px-4 py-2 text-sm font-semibold ${applicationStatusClasses(
-                        application.status,
-                      )}`}
-                    >
-                      {applicationStatusLabel(application.status)}
-                    </span>
-                  </div>
-
-                  <div className="mt-5 grid gap-4 text-sm text-secondary md:grid-cols-3">
-                    <p>
-                      Proposed price:{" "}
+                    <p className="mt-1 line-clamp-1 text-sm text-secondary">
+                      Submitted {formatDateLabel(application.created_at)} ·{" "}
                       {application.proposed_price != null
                         ? `$${application.proposed_price.toLocaleString()}`
-                        : "Not specified"}
+                        : "Price not specified"}
                     </p>
-                    <p>
-                      Delivery:{" "}
-                      {application.estimated_delivery_days != null
-                        ? `${application.estimated_delivery_days} days`
-                        : "Flexible"}
-                    </p>
-                    <p>
-                      Deadline:{" "}
-                      {application.project?.deadline_date
-                        ? formatDateLabel(application.project.deadline_date)
-                        : "Not set"}
-                    </p>
+                  </div>
+
+                  <div className="flex min-w-0 items-center justify-between gap-4 md:shrink-0 md:justify-start">
+                    <div className="text-right text-sm">
+                      <p className="font-semibold text-black">
+                        {application.estimated_delivery_days != null
+                          ? application.estimated_delivery_days
+                          : "--"}
+                      </p>
+                      <p className="text-xs text-secondary">Days</p>
+                    </div>
+                    {application.project ? (
+                      <Link
+                        href={`/jobs/${application.project.id}`}
+                        className="shrink-0 rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                      >
+                        View
+                      </Link>
+                    ) : null}
                   </div>
                 </article>
               ))
             ) : (
-              <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
-                You have not submitted applications yet. Once you start applying
-                to projects, they will appear here.
+              <div className="p-8 text-sm leading-6 text-secondary">
+                You have not submitted applications yet. Browse open briefs and
+                send your first proposal.
               </div>
             )}
           </div>
-        </DashboardPanel>
+        </div>
 
-        <DashboardPanel
-          title="Messages"
-          action={
-            <Link
-              href="/dashboard/messages"
-              className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-            >
-              View All
-            </Link>
-          }
-        >
-          <div id="messages" className="space-y-4">
-            {conversations.length > 0 ? (
-              conversations.slice(0, 4).map((conversation) => {
-                const otherParty =
-                  conversation.client_id === user.id
-                    ? conversation.provider
-                    : conversation.client;
+        <aside className="min-w-0 space-y-5">
+          <section className="min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
+            <div className="flex min-w-0 items-center justify-between gap-4">
+              <h2 className="min-w-0 break-words text-xl font-semibold text-black">
+                Recent Messages
+              </h2>
+              <Link
+                href="/dashboard/messages"
+                className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
+              >
+                Open
+              </Link>
+            </div>
+            <div className="mt-5 space-y-4">
+              {conversations.length > 0 ? (
+                conversations.slice(0, 3).map((conversation) => {
+                  const otherParty =
+                    conversation.client_id === user.id
+                      ? conversation.provider
+                      : conversation.client;
 
-                return (
-                  <Link
-                    key={conversation.id}
-                    href={`/dashboard/messages?conversation=${conversation.id}`}
-                    className="rounded-3xl border border-line p-4"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="font-semibold text-black">
-                          {otherParty?.full_name ?? "Marketplace conversation"}
-                        </p>
-                        <p className="mt-1 text-sm text-secondary">
-                          {conversation.project?.title ?? "Untitled project"}
-                        </p>
-                        <p className="mt-3 text-sm leading-6 text-secondary">
-                          {conversation.last_message?.message_text ??
-                            "No messages yet."}
-                        </p>
-                        <p className="mt-3 text-xs font-medium uppercase tracking-[0.14em] text-secondary">
+                  return (
+                    <Link
+                      key={conversation.id}
+                      href={`/dashboard/messages?conversation=${conversation.id}`}
+                      className="block min-w-0 rounded-2xl border border-line p-4 transition hover:bg-black/3"
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-black">
+                            {otherParty?.full_name ?? "Marketplace conversation"}
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-sm leading-5 text-secondary">
+                            {conversation.last_message?.message_text ??
+                              "No messages yet."}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-xs text-secondary">
                           {formatTimeAgo(
                             conversation.last_message?.created_at ??
                               conversation.updated_at,
                           )}
-                        </p>
-                      </div>
-                      {conversation.unread_count > 0 ? (
-                        <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-linear-to-r from-violet-500 to-pink-500 px-2 py-1 text-xs font-semibold text-white">
-                          {conversation.unread_count}
                         </span>
-                      ) : null}
-                    </div>
-                  </Link>
-                );
-              })
-            ) : (
-              <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
-                No conversations yet. When clients contact you, your messages
-                will show up here.
-              </div>
-            )}
-          </div>
-        </DashboardPanel>
-      </div>
+                      </div>
+                    </Link>
+                  );
+                })
+              ) : (
+                <p className="rounded-2xl border border-dashed border-line p-4 text-sm text-secondary">
+                  No conversations yet.
+                </p>
+              )}
+            </div>
+          </section>
 
-      <div
-        id="profile"
-        className={`rounded-4xl border p-5 sm:p-6 ${
-          isReady ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"
-        }`}
-      >
-        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-black">
-          Profile progress
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold text-black">
-          {isReady
-            ? "Your provider profile is ready"
-            : "Finish your provider profile"}
-        </h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-secondary">
-          {isReady
-            ? "Your provider profile contains the key details clients need before reaching out."
-            : "Complete the remaining provider fields below so your public-facing information and matching signals are ready."}
-        </p>
-      </div>
+          <section
+            className={`min-w-0 rounded-[1.75rem] border p-5 ${
+              isReady ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"
+            }`}
+          >
+            <p className="text-sm font-semibold text-black">Profile Status</p>
+            <p className="mt-2 text-sm leading-6 text-secondary">
+              {isReady
+                ? "Your provider profile is ready."
+                : "Finish your provider profile before heavy testing."}
+            </p>
+            <Link
+              href="/dashboard/provider/profile"
+              className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+            >
+              Manage profile
+            </Link>
+          </section>
 
-      <DashboardPanel title="Provider Profile">
-        <ProviderProfileForm profile={profile} providerProfile={providerProfile} />
-      </DashboardPanel>
+          <section className="min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
+            <p className="text-sm font-semibold text-black">Accepted Work</p>
+            <p className="mt-2 text-3xl font-semibold text-black">
+              {acceptedApplications.length}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-secondary">
+              Projects you have already secured.
+            </p>
+          </section>
+        </aside>
+      </section>
     </DashboardShell>
   );
 }
