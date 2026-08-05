@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  DashboardPanel,
-  DashboardShell,
-} from "@/components/dashboard/DashboardShell";
-import { ClientProfileForm } from "@/components/dashboard/client-profile-form";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
@@ -39,9 +35,9 @@ function formatTimeAgo(value: string) {
 function statusLabel(status: string) {
   switch (status) {
     case "published":
-      return "Published";
+      return "Hiring";
     case "in_discussion":
-      return "In discussion";
+      return "In Discussion";
     case "assigned":
       return "Assigned";
     case "completed":
@@ -56,11 +52,11 @@ function statusLabel(status: string) {
 function statusClasses(status: string) {
   switch (status) {
     case "published":
-      return "bg-blue-50 text-blue-700";
+      return "bg-emerald-50 text-emerald-700";
     case "in_discussion":
       return "bg-amber-50 text-amber-700";
     case "assigned":
-      return "bg-emerald-50 text-emerald-700";
+      return "bg-blue-50 text-blue-700";
     case "completed":
       return "bg-violet-50 text-violet-700";
     case "cancelled":
@@ -82,15 +78,7 @@ function formatBudgetLabel(
   });
 
   if (budgetType === "fixed") {
-    if (budgetMin != null) {
-      return `Fixed: ${formatter.format(budgetMin)}`;
-    }
-
-    if (budgetMax != null) {
-      return `Fixed: ${formatter.format(budgetMax)}`;
-    }
-
-    return "Fixed budget";
+    return `Fixed: ${formatter.format(budgetMin ?? budgetMax ?? 0)}`;
   }
 
   if (budgetType === "negotiable") {
@@ -110,6 +98,26 @@ function formatBudgetLabel(
   }
 
   return "Budget not set";
+}
+
+function OverviewStat({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <article className="min-w-0 rounded-[1.5rem] border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
+      <p className="break-words text-3xl font-semibold text-black sm:text-4xl">
+        {value}
+      </p>
+      <p className="mt-3 break-words text-sm font-semibold text-black">{label}</p>
+      <p className="mt-1 break-words text-xs leading-5 text-secondary">{detail}</p>
+    </article>
+  );
 }
 
 export default async function ClientDashboardPage() {
@@ -171,9 +179,26 @@ export default async function ClientDashboardPage() {
   const clientProfile = clientProfileResult.data;
   const projects = projectsResult.data ?? [];
   const conversations = conversationsResult.data ?? [];
+  const projectIds = projects.map((project) => project.id);
+  const applicationsResult =
+    projectIds.length > 0
+      ? await supabase
+          .from("applications")
+          .select("id, project_id, status, created_at")
+          .in("project_id", projectIds)
+      : { data: [], error: null };
 
+  if (applicationsResult.error) {
+    throw new Error(applicationsResult.error.message);
+  }
+
+  const applications = applicationsResult.data ?? [];
   const activeProjects = projects.filter((project) =>
     ["published", "in_discussion", "assigned"].includes(project.status),
+  );
+  const draftProjects = projects.filter((project) => project.status === "draft");
+  const reviewApplications = applications.filter((application) =>
+    ["pending", "viewed", "shortlisted"].includes(application.status),
   );
   const unreadConversations = conversations.filter(
     (conversation) => conversation.unread_count > 0,
@@ -182,138 +207,147 @@ export default async function ClientDashboardPage() {
 
   return (
     <DashboardShell
-      title={`Welcome back, ${profile.full_name.split(" ")[0] || "Client"}!`}
-      subtitle="Here is an overview of your hiring activity and business profile progress."
+      title="Dashboard"
+      subtitle={`Welcome back, ${
+        profile.full_name.split(" ")[0] || "Client"
+      }. Here's what's happening today.`}
       actionHref="/oglasi/novi"
       actionLabel="Post a Project"
       navItems={[
         { href: "/dashboard/client", label: "Overview", active: true },
         {
-          href: "/dashboard/client#projects",
-          label: "Active Projects",
-          count: activeProjects.length,
+          href: "/dashboard/client/projects",
+          label: "Projects",
+          count: projects.length,
         },
         {
           href: "/dashboard/messages",
           label: "Messages",
           count: unreadConversations.length,
         },
-        { href: "/dashboard/client#profile", label: "Profile" },
+        { href: "/dashboard/client/profile", label: "Profile" },
       ]}
     >
-      {/* <div className="grid gap-5 xl:grid-cols-4">
-        <DashboardStatCard
-          value={String(activeProjects.length)}
+      {!isComplete ? (
+        <section className="flex flex-col gap-3 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold">
+            Complete your profile to improve project matching.
+          </p>
+          <Link href="/dashboard/client/profile" className="font-semibold underline">
+            Complete
+          </Link>
+        </section>
+      ) : null}
+
+      <section className="grid min-w-0 gap-4 md:grid-cols-3">
+        <OverviewStat
           label="Active Projects"
+          value={String(activeProjects.length)}
           detail={`${draftProjects.length} draft${draftProjects.length === 1 ? "" : "s"} still in progress`}
         />
-        <DashboardStatCard
-          value={String(projects.length)}
-          label="Total Projects"
-          detail={`${completedProjects.length} completed so far`}
+        <OverviewStat
+          label="Applications to Review"
+          value={String(reviewApplications.length)}
+          detail="Pending, viewed, or shortlisted proposals"
         />
-        <DashboardStatCard
-          value={String(conversations.length)}
-          label="Conversations"
-          detail={`${unreadConversations.length} with unread updates`}
+        <OverviewStat
+          label="Unread Messages"
+          value={String(unreadConversations.length)}
+          detail="Conversations needing a reply"
         />
-        <DashboardStatCard
-          value={isComplete ? "100%" : "In progress"}
-          label="Profile Status"
-          detail={
-            isComplete
-              ? "Client profile is complete"
-              : "Finish profile to unlock the full client flow"
-          }
-        />
-      </div> */}
+      </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.9fr)]">
-        <DashboardPanel
-          title="Active Projects"
-          action={
+      <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 rounded-[1.75rem] border border-line bg-white shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
+          <div className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
+            <h2 className="min-w-0 break-words text-xl font-semibold text-black">
+              Active Projects
+            </h2>
             <Link
-              href="/oglasi"
-              className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+              href="/dashboard/client/projects"
+              className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
             >
               View All
             </Link>
-          }
-        >
-          <div id="projects" className="space-y-4">
+          </div>
+
+          <div className="divide-y divide-line">
             {activeProjects.length > 0 ? (
-              activeProjects.slice(0, 3).map((project) => (
-                <article
-                  key={project.id}
-                  className="rounded-3xl border border-line p-5"
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              activeProjects.slice(0, 5).map((project) => {
+                const applicationCount = applications.filter(
+                  (application) => application.project_id === project.id,
+                ).length;
+
+                return (
+                  <article
+                    key={project.id}
+                    className="flex min-w-0 flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between"
+                  >
                     <div className="min-w-0">
-                      <h3 className="text-xl font-semibold text-black">
-                        {project.title}
-                      </h3>
-                      <p className="mt-2 max-w-2xl line-clamp-3 break-all text-sm leading-6 text-secondary">
-                        {project.description}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="break-words text-base font-semibold text-black">
+                          {project.title}
+                        </h3>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClasses(
+                            project.status,
+                          )}`}
+                        >
+                          {statusLabel(project.status)}
+                        </span>
+                      </div>
+                      <p className="mt-1 line-clamp-1 break-words text-sm text-secondary">
+                        {formatBudgetLabel(
+                          project.budget_type,
+                          project.budget_min,
+                          project.budget_max,
+                        )}{" "}
+                        · {formatDateLabel(project.deadline_date)}
                       </p>
                     </div>
-                    <span
-                      className={`inline-flex shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${statusClasses(
-                        project.status,
-                      )}`}
-                    >
-                      {statusLabel(project.status)}
-                    </span>
-                  </div>
 
-                  <div className="mt-5 grid gap-4 text-sm text-secondary md:grid-cols-2 xl:grid-cols-4">
-                    <p>
-                      Budget:{" "}
-                      {formatBudgetLabel(
-                        project.budget_type,
-                        project.budget_min,
-                        project.budget_max,
-                      )}
-                    </p>
-                    <p>Deadline: {formatDateLabel(project.deadline_date)}</p>
-                    <p>
-                      Preferred start date:{" "}
-                      {formatDateLabel(project.desired_start_date)}
-                    </p>
-                    <p>Created: {formatDateLabel(project.created_at)}</p>
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <Link
-                      href={`/oglasi/${project.id}`}
-                      className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-                    >
-                      View Details
-                    </Link>
-                    {(project.status === "draft" || project.status === "published") ? (
+                    <div className="flex min-w-0 items-center justify-between gap-4 md:shrink-0 md:justify-start">
+                      <div className="text-right text-sm">
+                        <p className="font-semibold text-black">
+                          {applicationCount || "--"}
+                        </p>
+                        <p className="text-xs text-secondary">Applicants</p>
+                      </div>
                       <Link
-                        href={`/oglasi/${project.id}/edit`}
-                        className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                        href={`/oglasi/${project.id}`}
+                        className="shrink-0 rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
                       >
-                        {project.status === "draft" ? "Continue editing" : "Edit listing"}
+                        Review
                       </Link>
-                    ) : null}
-                  </div>
-                </article>
-              ))
+                    </div>
+                  </article>
+                );
+              })
             ) : (
-              <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
-                You do not have active projects yet. Create your first listing to
-                start receiving provider interest.
+              <div className="p-8 text-sm leading-6 text-secondary">
+                No active projects yet. Publish a brief to start receiving provider
+                interest.
               </div>
             )}
           </div>
-        </DashboardPanel>
+        </div>
 
-        <DashboardPanel title="Messages">
-          <div id="messages" className="space-y-4">
-            {conversations.length > 0 ? (
-              <>
-                {conversations.slice(0, 4).map((conversation) => {
+        <aside className="min-w-0 space-y-5">
+          <section className="min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
+            <div className="flex min-w-0 items-center justify-between gap-4">
+              <h2 className="min-w-0 break-words text-xl font-semibold text-black">
+                Recent Messages
+              </h2>
+              <Link
+                href="/dashboard/messages"
+                className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
+              >
+                Open
+              </Link>
+            </div>
+            <div className="mt-5 space-y-4">
+              {conversations.length > 0 ? (
+                conversations.slice(0, 3).map((conversation) => {
                   const otherParty =
                     conversation.provider_id === user.id
                       ? conversation.client
@@ -323,77 +357,58 @@ export default async function ClientDashboardPage() {
                     <Link
                       key={conversation.id}
                       href={`/dashboard/messages?conversation=${conversation.id}`}
-                      className="rounded-3xl border border-line p-4"
+                      className="block min-w-0 rounded-2xl border border-line p-4 transition hover:bg-black/3"
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="font-semibold text-black">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-black">
                             {otherParty?.full_name ?? "Marketplace conversation"}
                           </p>
-                          <p className="mt-1 text-sm text-secondary">
-                            {conversation.project?.title ?? "Untitled project"}
-                          </p>
-                          <p className="mt-3 text-sm leading-6 text-secondary">
+                          <p className="mt-1 line-clamp-2 text-sm leading-5 text-secondary">
                             {conversation.last_message?.message_text ??
                               "No messages yet."}
                           </p>
-                          <p className="mt-3 text-xs font-medium uppercase tracking-[0.14em] text-secondary">
-                            {formatTimeAgo(
-                              conversation.last_message?.created_at ??
-                                conversation.updated_at,
-                            )}
-                          </p>
                         </div>
-                        {conversation.unread_count > 0 ? (
-                          <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-linear-to-r from-violet-500 to-pink-500 px-2 py-1 text-xs font-semibold text-white">
-                            {conversation.unread_count}
-                          </span>
-                        ) : null}
+                        <span className="shrink-0 text-xs text-secondary">
+                          {formatTimeAgo(
+                            conversation.last_message?.created_at ??
+                              conversation.updated_at,
+                          )}
+                        </span>
                       </div>
                     </Link>
                   );
-                })}
-                <Link
-                  href="/dashboard/messages"
-                  className="block rounded-2xl border border-line px-4 py-3 text-center text-sm font-semibold text-black transition hover:bg-black/3"
-                >
-                  View All
-                </Link>
-              </>
-            ) : (
-              <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
-                No conversations yet. Once you connect with providers, messages
-                will appear here.
-              </div>
-            )}
-          </div>
-        </DashboardPanel>
-      </div>
+                })
+              ) : (
+                <p className="rounded-2xl border border-dashed border-line p-4 text-sm text-secondary">
+                  No conversations yet.
+                </p>
+              )}
+            </div>
+          </section>
 
-      <div
-        id="profile"
-        className={`rounded-4xl border p-5 sm:p-6 ${
-          isComplete
-            ? "border-green-200 bg-green-50"
-            : "border-amber-200 bg-amber-50"
-        }`}
-      >
-        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-black">
-          Profile progress
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold text-black">
-          {isComplete ? "Your client profile is complete" : "Finish your client profile"}
-        </h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-secondary">
-          {isComplete
-            ? "Your profile is ready and you can continue posting projects and managing incoming conversations."
-            : "Complete the remaining client fields below so your business profile is ready for project creation and better provider matching."}
-        </p>
-      </div>
-
-      <DashboardPanel title="Client Profile">
-        <ClientProfileForm profile={profile} clientProfile={clientProfile} />
-      </DashboardPanel>
+          <section
+            className={`min-w-0 rounded-[1.75rem] border p-5 ${
+              isComplete
+                ? "border-green-200 bg-green-50"
+                : "border-amber-200 bg-amber-50"
+            }`}
+          >
+            <p className="text-sm font-semibold text-black">Profile Status</p>
+            <p className="mt-2 text-sm leading-6 text-secondary">
+              {isComplete
+                ? "Your client profile is complete."
+                : "Finish your client profile before heavy testing."}
+            </p>
+            <Link
+              href="/dashboard/client/profile"
+              className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+            >
+              Manage profile
+            </Link>
+          </section>
+        </aside>
+      </section>
     </DashboardShell>
   );
 }

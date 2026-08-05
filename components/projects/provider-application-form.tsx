@@ -54,7 +54,9 @@ function FieldShell({
 				) : null}
 			</div>
 			{children}
-			{error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
+			{error ? (
+				<p className="text-sm font-medium text-red-600">{error}</p>
+			) : null}
 		</div>
 	);
 }
@@ -85,7 +87,7 @@ export function ProviderApplicationForm({
 					id="cover_message"
 					name="cover_message"
 					defaultValue={state.fields?.cover_message}
-					rows={8}
+					rows={4}
 					className={`${inputClasses(
 						getFieldError(state, "cover_message"),
 					)} min-h-48 resize-y leading-6`}
@@ -98,7 +100,6 @@ export function ProviderApplicationForm({
 					label="Proposed price"
 					name="proposed_price"
 					error={getFieldError(state, "proposed_price")}
-					description="Enter your proposed price."
 				>
 					<div className="relative">
 						<span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-secondary">
@@ -123,7 +124,6 @@ export function ProviderApplicationForm({
 					label="Delivery estimate"
 					name="estimated_delivery_days"
 					error={getFieldError(state, "estimated_delivery_days")}
-					description="Optional estimate in calendar days."
 				>
 					<div className="relative">
 						<input
@@ -146,9 +146,7 @@ export function ProviderApplicationForm({
 			</div>
 
 			<div className="flex flex-col gap-4 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
-				<p className="text-sm leading-6 text-secondary">
-					Your proposal is sent to the client with your profile details.
-				</p>
+				
 				<button
 					type="submit"
 					disabled={isPending}

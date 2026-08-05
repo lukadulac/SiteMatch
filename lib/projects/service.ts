@@ -67,6 +67,7 @@ type ProviderProjectSummary = Pick<
   | "slug"
   | "title"
   | "description"
+  | "what_do_you_need_text"
   | "status"
   | "service_type_id"
   | "budget_type"
@@ -75,8 +76,12 @@ type ProviderProjectSummary = Pick<
   | "deadline_type"
   | "deadline_date"
   | "preferred_provider_type"
+  | "preferred_language"
   | "scope_level"
   | "readiness_level"
+  | "needs_design"
+  | "needs_seo"
+  | "needs_content_writing"
   | "created_at"
   | "updated_at"
 >;
@@ -125,6 +130,13 @@ type ProjectResult<T> =
       data?: never;
       error: string;
     };
+
+export type PublicProjectFilters = {
+  q?: string;
+  budget?: "fixed" | "range" | "negotiable" | "";
+  scope?: "small" | "medium" | "large" | "";
+  sort?: "newest" | "oldest" | "budget_high" | "budget_low";
+};
 
 type AcceptProjectApplicationRpcRow = {
   application_id: string;
@@ -539,19 +551,68 @@ export async function getPublishedProjectsForProviders(
     return { error: providerState.error };
   }
 
+  return getPublicPublishedProjects(supabase);
+}
+
+export async function getPublicPublishedProjects(
+  supabase: SupabaseClient<Database>,
+  filters: PublicProjectFilters = {},
+): Promise<ProjectResult<ProviderProjectSummary[]>> {
   const { data, error } = await supabase
     .from("projects")
     .select(
-      "id, slug, title, description, status, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, preferred_provider_type, scope_level, readiness_level, created_at, updated_at",
+      "id, slug, title, description, what_do_you_need_text, status, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, preferred_provider_type, preferred_language, scope_level, readiness_level, needs_design, needs_seo, needs_content_writing, created_at, updated_at",
     )
     .eq("status", "published")
-    .order("updated_at", { ascending: false });
+    .order("created_at", { ascending: filters.sort === "oldest" });
 
   if (error) {
     return { error: error.message };
   }
 
-  return { data: data ?? [] };
+  const searchQuery = filters.q?.trim().toLowerCase() ?? "";
+  const filteredProjects = (data ?? []).filter((project) => {
+    if (filters.budget && project.budget_type !== filters.budget) {
+      return false;
+    }
+
+    if (filters.scope && project.scope_level !== filters.scope) {
+      return false;
+    }
+
+    if (!searchQuery) {
+      return true;
+    }
+
+    return [
+      project.title,
+      project.description,
+      project.what_do_you_need_text,
+      project.preferred_language,
+      project.preferred_provider_type,
+      project.scope_level,
+      project.readiness_level,
+    ]
+      .filter((value): value is string => typeof value === "string")
+      .some((value) => value.toLowerCase().includes(searchQuery));
+  });
+
+  if (filters.sort === "budget_high" || filters.sort === "budget_low") {
+    filteredProjects.sort((firstProject, secondProject) => {
+      const firstBudget =
+        firstProject.budget_max ?? firstProject.budget_min ?? Number.NEGATIVE_INFINITY;
+      const secondBudget =
+        secondProject.budget_max ??
+        secondProject.budget_min ??
+        Number.NEGATIVE_INFINITY;
+
+      return filters.sort === "budget_high"
+        ? secondBudget - firstBudget
+        : firstBudget - secondBudget;
+    });
+  }
+
+  return { data: filteredProjects };
 }
 
 export async function getPublishedProjectByIdForProvider(
@@ -565,6 +626,13 @@ export async function getPublishedProjectByIdForProvider(
     return { error: providerState.error };
   }
 
+  return getPublicPublishedProjectById(supabase, projectId);
+}
+
+export async function getPublicPublishedProjectById(
+  supabase: SupabaseClient<Database>,
+  projectId: string,
+): Promise<ProjectResult<ProviderProjectDetail>> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
     .select("*")

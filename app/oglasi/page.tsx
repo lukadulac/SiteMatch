@@ -170,7 +170,7 @@ export default async function ListingsPage() {
       {!profileComplete ? (
         <div className="rounded-[1.75rem] border border-amber-200 bg-amber-50/80 p-5 text-sm text-amber-900 shadow-[0_20px_60px_rgba(120,53,15,0.08)]">
           Your client profile is still incomplete. Finish it in{" "}
-          <Link href="/dashboard/client#profile" className="font-semibold underline">
+          <Link href="/dashboard/client/profile" className="font-semibold underline">
             dashboard profile settings
           </Link>{" "}
           so listings can be saved and published without backend validation errors.
