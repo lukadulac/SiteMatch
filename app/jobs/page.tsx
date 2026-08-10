@@ -385,9 +385,6 @@ export default async function ProviderOpportunitiesPage({
                 className="flex min-w-0 flex-col rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)] sm:p-6"
               >
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                    New
-                  </span>
                   <span className="min-w-0 wrap-break-word text-xs font-medium text-secondary">
                     {budgetTypeLabel(project.budget_type)} ·{" "}
                     {formatPostedLabel(project.created_at)}

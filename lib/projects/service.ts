@@ -504,15 +504,20 @@ export async function updateClientProject(
 
   if (
     !project ||
-    (project.status !== "draft" && project.status !== "published")
+    (project.status !== "draft" &&
+      project.status !== "published" &&
+      project.status !== "in_discussion")
   ) {
-    return { error: "Only draft or published projects can be updated." };
+    return {
+      error: "Only draft, published, or in-discussion projects can be updated.",
+    };
   }
 
   const projectPayload: Database["public"]["Tables"]["projects"]["Update"] = {
     ...buildProjectPayload(userId, input, project.id),
     client_id: undefined,
     slug: undefined,
+    status: project.status === "in_discussion" ? "in_discussion" : input.status,
   };
 
   const { data: updatedProject, error: updateError } = await supabase
@@ -563,7 +568,7 @@ export async function getPublicPublishedProjects(
     .select(
       "id, slug, title, description, what_do_you_need_text, status, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, preferred_provider_type, preferred_language, scope_level, readiness_level, needs_design, needs_seo, needs_content_writing, created_at, updated_at",
     )
-    .eq("status", "published")
+    .in("status", ["published", "in_discussion"])
     .order("created_at", { ascending: filters.sort === "oldest" });
 
   if (error) {
@@ -637,7 +642,7 @@ export async function getPublicPublishedProjectById(
     .from("projects")
     .select("*")
     .eq("id", projectId)
-    .eq("status", "published")
+    .in("status", ["published", "in_discussion"])
     .maybeSingle();
 
   if (projectError) {
@@ -699,7 +704,7 @@ export async function createProjectApplication(
     return { error: projectError.message };
   }
 
-  if (!project || project.status !== "published") {
+  if (!project || project.status !== "published" && project.status !== "in_discussion") {
     return { error: "Project not found." };
   }
 
@@ -908,4 +913,40 @@ export async function updateProjectApplicationStatusForClient(
   }
 
   return { data };
+}
+
+
+export async function markProjectApplicationsViewedForClient(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  projectId: string,
+): Promise<ProjectResult<{ updated_count: number }>> {
+  const clientState = await ensureClientUser(supabase, userId);
+
+  if (clientState.error) {
+    return { error: clientState.error };
+  }
+
+  const ownedProject = await getOwnedProjectRecord(supabase, userId, projectId);
+
+  if (ownedProject.error) {
+    return { error: ownedProject.error };
+  }
+
+  const { data, error } = await supabase
+    .from("applications")
+    .update({ status: "viewed" })
+    .eq("project_id", projectId)
+    .eq("status", "pending")
+    .select("id");
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return {
+    data: {
+      updated_count: (data ?? []).length,
+    },
+  };
 }

@@ -113,6 +113,42 @@ function canSendMessages(status: string | null | undefined) {
   );
 }
 
+function readOnlyConversationMessage(status: string | null | undefined) {
+  if (status === "rejected") {
+    return "This application was rejected. Conversation history remains visible, but new messages are disabled.";
+  }
+
+  if (status === "withdrawn") {
+    return "This application was withdrawn. Conversation history remains visible, but new messages are disabled.";
+  }
+
+  return "This application is closed. Conversation history remains visible, but new messages are disabled.";
+}
+
+function MessageStatusTicks({
+  isMine,
+  isRead,
+}: {
+  isMine: boolean;
+  isRead: boolean;
+}) {
+  if (!isMine) {
+    return null;
+  }
+
+  return (
+    <span
+      aria-label={isRead ? "Seen" : "Sent"}
+      title={isRead ? "Seen" : "Sent"}
+      className={`ml-2 inline-flex items-center font-semibold tracking-[-0.18em] ${
+        isRead ? "text-sky-300" : "text-white/60"
+      }`}
+    >
+      {isRead ? "✓✓" : "✓"}
+    </span>
+  );
+}
+
 export function MessageThread({
   conversation,
   currentUserId,
@@ -264,6 +300,11 @@ export function MessageThread({
 
   async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!composerEnabled) {
+      setError(readOnlyConversationMessage(applicationStatus));
+      return;
+    }
 
     const messageText = draft.trim().replace(/\s+/g, " ");
 
@@ -490,19 +531,20 @@ export function MessageThread({
                 <div
                   className={`max-w-[min(72ch,85%)] rounded-3xl px-5 py-4 ${
                     isMine
-                      ? "bg-black text-white"
-                      : "border border-line bg-white text-black"
+                      ? "bg-zinc-500 text-white shadow-[0_14px_30px_rgba(17,17,17,0.12)]"
+                      : "border border-line bg-white text-black shadow-[0_10px_24px_rgba(17,17,17,0.04)]"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap break-words text-sm leading-6">
+                  <p className="whitespace-pre-wrap wrap-break-word text-sm leading-6">
                     {message.message_text}
                   </p>
                   <p
-                    className={`mt-3 text-xs ${
+                    className={`mt-3 flex items-center text-xs ${
                       isMine ? "text-white/60" : "text-secondary"
                     }`}
                   >
-                    {formatTimeLabel(message.created_at)}
+                    <span>{formatTimeLabel(message.created_at)}</span>
+                    <MessageStatusTicks isMine={isMine} isRead={message.is_read} />
                   </p>
                 </div>
               </article>
@@ -510,8 +552,9 @@ export function MessageThread({
           })
         ) : (
           <div className="rounded-3xl border border-dashed border-line p-8 text-sm leading-6 text-secondary">
-            No messages yet. Send the first message to discuss scope, budget,
-            timing, or project details.
+            {composerEnabled
+              ? "No messages yet. Send the first message to discuss scope, budget, timing, or project details."
+              : "No messages were sent before this application was closed."}
           </div>
         )}
         <div ref={bottomRef} />
@@ -544,16 +587,16 @@ export function MessageThread({
               <button
                 type="submit"
                 disabled={isSending || draft.trim().length === 0}
-                className="rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink shadow-[0_18px_40px_rgba(20,168,0,0.24)] transition hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-full bg-linear-to-r from-violet-500 to-pink-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(168,85,247,0.25)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSending ? "Sending..." : "Send message"}
               </button>
             </div>
           </form>
         ) : (
-          <div className="rounded-3xl border border-dashed border-line p-5 text-sm leading-6 text-secondary">
-            This application is closed, so messaging is disabled for this
-            conversation.
+          <div className="rounded-3xl border border-red-100 bg-red-50 p-5 text-sm leading-6 text-red-700">
+            <p className="font-semibold text-red-800">Conversation is read-only</p>
+            <p className="mt-1">{readOnlyConversationMessage(applicationStatus)}</p>
           </div>
         )}
       </footer>

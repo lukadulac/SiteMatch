@@ -87,7 +87,7 @@ export async function ensureConversationForApplication(
   const { data: application, error: applicationError } = await supabase
     .from("applications")
     .select(
-      "id, project_id, provider_id, status, project:projects!applications_project_id_fkey(client_id)",
+      "id, project_id, provider_id, status, project:projects!applications_project_id_fkey(client_id, status)",
     )
     .eq("id", applicationId)
     .maybeSingle();
@@ -113,6 +113,29 @@ export async function ensureConversationForApplication(
     return { error: "Application not found." };
   }
 
+  if (!canSendMessagesForApplication(application.status)) {
+    return { error: "This application is no longer open for messaging." };
+  }
+
+  if (
+    isProjectClient &&
+    project.status === "published" &&
+    (application.status === "pending" ||
+      application.status === "viewed" ||
+      application.status === "shortlisted")
+  ) {
+    const { error: projectStatusError } = await supabase
+      .from("projects")
+      .update({ status: "in_discussion" })
+      .eq("id", application.project_id)
+      .eq("client_id", userId)
+      .eq("status", "published");
+
+    if (projectStatusError) {
+      return { error: projectStatusError.message };
+    }
+  }
+
   const existingConversationResult = await getConversationByApplicationId(
     supabase,
     applicationId,
@@ -128,10 +151,6 @@ export async function ensureConversationForApplication(
 
   if (!isProjectClient) {
     return { error: "Conversation not found." };
-  }
-
-  if (!canSendMessagesForApplication(application.status)) {
-    return { error: "This application is no longer open for messaging." };
   }
 
   const { data, error } = await supabase

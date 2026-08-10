@@ -9,6 +9,7 @@ import { getDashboardPath } from "@/lib/auth/roles";
 import {
   getClientProjectById,
   getProjectApplicationsForClient,
+  markProjectApplicationsViewedForClient,
 } from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -182,21 +183,34 @@ export default async function ListingDetailsPage({
 
   const { id } = await params;
   const notices = await searchParams;
-  const [projectResult, applicationsResult] = await Promise.all([
-    getClientProjectById(supabase, user.id, id),
-    getProjectApplicationsForClient(supabase, user.id, id),
-  ]);
+  const projectResult = await getClientProjectById(supabase, user.id, id);
 
   if (projectResult.error) {
     throw new Error(projectResult.error);
   }
 
-  if (applicationsResult.error) {
-    throw new Error(applicationsResult.error);
-  }
-
   if (!projectResult.data) {
     throw new Error("Project could not be loaded.");
+  }
+
+  const markViewedResult = await markProjectApplicationsViewedForClient(
+    supabase,
+    user.id,
+    id,
+  );
+
+  if (markViewedResult.error) {
+    throw new Error(markViewedResult.error);
+  }
+
+  const applicationsResult = await getProjectApplicationsForClient(
+    supabase,
+    user.id,
+    id,
+  );
+
+  if (applicationsResult.error) {
+    throw new Error(applicationsResult.error);
   }
 
   const project = projectResult.data;
@@ -441,7 +455,7 @@ export default async function ListingDetailsPage({
 
                   <div className="mt-5 rounded-2xl border border-line bg-panel-soft p-4">
                     <p className="text-sm font-semibold text-black">Proposal</p>
-                    <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-secondary">
+                    <p className="mt-2 whitespace-pre-line wrap-break-word text-sm leading-6 text-secondary">
                       {application.cover_message}
                     </p>
                   </div>

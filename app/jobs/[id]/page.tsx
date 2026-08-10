@@ -122,6 +122,16 @@ function deadlineLabel(deadlineType: string, deadlineDate: string | null) {
 	return formatDateLabel(deadlineDate);
 }
 
+function projectStatusLabel(status: string) {
+	return status === "in_discussion" ? "In discussion" : "Open";
+}
+
+function projectStatusClasses(status: string) {
+	return status === "in_discussion"
+		? "bg-amber-50 text-amber-700"
+		: "bg-blue-50 text-blue-700";
+}
+
 function getProjectTags(project: {
 	preferred_provider_type: string | null;
 	scope_level: string | null;
@@ -184,8 +194,12 @@ export default async function JobDetailsPage({ params }: PageProps) {
 							<span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-secondary">
 								Project brief
 							</span>
-							<span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-								Open
+							<span
+								className={`rounded-full px-3 py-1 text-xs font-semibold ${projectStatusClasses(
+									project.status,
+								)}`}
+							>
+								{projectStatusLabel(project.status)}
 							</span>
 						</div>
 

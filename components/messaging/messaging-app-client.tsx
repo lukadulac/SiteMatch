@@ -297,7 +297,7 @@ export function MessagingApp({
   }, []);
 
   return (
-    <div className="grid h-[calc(100vh-220px)] min-h-[680px] gap-6 overflow-hidden xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.4fr)]">
+    <div className="grid h-[calc(100vh-220px)] min-h-170 gap-6 overflow-hidden xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.4fr)]">
       <section
         className={`min-h-0 flex-col rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-7 xl:flex ${
           hasActiveConversation ? "hidden" : "flex"
@@ -332,7 +332,7 @@ export function MessagingApp({
         />
       ) : (
         <section className="hidden rounded-4xl border border-line bg-white/90 p-8 shadow-[0_20px_60px_rgba(17,17,17,0.06)] xl:block">
-          <div className="flex min-h-[420px] flex-col items-start justify-center">
+          <div className="flex min-h-105 flex-col items-start justify-center">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-secondary">
               Select a conversation
             </p>
