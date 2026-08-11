@@ -170,7 +170,7 @@ export const createApplicationSchema = z.object({
 export type CreateApplicationInput = z.infer<typeof createApplicationSchema>;
 
 export const updateApplicationStatusSchema = z.object({
-  status: z.enum(["viewed", "shortlisted", "accepted", "rejected"]),
+  status: z.enum(["shortlisted", "accepted", "rejected"]),
 });
 
 export type UpdateApplicationStatusInput = z.infer<

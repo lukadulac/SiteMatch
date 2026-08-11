@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   openApplicationConversationAction,
+  reviewApplicationAction,
   updateClientApplicationStatusAction,
 } from "@/app/oglasi/actions";
 import { ensureUserProfile } from "@/lib/auth/provision";
@@ -9,7 +10,6 @@ import { getDashboardPath } from "@/lib/auth/roles";
 import {
   getClientProjectById,
   getProjectApplicationsForClient,
-  markProjectApplicationsViewedForClient,
 } from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -193,16 +193,6 @@ export default async function ListingDetailsPage({
     throw new Error("Project could not be loaded.");
   }
 
-  const markViewedResult = await markProjectApplicationsViewedForClient(
-    supabase,
-    user.id,
-    id,
-  );
-
-  if (markViewedResult.error) {
-    throw new Error(markViewedResult.error);
-  }
-
   const applicationsResult = await getProjectApplicationsForClient(
     supabase,
     user.id,
@@ -359,6 +349,11 @@ export default async function ListingDetailsPage({
                 project.id,
                 application.id,
               );
+              const reviewAction = reviewApplicationAction.bind(
+                null,
+                project.id,
+                application.id,
+              );
 
               return (
                 <article
@@ -398,6 +393,16 @@ export default async function ListingDetailsPage({
 
                     {canUpdate ? (
                       <div className="flex flex-wrap gap-3">
+                        {application.status === "pending" ? (
+                          <form action={reviewAction}>
+                            <button
+                              type="submit"
+                              className="inline-flex items-center justify-center rounded-2xl border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                            >
+                              Review
+                            </button>
+                          </form>
+                        ) : null}
                         <form action={messageAction}>
                           <button
                             type="submit"

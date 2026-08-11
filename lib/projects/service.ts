@@ -916,37 +916,53 @@ export async function updateProjectApplicationStatusForClient(
 }
 
 
-export async function markProjectApplicationsViewedForClient(
+export async function markProjectApplicationViewedForClient(
   supabase: SupabaseClient<Database>,
   userId: string,
-  projectId: string,
-): Promise<ProjectResult<{ updated_count: number }>> {
+  applicationId: string,
+): Promise<ProjectResult<{ id: string; status: Database["public"]["Enums"]["application_status"] }>> {
   const clientState = await ensureClientUser(supabase, userId);
 
   if (clientState.error) {
     return { error: clientState.error };
   }
 
-  const ownedProject = await getOwnedProjectRecord(supabase, userId, projectId);
+  const applicationResult = await getProjectApplicationForClient(
+    supabase,
+    userId,
+    applicationId,
+  );
 
-  if (ownedProject.error) {
-    return { error: ownedProject.error };
+  if (applicationResult.error) {
+    return { error: applicationResult.error };
+  }
+
+  const application = applicationResult.data;
+
+  if (!application) {
+    return { error: "Application not found." };
+  }
+
+  if (application.status !== "pending") {
+    return {
+      data: {
+        id: application.id,
+        status: application.status,
+      },
+    };
   }
 
   const { data, error } = await supabase
     .from("applications")
     .update({ status: "viewed" })
-    .eq("project_id", projectId)
+    .eq("id", applicationId)
     .eq("status", "pending")
-    .select("id");
+    .select("id, status")
+    .single();
 
   if (error) {
     return { error: error.message };
   }
 
-  return {
-    data: {
-      updated_count: (data ?? []).length,
-    },
-  };
+  return { data };
 }
