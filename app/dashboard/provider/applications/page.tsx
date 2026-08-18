@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { withdrawApplicationAction } from "@/app/dashboard/actions";
 import {
   DashboardPanel,
   DashboardShell,
@@ -53,6 +54,10 @@ function applicationStatusClasses(status: string) {
     default:
       return "bg-zinc-100 text-zinc-700";
   }
+}
+
+function canWithdrawApplication(status: string) {
+  return status === "pending" || status === "viewed" || status === "shortlisted";
 }
 
 export default async function ProviderApplicationsPage() {
@@ -137,7 +142,7 @@ export default async function ProviderApplicationsPage() {
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0">
-                    <h2 className="break-words text-xl font-semibold text-black">
+                    <h2 className="wrap-break-word text-xl font-semibold text-black">
                       {application.project?.title ?? "Untitled project"}
                     </h2>
                     <p className="mt-2 text-sm text-secondary">
@@ -182,6 +187,16 @@ export default async function ProviderApplicationsPage() {
                     >
                       View brief
                     </Link>
+                    {canWithdrawApplication(application.status) ? (
+                      <form action={withdrawApplicationAction.bind(null, application.id)}>
+                        <button
+                          type="submit"
+                          className="rounded-2xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                        >
+                          Withdraw proposal
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 ) : null}
               </article>
