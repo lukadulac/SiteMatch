@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { withdrawApplicationAction } from "@/app/dashboard/actions";
 import {
   DashboardPanel,
   DashboardShell,
@@ -7,6 +8,7 @@ import {
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
+import { getApplicationStatusMeta } from "@/lib/projects/application-status";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function formatDateLabel(value: string | null) {
@@ -19,23 +21,6 @@ function formatDateLabel(value: string | null) {
     month: "short",
     day: "2-digit",
   }).format(new Date(value));
-}
-
-function applicationStatusLabel(status: string) {
-  switch (status) {
-    case "pending":
-      return "Pending";
-    case "viewed":
-      return "Viewed";
-    case "shortlisted":
-      return "Shortlisted";
-    case "accepted":
-      return "Accepted";
-    case "rejected":
-      return "Rejected";
-    default:
-      return "Withdrawn";
-  }
 }
 
 function applicationStatusClasses(status: string) {
@@ -130,14 +115,17 @@ export default async function ProviderApplicationsPage() {
       <DashboardPanel title="My Applications">
         <div className="space-y-4">
           {applications.length > 0 ? (
-            applications.map((application) => (
-              <article
-                key={application.id}
-                className="rounded-3xl border border-line bg-white p-5"
-              >
+            applications.map((application) => {
+              const statusMeta = getApplicationStatusMeta(application.status);
+
+              return (
+                <article
+                  key={application.id}
+                  className="rounded-3xl border border-line bg-white p-5"
+                >
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0">
-                    <h2 className="break-words text-xl font-semibold text-black">
+                    <h2 className="wrap-break-word text-xl font-semibold text-black">
                       {application.project?.title ?? "Untitled project"}
                     </h2>
                     <p className="mt-2 text-sm text-secondary">
@@ -149,7 +137,7 @@ export default async function ProviderApplicationsPage() {
                       application.status,
                     )}`}
                   >
-                    {applicationStatusLabel(application.status)}
+                    {statusMeta.label}
                   </span>
                 </div>
 
@@ -182,10 +170,21 @@ export default async function ProviderApplicationsPage() {
                     >
                       View brief
                     </Link>
+                    {statusMeta.active && application.status !== "accepted" ? (
+                      <form action={withdrawApplicationAction.bind(null, application.id)}>
+                        <button
+                          type="submit"
+                          className="rounded-2xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                        >
+                          Withdraw proposal
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 ) : null}
               </article>
-            ))
+              );
+            })
           ) : (
             <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
               You have not submitted applications yet. Browse open briefs and send

@@ -216,7 +216,7 @@ export default async function ListingsPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="max-w-3xl">
                   <h2 className="text-2xl font-semibold text-black">{project.title}</h2>
-                  <p className="mt-3 line-clamp-3 break-words text-sm leading-6 text-secondary sm:text-base">
+                  <p className="mt-3 line-clamp-3 wrap-break-word text-sm leading-6 text-secondary sm:text-base">
                     {project.description}
                   </p>
                 </div>

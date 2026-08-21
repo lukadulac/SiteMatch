@@ -1,911 +1,1160 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
 import type {
-  CreateApplicationInput,
-  CreateProjectInput,
-  UpdateProjectInput,
-  UpdateApplicationStatusInput,
+	CreateApplicationInput,
+	CreateProjectInput,
+	UpdateProjectInput,
+	UpdateApplicationStatusInput,
 } from "@/lib/projects/schemas";
 import type { Database } from "@/types/supabase";
 
 function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
+	return value
+		.toLowerCase()
+		.normalize("NFKD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.slice(0, 60);
 }
 
 function buildProjectSlug(title: string) {
-  const base = slugify(title) || "project";
-  const suffix = crypto.randomUUID().slice(0, 8);
-  return `${base}-${suffix}`;
+	const base = slugify(title) || "project";
+	const suffix = crypto.randomUUID().slice(0, 8);
+	return `${base}-${suffix}`;
 }
 
 type CreateProjectResult =
-  | {
-      data: {
-        id: string;
-        slug: string;
-        status: Database["public"]["Enums"]["project_status"];
-      };
-      error?: never;
-    }
-  | {
-      data?: never;
-      error: string;
-    };
+	| {
+			data: {
+				id: string;
+				slug: string;
+				status: Database["public"]["Enums"]["project_status"];
+			};
+			error?: never;
+	  }
+	| {
+			data?: never;
+			error: string;
+	  };
 
 type ClientProjectSummary = Pick<
-  Database["public"]["Tables"]["projects"]["Row"],
-  | "id"
-  | "slug"
-  | "title"
-  | "status"
-  | "description"
-  | "service_type_id"
-  | "budget_type"
-  | "budget_min"
-  | "budget_max"
-  | "deadline_type"
-  | "deadline_date"
-  | "desired_start_date"
-  | "updated_at"
-  | "created_at"
+	Database["public"]["Tables"]["projects"]["Row"],
+	| "id"
+	| "slug"
+	| "title"
+	| "status"
+	| "description"
+	| "service_type_id"
+	| "budget_type"
+	| "budget_min"
+	| "budget_max"
+	| "deadline_type"
+	| "deadline_date"
+	| "desired_start_date"
+	| "updated_at"
+	| "created_at"
 >;
 
 type ClientProjectDetail = Database["public"]["Tables"]["projects"]["Row"] & {
-  goal_ids: string[];
-  feature_ids: string[];
+	goal_ids: string[];
+	feature_ids: string[];
 };
 
 type ProviderProjectSummary = Pick<
-  Database["public"]["Tables"]["projects"]["Row"],
-  | "id"
-  | "slug"
-  | "title"
-  | "description"
-  | "what_do_you_need_text"
-  | "status"
-  | "service_type_id"
-  | "budget_type"
-  | "budget_min"
-  | "budget_max"
-  | "deadline_type"
-  | "deadline_date"
-  | "preferred_provider_type"
-  | "preferred_language"
-  | "scope_level"
-  | "readiness_level"
-  | "needs_design"
-  | "needs_seo"
-  | "needs_content_writing"
-  | "created_at"
-  | "updated_at"
+	Database["public"]["Tables"]["projects"]["Row"],
+	| "id"
+	| "slug"
+	| "title"
+	| "description"
+	| "what_do_you_need_text"
+	| "status"
+	| "service_type_id"
+	| "budget_type"
+	| "budget_min"
+	| "budget_max"
+	| "deadline_type"
+	| "deadline_date"
+	| "preferred_provider_type"
+	| "preferred_language"
+	| "scope_level"
+	| "readiness_level"
+	| "needs_design"
+	| "needs_seo"
+	| "needs_content_writing"
+	| "created_at"
+	| "updated_at"
 >;
 
 type ProviderProjectDetail = Database["public"]["Tables"]["projects"]["Row"] & {
-  goal_ids: string[];
-  feature_ids: string[];
+	goal_ids: string[];
+	feature_ids: string[];
 };
 
 type ClientProjectApplicationSummary = Pick<
-  Database["public"]["Tables"]["applications"]["Row"],
-  | "id"
-  | "project_id"
-  | "provider_id"
-  | "status"
-  | "cover_message"
-  | "proposed_price"
-  | "estimated_delivery_days"
-  | "created_at"
-  | "updated_at"
+	Database["public"]["Tables"]["applications"]["Row"],
+	| "id"
+	| "project_id"
+	| "provider_id"
+	| "status"
+	| "cover_message"
+	| "proposed_price"
+	| "estimated_delivery_days"
+	| "created_at"
+	| "updated_at"
 > & {
-  provider: Pick<
-    Database["public"]["Tables"]["profiles"]["Row"],
-    "id" | "full_name" | "email" | "phone" | "country" | "city"
-  > | null;
+	provider: Pick<
+		Database["public"]["Tables"]["profiles"]["Row"],
+		"id" | "full_name" | "email" | "phone" | "country" | "city"
+	> | null;
 };
 
 type ClientProjectApplicationDetail =
-  Database["public"]["Tables"]["applications"]["Row"] & {
-    provider: Pick<
-      Database["public"]["Tables"]["profiles"]["Row"],
-      "id" | "full_name" | "email" | "phone" | "country" | "city"
-    > | null;
-    project: Pick<
-      Database["public"]["Tables"]["projects"]["Row"],
-      "id" | "title" | "slug" | "status" | "client_id"
-    > | null;
-  };
+	Database["public"]["Tables"]["applications"]["Row"] & {
+		provider: Pick<
+			Database["public"]["Tables"]["profiles"]["Row"],
+			"id" | "full_name" | "email" | "phone" | "country" | "city"
+		> | null;
+		project: Pick<
+			Database["public"]["Tables"]["projects"]["Row"],
+			"id" | "title" | "slug" | "status" | "client_id"
+		> | null;
+	};
 
 type ProjectResult<T> =
-  | {
-      data: T;
-      error?: never;
-    }
-  | {
-      data?: never;
-      error: string;
-    };
+	| {
+			data: T;
+			error?: never;
+	  }
+	| {
+			data?: never;
+			error: string;
+	  };
 
 export type PublicProjectFilters = {
-  q?: string;
-  budget?: "fixed" | "range" | "negotiable" | "";
-  scope?: "small" | "medium" | "large" | "";
-  sort?: "newest" | "oldest" | "budget_high" | "budget_low";
+	q?: string;
+	budget?: "fixed" | "range" | "negotiable" | "";
+	scope?: "small" | "medium" | "large" | "";
+	sort?: "newest" | "oldest" | "budget_high" | "budget_low";
 };
 
 type AcceptProjectApplicationRpcRow = {
-  application_id: string;
-  application_status: Database["public"]["Enums"]["application_status"];
-  conversation_id: string;
+	application_id: string;
+	application_status: Database["public"]["Enums"]["application_status"];
+	conversation_id: string;
+};
+
+type WithdrawProjectApplicationRpcRow = {
+	application_id: string;
+	application_status: Database["public"]["Enums"]["application_status"];
+	project_id: string;
+	project_status: Database["public"]["Enums"]["project_status"];
+};
+
+type RejectProjectApplicationRpcRow = {
+	application_id: string;
+	application_status: Database["public"]["Enums"]["application_status"];
+	project_id: string;
+	project_status: Database["public"]["Enums"]["project_status"];
 };
 
 type SupabaseClientWithAcceptRpc = SupabaseClient<Database> & {
-  rpc(
-    fn: "accept_project_application",
-    args: { target_application_id: string },
-  ): Promise<{
-    data: AcceptProjectApplicationRpcRow[] | null;
-    error: { message: string } | null;
-  }>;
+	rpc(
+		fn: "accept_project_application",
+		args: { target_application_id: string },
+	): Promise<{
+		data: AcceptProjectApplicationRpcRow[] | null;
+		error: { message: string } | null;
+	}>;
+};
+
+type SupabaseClientWithWithdrawRpc = SupabaseClient<Database> & {
+	rpc(
+		fn: "withdraw_project_application",
+		args: { target_application_id: string },
+	): Promise<{
+		data: WithdrawProjectApplicationRpcRow[] | null;
+		error: { message: string } | null;
+	}>;
+};
+
+type SupabaseClientWithRejectRpc = SupabaseClient<Database> & {
+	rpc(
+		fn: "reject_project_application",
+		args: { target_application_id: string },
+	): Promise<{
+		data: RejectProjectApplicationRpcRow[] | null;
+		error: { message: string } | null;
+	}>;
 };
 
 async function getClientProjectProfileState(
-  supabase: SupabaseClient<Database>,
-  userId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
 ) {
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
+	const { data: profile, error: profileError } = await supabase
+		.from("profiles")
+		.select("role")
+		.eq("id", userId)
+		.maybeSingle();
 
-  if (profileError) {
-    return { error: profileError.message };
-  }
+	if (profileError) {
+		return { error: profileError.message };
+	}
 
-  if (!profile || profile.role !== "client") {
-    return { error: "Only clients can manage project listings." };
-  }
+	if (!profile || profile.role !== "client") {
+		return { error: "Only clients can manage project listings." };
+	}
 
-  const { data: clientProfile, error: clientProfileError } = await supabase
-    .from("client_profiles")
-    .select(
-      "business_name, business_type, business_type_text, project_idea, interested_solution_types, interested_solution_other_text",
-    )
-    .eq("user_id", userId)
-    .maybeSingle();
+	const { data: clientProfile, error: clientProfileError } = await supabase
+		.from("client_profiles")
+		.select(
+			"business_name, business_type, business_type_text, project_idea, interested_solution_types, interested_solution_other_text",
+		)
+		.eq("user_id", userId)
+		.maybeSingle();
 
-  if (clientProfileError) {
-    return { error: clientProfileError.message };
-  }
+	if (clientProfileError) {
+		return { error: clientProfileError.message };
+	}
 
-  if (!isClientProfileComplete(clientProfile)) {
-    return { error: "Complete your client profile before managing listings." };
-  }
+	if (!isClientProfileComplete(clientProfile)) {
+		return { error: "Complete your client profile before managing listings." };
+	}
 
-  return { error: undefined };
+	return { error: undefined };
 }
 
 async function getOwnedProjectRecord(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  projectId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	projectId: string,
 ) {
-  const { data, error } = await supabase
-    .from("projects")
-    .select("id, client_id, status")
-    .eq("id", projectId)
-    .maybeSingle();
+	const { data, error } = await supabase
+		.from("projects")
+		.select("id, client_id, status")
+		.eq("id", projectId)
+		.maybeSingle();
 
-  if (error) {
-    return { error: error.message };
-  }
+	if (error) {
+		return { error: error.message };
+	}
 
-  if (!data || data.client_id !== userId) {
-    return { error: "Project not found." };
-  }
+	if (!data || data.client_id !== userId) {
+		return { error: "Project not found." };
+	}
 
-  return { data };
+	return { data };
 }
 
 async function ensureProviderUser(
-  supabase: SupabaseClient<Database>,
-  userId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
 ) {
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
+	const { data: profile, error } = await supabase
+		.from("profiles")
+		.select("role")
+		.eq("id", userId)
+		.maybeSingle();
 
-  if (error) {
-    return { error: error.message };
-  }
+	if (error) {
+		return { error: error.message };
+	}
 
-  if (!profile || profile.role !== "provider") {
-    return { error: "Only providers can access this resource." };
-  }
+	if (!profile || profile.role !== "provider") {
+		return { error: "Only providers can access this resource." };
+	}
 
-  return { error: undefined };
+	return { error: undefined };
 }
 
 async function ensureClientUser(
-  supabase: SupabaseClient<Database>,
-  userId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
 ) {
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
+	const { data: profile, error } = await supabase
+		.from("profiles")
+		.select("role")
+		.eq("id", userId)
+		.maybeSingle();
 
-  if (error) {
-    return { error: error.message };
-  }
+	if (error) {
+		return { error: error.message };
+	}
 
-  if (!profile || profile.role !== "client") {
-    return { error: "Only clients can access this resource." };
-  }
+	if (!profile || profile.role !== "client") {
+		return { error: "Only clients can access this resource." };
+	}
 
-  return { error: undefined };
+	return { error: undefined };
 }
 
 function buildProjectPayload(
-  userId: string,
-  input: CreateProjectInput | UpdateProjectInput,
-  slug: string,
+	userId: string,
+	input: CreateProjectInput | UpdateProjectInput,
+	slug: string,
 ): Database["public"]["Tables"]["projects"]["Insert"] {
-  return {
-    title: input.title,
-    description: input.description,
-    client_id: userId,
-    slug,
-    service_type_id: input.service_type_id,
-    business_domain_id: input.business_domain_id ?? null,
-    business_domain_other_text: input.business_domain_other_text ?? null,
-    business_context_text: input.business_context_text ?? null,
-    what_do_you_need_text: input.what_do_you_need_text,
-    target_audience_text: input.target_audience_text ?? null,
-    success_criteria_text: input.success_criteria_text ?? null,
-    budget_type: input.budget_type,
-    budget_min: input.budget_min ?? null,
-    budget_max: input.budget_max ?? null,
-    deadline_type: input.deadline_type,
-    deadline_date: input.deadline_date ?? null,
-    desired_start_date: input.desired_start_date ?? null,
-    readiness_level: input.readiness_level ?? null,
-    scope_level: input.scope_level ?? null,
-    estimated_pages: input.estimated_pages ?? null,
-    has_existing_website: input.has_existing_website,
-    existing_website_url: input.existing_website_url ?? null,
-    needs_design: input.needs_design,
-    needs_seo: input.needs_seo,
-    needs_content_writing: input.needs_content_writing,
-    is_remote_friendly: input.is_remote_friendly,
-    preferred_language: input.preferred_language ?? null,
-    preferred_provider_type: input.preferred_provider_type,
-    discovery_notes: input.discovery_notes ?? null,
-    goal_other_text: input.goal_other_text ?? null,
-    status: input.status,
-  };
+	return {
+		title: input.title,
+		description: input.description,
+		client_id: userId,
+		slug,
+		service_type_id: input.service_type_id,
+		business_domain_id: input.business_domain_id ?? null,
+		business_domain_other_text: input.business_domain_other_text ?? null,
+		business_context_text: input.business_context_text ?? null,
+		what_do_you_need_text: input.what_do_you_need_text,
+		target_audience_text: input.target_audience_text ?? null,
+		success_criteria_text: input.success_criteria_text ?? null,
+		budget_type: input.budget_type,
+		budget_min: input.budget_min ?? null,
+		budget_max: input.budget_max ?? null,
+		deadline_type: input.deadline_type,
+		deadline_date: input.deadline_date ?? null,
+		desired_start_date: input.desired_start_date ?? null,
+		readiness_level: input.readiness_level ?? null,
+		scope_level: input.scope_level ?? null,
+		estimated_pages: input.estimated_pages ?? null,
+		has_existing_website: input.has_existing_website,
+		existing_website_url: input.existing_website_url ?? null,
+		needs_design: input.needs_design,
+		needs_seo: input.needs_seo,
+		needs_content_writing: input.needs_content_writing,
+		is_remote_friendly: input.is_remote_friendly,
+		preferred_language: input.preferred_language ?? null,
+		preferred_provider_type: input.preferred_provider_type,
+		discovery_notes: input.discovery_notes ?? null,
+		goal_other_text: input.goal_other_text ?? null,
+		status: input.status,
+	};
 }
 
 async function replaceProjectRelations(
-  supabase: SupabaseClient<Database>,
-  projectId: string,
-  goalIds: string[],
-  featureIds: string[],
+	supabase: SupabaseClient<Database>,
+	projectId: string,
+	goalIds: string[],
+	featureIds: string[],
 ) {
-  const { error: deleteGoalsError } = await supabase
-    .from("project_request_goals")
-    .delete()
-    .eq("project_id", projectId);
+	const { error: deleteGoalsError } = await supabase
+		.from("project_request_goals")
+		.delete()
+		.eq("project_id", projectId);
 
-  if (deleteGoalsError) {
-    return { error: deleteGoalsError.message };
-  }
+	if (deleteGoalsError) {
+		return { error: deleteGoalsError.message };
+	}
 
-  const { error: deleteFeaturesError } = await supabase
-    .from("project_request_features")
-    .delete()
-    .eq("project_id", projectId);
+	const { error: deleteFeaturesError } = await supabase
+		.from("project_request_features")
+		.delete()
+		.eq("project_id", projectId);
 
-  if (deleteFeaturesError) {
-    return { error: deleteFeaturesError.message };
-  }
+	if (deleteFeaturesError) {
+		return { error: deleteFeaturesError.message };
+	}
 
-  if (goalIds.length > 0) {
-    const { error } = await supabase.from("project_request_goals").insert(
-      goalIds.map((goalId) => ({
-        project_id: projectId,
-        goal_id: goalId,
-      })),
-    );
+	if (goalIds.length > 0) {
+		const { error } = await supabase.from("project_request_goals").insert(
+			goalIds.map((goalId) => ({
+				project_id: projectId,
+				goal_id: goalId,
+			})),
+		);
 
-    if (error) {
-      return { error: error.message };
-    }
-  }
+		if (error) {
+			return { error: error.message };
+		}
+	}
 
-  if (featureIds.length > 0) {
-    const { error } = await supabase.from("project_request_features").insert(
-      featureIds.map((featureId) => ({
-        project_id: projectId,
-        feature_id: featureId,
-      })),
-    );
+	if (featureIds.length > 0) {
+		const { error } = await supabase.from("project_request_features").insert(
+			featureIds.map((featureId) => ({
+				project_id: projectId,
+				feature_id: featureId,
+			})),
+		);
 
-    if (error) {
-      return { error: error.message };
-    }
-  }
+		if (error) {
+			return { error: error.message };
+		}
+	}
 
-  return { error: undefined };
+	return { error: undefined };
 }
 
 export async function createProject(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  input: CreateProjectInput,
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	input: CreateProjectInput,
 ): Promise<CreateProjectResult> {
-  const profileState = await getClientProjectProfileState(supabase, userId);
+	const profileState = await getClientProjectProfileState(supabase, userId);
 
-  if (profileState.error) {
-    return { error: profileState.error };
-  }
+	if (profileState.error) {
+		return { error: profileState.error };
+	}
 
-  const slug = buildProjectSlug(input.title);
-  const projectPayload = buildProjectPayload(userId, input, slug);
+	const slug = buildProjectSlug(input.title);
+	const projectPayload = buildProjectPayload(userId, input, slug);
 
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .insert(projectPayload)
-    .select("id, slug, status")
-    .single();
+	const { data: project, error: projectError } = await supabase
+		.from("projects")
+		.insert(projectPayload)
+		.select("id, slug, status")
+		.single();
 
-  if (projectError) {
-    return { error: projectError.message };
-  }
+	if (projectError) {
+		return { error: projectError.message };
+	}
 
-  const relationsResult = await replaceProjectRelations(
-    supabase,
-    project.id,
-    input.goal_ids,
-    input.feature_ids,
-  );
+	const relationsResult = await replaceProjectRelations(
+		supabase,
+		project.id,
+		input.goal_ids,
+		input.feature_ids,
+	);
 
-  if (relationsResult.error) {
-    return { error: relationsResult.error };
-  }
+	if (relationsResult.error) {
+		return { error: relationsResult.error };
+	}
 
-  return { data: project };
+	return { data: project };
 }
 
 export async function getClientProjects(
-  supabase: SupabaseClient<Database>,
-  userId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
 ): Promise<ProjectResult<ClientProjectSummary[]>> {
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
+	const { data: profile, error: profileError } = await supabase
+		.from("profiles")
+		.select("role")
+		.eq("id", userId)
+		.maybeSingle();
 
-  if (profileError) {
-    return { error: profileError.message };
-  }
+	if (profileError) {
+		return { error: profileError.message };
+	}
 
-  if (!profile || profile.role !== "client") {
-    return { error: "Only clients can view their project listings." };
-  }
+	if (!profile || profile.role !== "client") {
+		return { error: "Only clients can view their project listings." };
+	}
 
-  const { data, error } = await supabase
-    .from("projects")
-    .select(
-      "id, slug, title, status, description, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, desired_start_date, updated_at, created_at",
-    )
-    .eq("client_id", userId)
-    .order("updated_at", { ascending: false });
+	const { data, error } = await supabase
+		.from("projects")
+		.select(
+			"id, slug, title, status, description, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, desired_start_date, updated_at, created_at",
+		)
+		.eq("client_id", userId)
+		.order("updated_at", { ascending: false });
 
-  if (error) {
-    return { error: error.message };
-  }
+	if (error) {
+		return { error: error.message };
+	}
 
-  return { data: data ?? [] };
+	return { data: data ?? [] };
 }
 
 export async function getClientProjectById(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  projectId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	projectId: string,
 ): Promise<ProjectResult<ClientProjectDetail>> {
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
+	const { data: profile, error: profileError } = await supabase
+		.from("profiles")
+		.select("role")
+		.eq("id", userId)
+		.maybeSingle();
 
-  if (profileError) {
-    return { error: profileError.message };
-  }
+	if (profileError) {
+		return { error: profileError.message };
+	}
 
-  if (!profile || profile.role !== "client") {
-    return { error: "Only clients can view their project listings." };
-  }
+	if (!profile || profile.role !== "client") {
+		return { error: "Only clients can view their project listings." };
+	}
 
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("id", projectId)
-    .eq("client_id", userId)
-    .maybeSingle();
+	const { data: project, error: projectError } = await supabase
+		.from("projects")
+		.select("*")
+		.eq("id", projectId)
+		.eq("client_id", userId)
+		.maybeSingle();
 
-  if (projectError) {
-    return { error: projectError.message };
-  }
+	if (projectError) {
+		return { error: projectError.message };
+	}
 
-  if (!project) {
-    return { error: "Project not found." };
-  }
+	if (!project) {
+		return { error: "Project not found." };
+	}
 
-  const [{ data: goals, error: goalsError }, { data: features, error: featuresError }] =
-    await Promise.all([
-      supabase
-        .from("project_request_goals")
-        .select("goal_id")
-        .eq("project_id", projectId),
-      supabase
-        .from("project_request_features")
-        .select("feature_id")
-        .eq("project_id", projectId),
-    ]);
+	const [
+		{ data: goals, error: goalsError },
+		{ data: features, error: featuresError },
+	] = await Promise.all([
+		supabase
+			.from("project_request_goals")
+			.select("goal_id")
+			.eq("project_id", projectId),
+		supabase
+			.from("project_request_features")
+			.select("feature_id")
+			.eq("project_id", projectId),
+	]);
 
-  if (goalsError) {
-    return { error: goalsError.message };
-  }
+	if (goalsError) {
+		return { error: goalsError.message };
+	}
 
-  if (featuresError) {
-    return { error: featuresError.message };
-  }
+	if (featuresError) {
+		return { error: featuresError.message };
+	}
 
-  return {
-    data: {
-      ...project,
-      goal_ids: (goals ?? []).map((item) => item.goal_id),
-      feature_ids: (features ?? []).map((item) => item.feature_id),
-    },
-  };
+	return {
+		data: {
+			...project,
+			goal_ids: (goals ?? []).map((item) => item.goal_id),
+			feature_ids: (features ?? []).map((item) => item.feature_id),
+		},
+	};
 }
 
 export async function updateClientProject(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  projectId: string,
-  input: UpdateProjectInput,
-): Promise<ProjectResult<{ id: string; slug: string; status: Database["public"]["Enums"]["project_status"] }>> {
-  const profileState = await getClientProjectProfileState(supabase, userId);
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	projectId: string,
+	input: UpdateProjectInput,
+): Promise<
+	ProjectResult<{
+		id: string;
+		slug: string;
+		status: Database["public"]["Enums"]["project_status"];
+	}>
+> {
+	const profileState = await getClientProjectProfileState(supabase, userId);
 
-  if (profileState.error) {
-    return { error: profileState.error };
-  }
+	if (profileState.error) {
+		return { error: profileState.error };
+	}
 
-  const ownedProject = await getOwnedProjectRecord(supabase, userId, projectId);
+	const ownedProject = await getOwnedProjectRecord(supabase, userId, projectId);
 
-  if (ownedProject.error) {
-    return { error: ownedProject.error };
-  }
+	if (ownedProject.error) {
+		return { error: ownedProject.error };
+	}
 
-  const project = ownedProject.data;
+	const project = ownedProject.data;
 
-  if (
-    !project ||
-    (project.status !== "draft" && project.status !== "published")
-  ) {
-    return { error: "Only draft or published projects can be updated." };
-  }
+	if (
+		!project ||
+		(project.status !== "draft" &&
+			project.status !== "published" &&
+			project.status !== "in_discussion")
+	) {
+		return {
+			error: "Only draft, published, or in-discussion projects can be updated.",
+		};
+	}
 
-  const projectPayload: Database["public"]["Tables"]["projects"]["Update"] = {
-    ...buildProjectPayload(userId, input, project.id),
-    client_id: undefined,
-    slug: undefined,
-  };
+	const projectPayload: Database["public"]["Tables"]["projects"]["Update"] = {
+		...buildProjectPayload(userId, input, project.id),
+		client_id: undefined,
+		slug: undefined,
+		status: project.status === "in_discussion" ? "in_discussion" : input.status,
+	};
 
-  const { data: updatedProject, error: updateError } = await supabase
-    .from("projects")
-    .update(projectPayload)
-    .eq("id", projectId)
-    .eq("client_id", userId)
-    .select("id, slug, status")
-    .single();
+	const { data: updatedProject, error: updateError } = await supabase
+		.from("projects")
+		.update(projectPayload)
+		.eq("id", projectId)
+		.eq("client_id", userId)
+		.select("id, slug, status")
+		.single();
 
-  if (updateError) {
-    return { error: updateError.message };
-  }
+	if (updateError) {
+		return { error: updateError.message };
+	}
 
-  const relationsResult = await replaceProjectRelations(
-    supabase,
-    projectId,
-    input.goal_ids,
-    input.feature_ids,
-  );
+	const relationsResult = await replaceProjectRelations(
+		supabase,
+		projectId,
+		input.goal_ids,
+		input.feature_ids,
+	);
 
-  if (relationsResult.error) {
-    return { error: relationsResult.error };
-  }
+	if (relationsResult.error) {
+		return { error: relationsResult.error };
+	}
 
-  return { data: updatedProject };
+	return { data: updatedProject };
 }
 
 export async function getPublishedProjectsForProviders(
-  supabase: SupabaseClient<Database>,
-  userId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
 ): Promise<ProjectResult<ProviderProjectSummary[]>> {
-  const providerState = await ensureProviderUser(supabase, userId);
+	const providerState = await ensureProviderUser(supabase, userId);
 
-  if (providerState.error) {
-    return { error: providerState.error };
-  }
+	if (providerState.error) {
+		return { error: providerState.error };
+	}
 
-  return getPublicPublishedProjects(supabase);
+	return getPublicPublishedProjects(supabase);
 }
 
 export async function getPublicPublishedProjects(
-  supabase: SupabaseClient<Database>,
-  filters: PublicProjectFilters = {},
+	supabase: SupabaseClient<Database>,
+	filters: PublicProjectFilters = {},
 ): Promise<ProjectResult<ProviderProjectSummary[]>> {
-  const { data, error } = await supabase
-    .from("projects")
-    .select(
-      "id, slug, title, description, what_do_you_need_text, status, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, preferred_provider_type, preferred_language, scope_level, readiness_level, needs_design, needs_seo, needs_content_writing, created_at, updated_at",
-    )
-    .eq("status", "published")
-    .order("created_at", { ascending: filters.sort === "oldest" });
+	const { data, error } = await supabase
+		.from("projects")
+		.select(
+			"id, slug, title, description, what_do_you_need_text, status, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, preferred_provider_type, preferred_language, scope_level, readiness_level, needs_design, needs_seo, needs_content_writing, created_at, updated_at",
+		)
+		.in("status", ["published", "in_discussion"])
+		.order("created_at", { ascending: filters.sort === "oldest" });
 
-  if (error) {
-    return { error: error.message };
-  }
+	if (error) {
+		return { error: error.message };
+	}
 
-  const searchQuery = filters.q?.trim().toLowerCase() ?? "";
-  const filteredProjects = (data ?? []).filter((project) => {
-    if (filters.budget && project.budget_type !== filters.budget) {
-      return false;
-    }
+	const searchQuery = filters.q?.trim().toLowerCase() ?? "";
+	const filteredProjects = (data ?? []).filter((project) => {
+		if (filters.budget && project.budget_type !== filters.budget) {
+			return false;
+		}
 
-    if (filters.scope && project.scope_level !== filters.scope) {
-      return false;
-    }
+		if (filters.scope && project.scope_level !== filters.scope) {
+			return false;
+		}
 
-    if (!searchQuery) {
-      return true;
-    }
+		if (!searchQuery) {
+			return true;
+		}
 
-    return [
-      project.title,
-      project.description,
-      project.what_do_you_need_text,
-      project.preferred_language,
-      project.preferred_provider_type,
-      project.scope_level,
-      project.readiness_level,
-    ]
-      .filter((value): value is string => typeof value === "string")
-      .some((value) => value.toLowerCase().includes(searchQuery));
-  });
+		return [
+			project.title,
+			project.description,
+			project.what_do_you_need_text,
+			project.preferred_language,
+			project.preferred_provider_type,
+			project.scope_level,
+			project.readiness_level,
+		]
+			.filter((value): value is string => typeof value === "string")
+			.some((value) => value.toLowerCase().includes(searchQuery));
+	});
 
-  if (filters.sort === "budget_high" || filters.sort === "budget_low") {
-    filteredProjects.sort((firstProject, secondProject) => {
-      const firstBudget =
-        firstProject.budget_max ?? firstProject.budget_min ?? Number.NEGATIVE_INFINITY;
-      const secondBudget =
-        secondProject.budget_max ??
-        secondProject.budget_min ??
-        Number.NEGATIVE_INFINITY;
+	if (filters.sort === "budget_high" || filters.sort === "budget_low") {
+		filteredProjects.sort((firstProject, secondProject) => {
+			const firstBudget =
+				firstProject.budget_max ??
+				firstProject.budget_min ??
+				Number.NEGATIVE_INFINITY;
+			const secondBudget =
+				secondProject.budget_max ??
+				secondProject.budget_min ??
+				Number.NEGATIVE_INFINITY;
 
-      return filters.sort === "budget_high"
-        ? secondBudget - firstBudget
-        : firstBudget - secondBudget;
-    });
-  }
+			return filters.sort === "budget_high"
+				? secondBudget - firstBudget
+				: firstBudget - secondBudget;
+		});
+	}
 
-  return { data: filteredProjects };
+	return { data: filteredProjects };
 }
 
 export async function getPublishedProjectByIdForProvider(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  projectId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	projectId: string,
 ): Promise<ProjectResult<ProviderProjectDetail>> {
-  const providerState = await ensureProviderUser(supabase, userId);
+	const providerState = await ensureProviderUser(supabase, userId);
 
-  if (providerState.error) {
-    return { error: providerState.error };
-  }
+	if (providerState.error) {
+		return { error: providerState.error };
+	}
 
-  return getPublicPublishedProjectById(supabase, projectId);
+	return getPublicPublishedProjectById(supabase, projectId);
 }
 
 export async function getPublicPublishedProjectById(
-  supabase: SupabaseClient<Database>,
-  projectId: string,
+	supabase: SupabaseClient<Database>,
+	projectId: string,
 ): Promise<ProjectResult<ProviderProjectDetail>> {
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("id", projectId)
-    .eq("status", "published")
-    .maybeSingle();
+	const { data: project, error: projectError } = await supabase
+		.from("projects")
+		.select("*")
+		.eq("id", projectId)
+		.in("status", ["published", "in_discussion"])
+		.maybeSingle();
 
-  if (projectError) {
-    return { error: projectError.message };
-  }
+	if (projectError) {
+		return { error: projectError.message };
+	}
 
-  if (!project) {
-    return { error: "Project not found." };
-  }
+	if (!project) {
+		return { error: "Project not found." };
+	}
 
-  const [{ data: goals, error: goalsError }, { data: features, error: featuresError }] =
-    await Promise.all([
-      supabase
-        .from("project_request_goals")
-        .select("goal_id")
-        .eq("project_id", projectId),
-      supabase
-        .from("project_request_features")
-        .select("feature_id")
-        .eq("project_id", projectId),
-    ]);
+	const [
+		{ data: goals, error: goalsError },
+		{ data: features, error: featuresError },
+	] = await Promise.all([
+		supabase
+			.from("project_request_goals")
+			.select("goal_id")
+			.eq("project_id", projectId),
+		supabase
+			.from("project_request_features")
+			.select("feature_id")
+			.eq("project_id", projectId),
+	]);
 
-  if (goalsError) {
-    return { error: goalsError.message };
-  }
+	if (goalsError) {
+		return { error: goalsError.message };
+	}
 
-  if (featuresError) {
-    return { error: featuresError.message };
-  }
+	if (featuresError) {
+		return { error: featuresError.message };
+	}
 
-  return {
-    data: {
-      ...project,
-      goal_ids: (goals ?? []).map((item) => item.goal_id),
-      feature_ids: (features ?? []).map((item) => item.feature_id),
-    },
-  };
+	return {
+		data: {
+			...project,
+			goal_ids: (goals ?? []).map((item) => item.goal_id),
+			feature_ids: (features ?? []).map((item) => item.feature_id),
+		},
+	};
 }
 
 export async function createProjectApplication(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  projectId: string,
-  input: CreateApplicationInput,
-): Promise<ProjectResult<{ id: string; status: Database["public"]["Enums"]["application_status"] }>> {
-  const providerState = await ensureProviderUser(supabase, userId);
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	projectId: string,
+	input: CreateApplicationInput,
+): Promise<
+	ProjectResult<{
+		id: string;
+		status: Database["public"]["Enums"]["application_status"];
+	}>
+> {
+	const providerState = await ensureProviderUser(supabase, userId);
 
-  if (providerState.error) {
-    return { error: providerState.error };
-  }
+	if (providerState.error) {
+		return { error: providerState.error };
+	}
 
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select("id, client_id, status")
-    .eq("id", projectId)
-    .maybeSingle();
+	const { data: project, error: projectError } = await supabase
+		.from("projects")
+		.select("id, client_id, status")
+		.eq("id", projectId)
+		.maybeSingle();
 
-  if (projectError) {
-    return { error: projectError.message };
-  }
+	if (projectError) {
+		return { error: projectError.message };
+	}
 
-  if (!project || project.status !== "published") {
-    return { error: "Project not found." };
-  }
+	if (
+		!project ||
+		(project.status !== "published" && project.status !== "in_discussion")
+	) {
+		return { error: "Project not found." };
+	}
 
-  if (project.client_id === userId) {
-    return { error: "Providers cannot apply to their own project." };
-  }
+	if (project.client_id === userId) {
+		return { error: "Providers cannot apply to their own project." };
+	}
 
-  const { data: existingApplication, error: existingApplicationError } = await supabase
-    .from("applications")
-    .select("id")
-    .eq("project_id", projectId)
-    .eq("provider_id", userId)
-    .maybeSingle();
+	const { data: existingApplication, error: existingApplicationError } =
+		await supabase
+			.from("applications")
+			.select("id")
+			.eq("project_id", projectId)
+			.eq("provider_id", userId)
+			.maybeSingle();
 
-  if (existingApplicationError) {
-    return { error: existingApplicationError.message };
-  }
+	if (existingApplicationError) {
+		return { error: existingApplicationError.message };
+	}
 
-  if (existingApplication) {
-    return { error: "You have already applied to this project." };
-  }
+	if (existingApplication) {
+		return { error: "You have already applied to this project." };
+	}
 
-  const { data, error } = await supabase
-    .from("applications")
-    .insert({
-      project_id: projectId,
-      provider_id: userId,
-      cover_message: input.cover_message,
-      proposed_price: input.proposed_price ?? null,
-      estimated_delivery_days: input.estimated_delivery_days ?? null,
-      status: "pending",
-    })
-    .select("id, status")
-    .single();
+	const { data, error } = await supabase
+		.from("applications")
+		.insert({
+			project_id: projectId,
+			provider_id: userId,
+			cover_message: input.cover_message,
+			proposed_price: input.proposed_price ?? null,
+			estimated_delivery_days: input.estimated_delivery_days ?? null,
+			status: "pending",
+		})
+		.select("id, status")
+		.single();
 
-  if (error) {
-    return { error: error.message };
-  }
+	if (error) {
+		return { error: error.message };
+	}
 
-  return { data };
+	return { data };
 }
 
 export async function getProjectApplicationsForClient(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  projectId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	projectId: string,
 ): Promise<ProjectResult<ClientProjectApplicationSummary[]>> {
-  const clientState = await ensureClientUser(supabase, userId);
+	const clientState = await ensureClientUser(supabase, userId);
 
-  if (clientState.error) {
-    return { error: clientState.error };
-  }
+	if (clientState.error) {
+		return { error: clientState.error };
+	}
 
-  const ownedProject = await getOwnedProjectRecord(supabase, userId, projectId);
+	const ownedProject = await getOwnedProjectRecord(supabase, userId, projectId);
 
-  if (ownedProject.error) {
-    return { error: ownedProject.error };
-  }
+	if (ownedProject.error) {
+		return { error: ownedProject.error };
+	}
 
-  const { data, error } = await supabase
-    .from("applications")
-    .select(
-      "id, project_id, provider_id, status, cover_message, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, email, phone, country, city)",
-    )
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false });
+	const { data, error } = await supabase
+		.from("applications")
+		.select(
+			"id, project_id, provider_id, status, cover_message, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, email, phone, country, city)",
+		)
+		.eq("project_id", projectId)
+		.order("created_at", { ascending: false });
 
-  if (error) {
-    return { error: error.message };
-  }
+	if (error) {
+		return { error: error.message };
+	}
 
-  return {
-    data: (data ?? []).map((item) => ({
-      ...item,
-      provider: Array.isArray(item.provider) ? item.provider[0] ?? null : item.provider,
-    })),
-  };
+	return {
+		data: (data ?? []).map((item) => ({
+			...item,
+			provider: Array.isArray(item.provider)
+				? (item.provider[0] ?? null)
+				: item.provider,
+		})),
+	};
 }
 
 export async function getProjectApplicationForClient(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  applicationId: string,
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	applicationId: string,
 ): Promise<ProjectResult<ClientProjectApplicationDetail>> {
-  const clientState = await ensureClientUser(supabase, userId);
+	const clientState = await ensureClientUser(supabase, userId);
 
-  if (clientState.error) {
-    return { error: clientState.error };
-  }
+	if (clientState.error) {
+		return { error: clientState.error };
+	}
 
-  const { data, error } = await supabase
-    .from("applications")
-    .select(
-      "id, project_id, provider_id, status, cover_message, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, email, phone, country, city), project:projects!applications_project_id_fkey(id, title, slug, status, client_id)",
-    )
-    .eq("id", applicationId)
-    .maybeSingle();
+	const { data, error } = await supabase
+		.from("applications")
+		.select(
+			"id, project_id, provider_id, status, cover_message, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, email, phone, country, city), project:projects!applications_project_id_fkey(id, title, slug, status, client_id)",
+		)
+		.eq("id", applicationId)
+		.maybeSingle();
 
-  if (error) {
-    return { error: error.message };
-  }
+	if (error) {
+		return { error: error.message };
+	}
 
-  if (!data) {
-    return { error: "Application not found." };
-  }
+	if (!data) {
+		return { error: "Application not found." };
+	}
 
-  const project = Array.isArray(data.project) ? data.project[0] ?? null : data.project;
+	const project = Array.isArray(data.project)
+		? (data.project[0] ?? null)
+		: data.project;
 
-  if (!project || project.client_id !== userId) {
-    return { error: "Application not found." };
-  }
+	if (!project || project.client_id !== userId) {
+		return { error: "Application not found." };
+	}
 
-  return {
-    data: {
-      ...data,
-      provider: Array.isArray(data.provider) ? data.provider[0] ?? null : data.provider,
-      project,
-    },
-  };
+	return {
+		data: {
+			...data,
+			provider: Array.isArray(data.provider)
+				? (data.provider[0] ?? null)
+				: data.provider,
+			project,
+		},
+	};
 }
 
 export async function updateProjectApplicationStatusForClient(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  applicationId: string,
-  input: UpdateApplicationStatusInput,
-): Promise<ProjectResult<{ id: string; status: Database["public"]["Enums"]["application_status"] }>> {
-  const clientState = await ensureClientUser(supabase, userId);
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	applicationId: string,
+	input: UpdateApplicationStatusInput,
+): Promise<
+	ProjectResult<{
+		id: string;
+		status: Database["public"]["Enums"]["application_status"];
+	}>
+> {
+	const clientState = await ensureClientUser(supabase, userId);
 
-  if (clientState.error) {
-    return { error: clientState.error };
-  }
+	if (clientState.error) {
+		return { error: clientState.error };
+	}
 
-  const applicationResult = await getProjectApplicationForClient(
-    supabase,
-    userId,
-    applicationId,
-  );
+	const applicationResult = await getProjectApplicationForClient(
+		supabase,
+		userId,
+		applicationId,
+	);
 
-  if (applicationResult.error) {
-    return { error: applicationResult.error };
-  }
+	if (applicationResult.error) {
+		return { error: applicationResult.error };
+	}
 
-  const application = applicationResult.data;
+	const application = applicationResult.data;
 
-  if (!application) {
-    return { error: "Application not found." };
-  }
+	if (!application) {
+		return { error: "Application not found." };
+	}
 
-  const currentStatus = application.status;
-  const nextStatus = input.status;
+	const currentStatus = application.status;
+	const nextStatus = input.status;
 
-  if (
-    currentStatus === "accepted" ||
-    currentStatus === "rejected" ||
-    currentStatus === "withdrawn"
-  ) {
-    return { error: "This application can no longer be updated." };
-  }
+	if (
+		currentStatus === "accepted" ||
+		currentStatus === "rejected" ||
+		currentStatus === "withdrawn"
+	) {
+		return { error: "This application can no longer be updated." };
+	}
 
-  if (currentStatus === nextStatus) {
-    return {
-      data: {
-        id: application.id,
-        status: application.status,
-      },
-    };
-  }
+	if (currentStatus === nextStatus) {
+		return {
+			data: {
+				id: application.id,
+				status: application.status,
+			},
+		};
+	}
 
-  if (nextStatus === "accepted") {
-    const { data: acceptedRows, error: acceptError } =
-      await (supabase as SupabaseClientWithAcceptRpc).rpc(
-        "accept_project_application",
-        {
-          target_application_id: applicationId,
-        },
-      );
+	if (nextStatus === "accepted") {
+		const { data: acceptedRows, error: acceptError } = await (
+			supabase as SupabaseClientWithAcceptRpc
+		).rpc("accept_project_application", {
+			target_application_id: applicationId,
+		});
 
-    if (acceptError) {
-      return { error: acceptError.message };
-    }
+		if (acceptError) {
+			return { error: acceptError.message };
+		}
 
-    const acceptedApplication = acceptedRows?.[0];
+		const acceptedApplication = acceptedRows?.[0];
 
-    if (!acceptedApplication) {
-      return { error: "Application could not be accepted." };
-    }
+		if (!acceptedApplication) {
+			return { error: "Application could not be accepted." };
+		}
 
-    return {
-      data: {
-        id: acceptedApplication.application_id,
-        status: acceptedApplication.application_status,
-      },
-    };
-  }
+		return {
+			data: {
+				id: acceptedApplication.application_id,
+				status: acceptedApplication.application_status,
+			},
+		};
+	}
 
-  const { data, error } = await supabase
-    .from("applications")
-    .update({ status: nextStatus })
-    .eq("id", applicationId)
-    .select("id, status")
-    .single();
+	if (nextStatus === "rejected") {
+		const { data: rejectedRows, error: rejectError } = await (
+			supabase as SupabaseClientWithRejectRpc
+		).rpc("reject_project_application", {
+			target_application_id: applicationId,
+		});
 
-  if (error) {
-    return { error: error.message };
-  }
+		if (rejectError) {
+			return { error: rejectError.message };
+		}
 
-  return { data };
+		const rejectedApplication = rejectedRows?.[0];
+
+		if (!rejectedApplication) {
+			return { error: "Application could not be rejected." };
+		}
+
+		return {
+			data: {
+				id: rejectedApplication.application_id,
+				status: rejectedApplication.application_status,
+			},
+		};
+	}
+
+	const { data, error } = await supabase
+		.from("applications")
+		.update({ status: nextStatus })
+		.eq("id", applicationId)
+		.select("id, status")
+		.single();
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	return { data };
+}
+
+export async function recalculateProjectDiscussionStatus(
+	supabase: SupabaseClient<Database>,
+	projectId: string,
+): Promise<
+	ProjectResult<{
+		id: string;
+		status: Database["public"]["Enums"]["project_status"];
+	} | null>
+> {
+	const { data: project, error: projectError } = await supabase
+		.from("projects")
+		.select("id, status")
+		.eq("id", projectId)
+		.maybeSingle();
+
+	if (projectError) {
+		return { error: projectError.message };
+	}
+
+	if (!project) {
+		return { error: "Project not found." };
+	}
+
+	if (project.status !== "in_discussion") {
+		return { data: null };
+	}
+
+	const { data: activeApplication, error: activeApplicationError } =
+		await supabase
+			.from("applications")
+			.select("id")
+			.eq("project_id", projectId)
+			.in("status", ["pending", "viewed", "shortlisted", "accepted"])
+			.limit(1)
+			.maybeSingle();
+
+	if (activeApplicationError) {
+		return { error: activeApplicationError.message };
+	}
+
+	if (activeApplication) {
+		return { data: null };
+	}
+
+	const { data, error } = await supabase
+		.from("projects")
+		.update({ status: "published" })
+		.eq("id", projectId)
+		.eq("status", "in_discussion")
+		.select("id, status")
+		.single();
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	return { data };
+}
+
+export async function markProjectApplicationViewedForClient(
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	applicationId: string,
+): Promise<
+	ProjectResult<{
+		id: string;
+		status: Database["public"]["Enums"]["application_status"];
+	}>
+> {
+	const clientState = await ensureClientUser(supabase, userId);
+
+	if (clientState.error) {
+		return { error: clientState.error };
+	}
+
+	const applicationResult = await getProjectApplicationForClient(
+		supabase,
+		userId,
+		applicationId,
+	);
+
+	if (applicationResult.error) {
+		return { error: applicationResult.error };
+	}
+
+	const application = applicationResult.data;
+
+	if (!application) {
+		return { error: "Application not found." };
+	}
+
+	if (application.status !== "pending") {
+		return {
+			data: {
+				id: application.id,
+				status: application.status,
+			},
+		};
+	}
+
+	const { data, error } = await supabase
+		.from("applications")
+		.update({ status: "viewed" })
+		.eq("id", applicationId)
+		.eq("status", "pending")
+		.select("id, status")
+		.single();
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	return { data };
+}
+
+export async function withdrawProjectApplicationForProvider(
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	applicationId: string,
+): Promise<
+	ProjectResult<{
+		id: string;
+		status: Database["public"]["Enums"]["application_status"];
+	}>
+> {
+	const providerState = await ensureProviderUser(supabase, userId);
+
+	if (providerState.error) {
+		return { error: providerState.error };
+	}
+
+	const { data: withdrawnRows, error } = await (
+		supabase as SupabaseClientWithWithdrawRpc
+	).rpc("withdraw_project_application", {
+		target_application_id: applicationId,
+	});
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	const withdrawnApplication = withdrawnRows?.[0];
+
+	if (!withdrawnApplication) {
+		return { error: "Application could not be withdrawn." };
+	}
+
+	return {
+		data: {
+			id: withdrawnApplication.application_id,
+			status: withdrawnApplication.application_status,
+		},
+	};
 }

@@ -334,6 +334,8 @@ export function ClientProjectForm({
       ? updateClientProjectAction.bind(null, projectId)
       : createClientProjectAction;
   const [state, formAction] = useActionState(action, initialListingsActionState);
+  const isInDiscussionEdit =
+    mode === "edit" && initialValues?.status === "in_discussion";
   const [budgetType, setBudgetType] = useState(
     getFieldValue(state, "budget_type", initialValues?.budget_type ?? "range"),
   );
@@ -785,22 +787,37 @@ export function ClientProjectForm({
           <div>
             <p className="text-lg font-semibold text-black">Ready to save the brief?</p>
             <p className="mt-1 text-sm text-secondary">
-              Save a private draft first, or publish immediately when the brief is
-              complete.
+              {isInDiscussionEdit
+                ? "This brief is already in discussion. Saving changes keeps it visible to providers."
+                : "Save a private draft first, or publish immediately when the brief is complete."}
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <StatusSubmitButton
-              value="draft"
-              idleLabel={mode === "edit" ? "Save draft changes" : "Save as draft"}
-              pendingLabel={mode === "edit" ? "Saving changes..." : "Saving draft..."}
-              variant="secondary"
-              disabled={!profileComplete}
-            />
+            {isInDiscussionEdit ? null : (
+              <StatusSubmitButton
+                value="draft"
+                idleLabel={mode === "edit" ? "Save draft changes" : "Save as draft"}
+                pendingLabel={mode === "edit" ? "Saving changes..." : "Saving draft..."}
+                variant="secondary"
+                disabled={!profileComplete}
+              />
+            )}
             <StatusSubmitButton
               value="published"
-              idleLabel={mode === "edit" ? "Save and publish" : "Publish listing"}
-              pendingLabel={mode === "edit" ? "Publishing changes..." : "Publishing..."}
+              idleLabel={
+                isInDiscussionEdit
+                  ? "Save changes"
+                  : mode === "edit"
+                    ? "Save and publish"
+                    : "Publish listing"
+              }
+              pendingLabel={
+                isInDiscussionEdit
+                  ? "Saving changes..."
+                  : mode === "edit"
+                    ? "Publishing changes..."
+                    : "Publishing..."
+              }
               variant="primary"
               disabled={!profileComplete}
             />

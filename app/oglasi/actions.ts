@@ -10,6 +10,7 @@ import {
 } from "@/lib/projects/schemas";
 import {
   createProject,
+  markProjectApplicationViewedForClient,
   updateClientProject,
   updateProjectApplicationStatusForClient,
 } from "@/lib/projects/service";
@@ -295,6 +296,45 @@ export async function updateClientApplicationStatusAction(
         : status === "shortlisted"
           ? "Application shortlisted."
           : "Application rejected.",
+    )}`,
+  );
+}
+
+export async function reviewApplicationAction(
+  projectId: string,
+  applicationId: string,
+) {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const result = await markProjectApplicationViewedForClient(
+    supabase,
+    user.id,
+    applicationId,
+  );
+
+  if (result.error) {
+    redirect(
+      `/oglasi/${projectId}?applicationError=${encodeURIComponent(result.error)}`,
+    );
+  }
+
+  const applicationStatus = result.data?.status;
+
+  revalidatePath(`/oglasi/${projectId}`);
+  revalidatePath("/dashboard/client");
+  revalidatePath("/dashboard/provider");
+  redirect(
+    `/oglasi/${projectId}?applicationStatus=${encodeURIComponent(
+      applicationStatus === "viewed"
+        ? "Application marked as viewed."
+        : "Application already reviewed.",
     )}`,
   );
 }
