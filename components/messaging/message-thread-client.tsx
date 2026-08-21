@@ -5,6 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import type { ConversationDetail } from "@/lib/messaging/service";
 import {
+  getApplicationStatusMeta,
+  type ApplicationStatus,
+} from "@/lib/projects/application-status";
+import {
   authenticateSupabaseRealtime,
   createSupabaseBrowserClient,
 } from "@/lib/supabase/client";
@@ -67,25 +71,6 @@ function formatTimeLabel(value: string) {
   )}:${partMap.get("minute")} ${partMap.get("dayPeriod")}`;
 }
 
-function applicationStatusLabel(status: string | null | undefined) {
-  switch (status) {
-    case "pending":
-      return "Pending";
-    case "viewed":
-      return "Viewed";
-    case "shortlisted":
-      return "Shortlisted";
-    case "accepted":
-      return "Accepted";
-    case "rejected":
-      return "Rejected";
-    case "withdrawn":
-      return "Withdrawn";
-    default:
-      return "Application";
-  }
-}
-
 function applicationStatusClasses(status: string | null | undefined) {
   switch (status) {
     case "pending":
@@ -102,6 +87,10 @@ function applicationStatusClasses(status: string | null | undefined) {
     default:
       return "bg-zinc-100 text-zinc-700";
   }
+}
+
+function applicationStatusLabel(status: ApplicationStatus | null | undefined) {
+  return status ? getApplicationStatusMeta(status).label : "Application";
 }
 
 function canSendMessages(status: string | null | undefined) {

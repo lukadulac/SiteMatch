@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
+import { getApplicationStatusMeta } from "@/lib/projects/application-status";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function formatTimeAgo(value: string) {
@@ -28,23 +29,6 @@ function formatDateLabel(value: string | null) {
     month: "short",
     day: "2-digit",
   }).format(new Date(value));
-}
-
-function applicationStatusLabel(status: string) {
-  switch (status) {
-    case "pending":
-      return "Pending";
-    case "viewed":
-      return "Viewed";
-    case "shortlisted":
-      return "Shortlisted";
-    case "accepted":
-      return "Accepted";
-    case "rejected":
-      return "Rejected";
-    default:
-      return "Withdrawn";
-  }
 }
 
 function applicationStatusClasses(status: string) {
@@ -255,11 +239,14 @@ export default async function ProviderDashboardPage() {
 
           <div className="divide-y divide-line">
             {applications.length > 0 ? (
-              applications.slice(0, 5).map((application) => (
-                <article
-                  key={application.id}
-                  className="flex min-w-0 flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between"
-                >
+              applications.slice(0, 5).map((application) => {
+                const statusMeta = getApplicationStatusMeta(application.status);
+
+                return (
+                  <article
+                    key={application.id}
+                    className="flex min-w-0 flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between"
+                  >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="break-words text-base font-semibold text-black">
@@ -270,7 +257,7 @@ export default async function ProviderDashboardPage() {
                           application.status,
                         )}`}
                       >
-                        {applicationStatusLabel(application.status)}
+                        {statusMeta.label}
                       </span>
                     </div>
                     <p className="mt-1 line-clamp-1 text-sm text-secondary">
@@ -299,8 +286,9 @@ export default async function ProviderDashboardPage() {
                       </Link>
                     ) : null}
                   </div>
-                </article>
-              ))
+                  </article>
+                );
+              })
             ) : (
               <div className="p-8 text-sm leading-6 text-secondary">
                 You have not submitted applications yet. Browse open briefs and

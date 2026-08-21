@@ -11,6 +11,7 @@ import {
   getClientProjectById,
   getProjectApplicationsForClient,
 } from "@/lib/projects/service";
+import { getApplicationStatusMeta } from "@/lib/projects/application-status";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -108,23 +109,6 @@ function statusClasses(status: string) {
       return "bg-red-50 text-red-700";
     default:
       return "bg-zinc-100 text-zinc-700";
-  }
-}
-
-function applicationStatusLabel(status: string) {
-  switch (status) {
-    case "pending":
-      return "Pending";
-    case "viewed":
-      return "Viewed";
-    case "shortlisted":
-      return "Shortlisted";
-    case "accepted":
-      return "Accepted";
-    case "rejected":
-      return "Rejected";
-    default:
-      return "Withdrawn";
   }
 }
 
@@ -322,10 +306,7 @@ export default async function ListingDetailsPage({
         <div className="mt-6 space-y-4">
           {applications.length > 0 ? (
             applications.map((application) => {
-              const canUpdate =
-                application.status !== "accepted" &&
-                application.status !== "rejected" &&
-                application.status !== "withdrawn";
+              const statusMeta = getApplicationStatusMeta(application.status);
               const acceptAction = updateClientApplicationStatusAction.bind(
                 null,
                 project.id,
@@ -371,9 +352,12 @@ export default async function ListingDetailsPage({
                             application.status,
                           )}`}
                         >
-                          {applicationStatusLabel(application.status)}
+                          {statusMeta.label}
                         </span>
                       </div>
+                      <p className="mt-2 text-sm text-secondary">
+                        {statusMeta.description}
+                      </p>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-secondary">
                         {application.provider?.email ? (
                           <p>{application.provider.email}</p>
@@ -391,9 +375,23 @@ export default async function ListingDetailsPage({
                       </div>
                     </div>
 
-                    {canUpdate ? (
+                    {statusMeta.canMessage ||
+                    statusMeta.canReview ||
+                    statusMeta.canShortlist ||
+                    statusMeta.canAccept ||
+                    statusMeta.canReject ? (
                       <div className="flex flex-wrap gap-3">
-                        {application.status === "pending" ? (
+                        {statusMeta.canMessage ? (
+                          <form action={messageAction}>
+                            <button
+                              type="submit"
+                              className="inline-flex items-center justify-center rounded-2xl border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                            >
+                              Message
+                            </button>
+                          </form>
+                        ) : null}
+                        {statusMeta.canReview ? (
                           <form action={reviewAction}>
                             <button
                               type="submit"
@@ -403,15 +401,7 @@ export default async function ListingDetailsPage({
                             </button>
                           </form>
                         ) : null}
-                        <form action={messageAction}>
-                          <button
-                            type="submit"
-                            className="inline-flex items-center justify-center rounded-2xl border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-                          >
-                            Message
-                          </button>
-                        </form>
-                        {application.status !== "shortlisted" ? (
+                        {statusMeta.canShortlist ? (
                           <form action={shortlistAction}>
                             <button
                               type="submit"
@@ -421,22 +411,26 @@ export default async function ListingDetailsPage({
                             </button>
                           </form>
                         ) : null}
-                        <form action={acceptAction}>
-                          <button
-                            type="submit"
-                            className="inline-flex items-center justify-center rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/85"
-                          >
-                            Accept
-                          </button>
-                        </form>
-                        <form action={rejectAction}>
-                          <button
-                            type="submit"
-                            className="inline-flex items-center justify-center rounded-2xl border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-                          >
-                            Reject
-                          </button>
-                        </form>
+                        {statusMeta.canAccept ? (
+                          <form action={acceptAction}>
+                            <button
+                              type="submit"
+                              className="inline-flex items-center justify-center rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/85"
+                            >
+                              Accept
+                            </button>
+                          </form>
+                        ) : null}
+                        {statusMeta.canReject ? (
+                          <form action={rejectAction}>
+                            <button
+                              type="submit"
+                              className="inline-flex items-center justify-center rounded-2xl border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                            >
+                              Reject
+                            </button>
+                          </form>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
