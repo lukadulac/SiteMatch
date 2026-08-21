@@ -144,12 +144,46 @@ type AcceptProjectApplicationRpcRow = {
 	conversation_id: string;
 };
 
+type WithdrawProjectApplicationRpcRow = {
+	application_id: string;
+	application_status: Database["public"]["Enums"]["application_status"];
+	project_id: string;
+	project_status: Database["public"]["Enums"]["project_status"];
+};
+
+type RejectProjectApplicationRpcRow = {
+	application_id: string;
+	application_status: Database["public"]["Enums"]["application_status"];
+	project_id: string;
+	project_status: Database["public"]["Enums"]["project_status"];
+};
+
 type SupabaseClientWithAcceptRpc = SupabaseClient<Database> & {
 	rpc(
 		fn: "accept_project_application",
 		args: { target_application_id: string },
 	): Promise<{
 		data: AcceptProjectApplicationRpcRow[] | null;
+		error: { message: string } | null;
+	}>;
+};
+
+type SupabaseClientWithWithdrawRpc = SupabaseClient<Database> & {
+	rpc(
+		fn: "withdraw_project_application",
+		args: { target_application_id: string },
+	): Promise<{
+		data: WithdrawProjectApplicationRpcRow[] | null;
+		error: { message: string } | null;
+	}>;
+};
+
+type SupabaseClientWithRejectRpc = SupabaseClient<Database> & {
+	rpc(
+		fn: "reject_project_application",
+		args: { target_application_id: string },
+	): Promise<{
+		data: RejectProjectApplicationRpcRow[] | null;
 		error: { message: string } | null;
 	}>;
 };
@@ -931,10 +965,94 @@ export async function updateProjectApplicationStatusForClient(
 		};
 	}
 
+	if (nextStatus === "rejected") {
+		const { data: rejectedRows, error: rejectError } = await (
+			supabase as SupabaseClientWithRejectRpc
+		).rpc("reject_project_application", {
+			target_application_id: applicationId,
+		});
+
+		if (rejectError) {
+			return { error: rejectError.message };
+		}
+
+		const rejectedApplication = rejectedRows?.[0];
+
+		if (!rejectedApplication) {
+			return { error: "Application could not be rejected." };
+		}
+
+		return {
+			data: {
+				id: rejectedApplication.application_id,
+				status: rejectedApplication.application_status,
+			},
+		};
+	}
+
 	const { data, error } = await supabase
 		.from("applications")
 		.update({ status: nextStatus })
 		.eq("id", applicationId)
+		.select("id, status")
+		.single();
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	return { data };
+}
+
+export async function recalculateProjectDiscussionStatus(
+	supabase: SupabaseClient<Database>,
+	projectId: string,
+): Promise<
+	ProjectResult<{
+		id: string;
+		status: Database["public"]["Enums"]["project_status"];
+	} | null>
+> {
+	const { data: project, error: projectError } = await supabase
+		.from("projects")
+		.select("id, status")
+		.eq("id", projectId)
+		.maybeSingle();
+
+	if (projectError) {
+		return { error: projectError.message };
+	}
+
+	if (!project) {
+		return { error: "Project not found." };
+	}
+
+	if (project.status !== "in_discussion") {
+		return { data: null };
+	}
+
+	const { data: activeApplication, error: activeApplicationError } =
+		await supabase
+			.from("applications")
+			.select("id")
+			.eq("project_id", projectId)
+			.in("status", ["pending", "viewed", "shortlisted", "accepted"])
+			.limit(1)
+			.maybeSingle();
+
+	if (activeApplicationError) {
+		return { error: activeApplicationError.message };
+	}
+
+	if (activeApplication) {
+		return { data: null };
+	}
+
+	const { data, error } = await supabase
+		.from("projects")
+		.update({ status: "published" })
+		.eq("id", projectId)
+		.eq("status", "in_discussion")
 		.select("id, status")
 		.single();
 
@@ -1017,46 +1135,26 @@ export async function withdrawProjectApplicationForProvider(
 		return { error: providerState.error };
 	}
 
-	const { data: application, error: applicationError } = await supabase
-		.from("applications")
-		.select("id, provider_id, status")
-		.eq("id", applicationId)
-		.eq("provider_id", userId)
-		.maybeSingle();
-
-	if (applicationError) {
-		return { error: applicationError.message };
-	}
-
-	if (!application) {
-		return { error: "Application not found." };
-	}
-
-	if (application.status === "withdrawn") {
-		return {
-			data: {
-				id: application.id,
-				status: application.status,
-			},
-		};
-	}
-
-	if (application.status === "accepted" || application.status === "rejected") {
-		return { error: "This application can no longer be withdrawn." };
-	}
-
-	const { data, error } = await supabase
-		.from("applications")
-		.update({ status: "withdrawn" })
-		.eq("id", applicationId)
-		.eq("provider_id", userId)
-		.in("status", ["pending", "viewed", "shortlisted"])
-		.select("id, status")
-		.single();
+	const { data: withdrawnRows, error } = await (
+		supabase as SupabaseClientWithWithdrawRpc
+	).rpc("withdraw_project_application", {
+		target_application_id: applicationId,
+	});
 
 	if (error) {
 		return { error: error.message };
 	}
 
-	return { data };
+	const withdrawnApplication = withdrawnRows?.[0];
+
+	if (!withdrawnApplication) {
+		return { error: "Application could not be withdrawn." };
+	}
+
+	return {
+		data: {
+			id: withdrawnApplication.application_id,
+			status: withdrawnApplication.application_status,
+		},
+	};
 }
