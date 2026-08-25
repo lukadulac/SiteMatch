@@ -1,8 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+	openProviderApplicationConversationAction,
+	withdrawProviderApplicationFromJobAction,
+} from "@/app/jobs/actions";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
-import { getPublicPublishedProjectById } from "@/lib/projects/service";
+import {
+	getProviderApplicationForProject,
+	getPublicPublishedProjectById,
+} from "@/lib/projects/service";
+import {
+	canMessageForApplicationStatus,
+	canWithdrawForApplicationStatus,
+	getApplicationStatusMeta,
+	type ApplicationStatus,
+} from "@/lib/projects/application-status";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProviderApplicationForm } from "@/components/projects/provider-application-form";
 import { headerTheme } from "@/theme/header-theme";
@@ -10,6 +23,10 @@ import { headerTheme } from "@/theme/header-theme";
 type PageProps = {
 	params: Promise<{
 		id: string;
+	}>;
+	searchParams: Promise<{
+		applicationError?: string;
+		applicationStatus?: string;
 	}>;
 };
 
@@ -132,6 +149,22 @@ function projectStatusClasses(status: string) {
 		: "bg-blue-50 text-blue-700";
 }
 
+function applicationStatusClasses(status: ApplicationStatus) {
+	switch (status) {
+		case "pending":
+			return "bg-blue-50 text-blue-700";
+		case "viewed":
+			return "bg-zinc-100 text-zinc-700";
+		case "shortlisted":
+			return "bg-amber-50 text-amber-700";
+		case "accepted":
+			return "bg-emerald-50 text-emerald-700";
+		case "rejected":
+		case "withdrawn":
+			return "bg-red-50 text-red-700";
+	}
+}
+
 function getProjectTags(project: {
 	preferred_provider_type: string | null;
 	scope_level: string | null;
@@ -150,7 +183,107 @@ function getProjectTags(project: {
 	].filter((tag): tag is string => Boolean(tag));
 }
 
-export default async function JobDetailsPage({ params }: PageProps) {
+function ProviderApplicationStatusCard({
+	projectId,
+	application,
+	gradientBackground,
+}: {
+	projectId: string;
+	application: {
+		id: string;
+		status: ApplicationStatus;
+		proposed_price: number | null;
+		estimated_delivery_days: number | null;
+		created_at: string;
+	};
+	gradientBackground: string;
+}) {
+	const statusMeta = getApplicationStatusMeta(application.status);
+	const messageAction = openProviderApplicationConversationAction.bind(
+		null,
+		projectId,
+		application.id,
+	);
+	const withdrawAction = withdrawProviderApplicationFromJobAction.bind(
+		null,
+		projectId,
+		application.id,
+	);
+
+	return (
+		<div className="space-y-5">
+			<div className="rounded-3xl border border-line bg-panel-soft p-5">
+				<div className="flex flex-wrap items-center gap-3">
+					<span
+						className={`rounded-full px-3 py-1 text-xs font-semibold ${applicationStatusClasses(
+							application.status,
+						)}`}
+					>
+						{statusMeta.label}
+					</span>
+					<p className="text-sm font-semibold text-black">
+						Proposal submitted
+					</p>
+				</div>
+				<p className="mt-3 text-sm leading-6 text-secondary">
+					{statusMeta.description}
+				</p>
+				<div className="mt-5 grid gap-3 text-sm text-secondary">
+					<p>
+						<span className="font-semibold text-black">Price:</span>{" "}
+						{application.proposed_price != null
+							? `$${application.proposed_price.toLocaleString()}`
+							: "Not specified"}
+					</p>
+					<p>
+						<span className="font-semibold text-black">Delivery:</span>{" "}
+						{application.estimated_delivery_days != null
+							? `${application.estimated_delivery_days} days`
+							: "Flexible"}
+					</p>
+					<p>
+						<span className="font-semibold text-black">Submitted:</span>{" "}
+						{formatDateLabel(application.created_at)}
+					</p>
+				</div>
+			</div>
+
+			{canMessageForApplicationStatus(application.status) ||
+			canWithdrawForApplicationStatus(application.status) ? (
+				<div className="space-y-3">
+					{canMessageForApplicationStatus(application.status) ? (
+						<form action={messageAction}>
+							<button
+								type="submit"
+								className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl px-5 text-sm font-semibold text-white transition hover:opacity-90"
+								style={{ background: gradientBackground }}
+							>
+								Message client
+							</button>
+						</form>
+					) : null}
+					{canWithdrawForApplicationStatus(application.status) ? (
+						<form action={withdrawAction}>
+							<button
+								type="submit"
+								className="inline-flex min-h-12 w-full items-center justify-center rounded-2xl border border-red-100 bg-white px-5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+							>
+								Withdraw proposal
+							</button>
+						</form>
+					) : null}
+				</div>
+			) : (
+				<p className="rounded-2xl border border-line bg-panel-soft p-4 text-sm leading-6 text-secondary">
+					This proposal is closed. Conversation history remains available if a
+					conversation was started.
+				</p>
+			)}
+		</div>
+	);
+}
+
+export default async function JobDetailsPage({ params, searchParams }: PageProps) {
 	const supabase = await createSupabaseServerClient();
 	const {
 		data: { user },
@@ -164,6 +297,7 @@ export default async function JobDetailsPage({ params }: PageProps) {
 	}
 
 	const { id } = await params;
+	const query = await searchParams;
 	const projectResult = await getPublicPublishedProjectById(supabase, id);
 
 	if (projectResult.error === "Project not found.") {
@@ -184,6 +318,29 @@ export default async function JobDetailsPage({ params }: PageProps) {
 	const dashboardHref = role ? getDashboardPath(role) : null;
 	const projectTags = getProjectTags(project);
 	const gradientBackground = `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`;
+	let providerApplication:
+		| {
+				id: string;
+				status: ApplicationStatus;
+				proposed_price: number | null;
+				estimated_delivery_days: number | null;
+				created_at: string;
+		  }
+		| null = null;
+
+	if (user && isProvider) {
+		const providerApplicationResult = await getProviderApplicationForProject(
+			supabase,
+			user.id,
+			project.id,
+		);
+
+		if (providerApplicationResult.error) {
+			throw new Error(providerApplicationResult.error);
+		}
+
+		providerApplication = providerApplicationResult.data ?? null;
+	}
 
 	return (
 		<section className="space-y-6 py-2 ">
@@ -337,13 +494,31 @@ export default async function JobDetailsPage({ params }: PageProps) {
 							{isProvider ? "Submit a proposal" : "Explore this opportunity"}
 						</h2>
 						<p className="mt-2 text-sm leading-6 text-secondary">
-							{isProvider
+							{providerApplication
+								? "Track your proposal status and continue the project discussion."
+								: isProvider
 								? "Include your approach, relevant experience, and why you are a good fit."
 								: "Review the brief for free. Sign in with a provider account to submit a proposal."}
 						</p>
 
 						<div className="mt-6">
-							{isProvider ? (
+							{query.applicationError ? (
+								<div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+									{query.applicationError}
+								</div>
+							) : null}
+							{query.applicationStatus ? (
+								<div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
+									{query.applicationStatus}
+								</div>
+							) : null}
+							{providerApplication ? (
+								<ProviderApplicationStatusCard
+									projectId={project.id}
+									application={providerApplication}
+									gradientBackground={gradientBackground}
+								/>
+							) : isProvider ? (
 								<ProviderApplicationForm projectId={project.id} />
 							) : user ? (
 								<div>
@@ -384,7 +559,11 @@ export default async function JobDetailsPage({ params }: PageProps) {
 						</div>
 
 						<div className="mt-6 border-t border-line pt-5 text-sm text-secondary">
-							<p>Application review starts after submission.</p>
+							<p>
+								{providerApplication
+									? "A proposal is required before messaging, so every discussion stays tied to project context."
+									: "Application review starts after submission."}
+							</p>
 						</div>
 					</section>
 				</aside>

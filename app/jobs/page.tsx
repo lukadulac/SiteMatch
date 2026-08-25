@@ -210,6 +210,30 @@ export default async function ProviderOpportunitiesPage({
   }
 
   const projects = projectsResult.data ?? [];
+  const providerApplicationsByProjectId = new Map<string, { id: string }>();
+
+  if (user && role === "provider" && projects.length > 0) {
+    const { data: providerApplications, error: providerApplicationsError } =
+      await supabase
+        .from("applications")
+        .select("id, project_id")
+        .eq("provider_id", user.id)
+        .in(
+          "project_id",
+          projects.map((project) => project.id),
+        );
+
+    if (providerApplicationsError) {
+      throw new Error(providerApplicationsError.message);
+    }
+
+    for (const application of providerApplications ?? []) {
+      providerApplicationsByProjectId.set(application.project_id, {
+        id: application.id,
+      });
+    }
+  }
+
   const dashboardHref = role ? getDashboardPath(role) : null;
   const primaryActionHref = role === "provider" ? "/dashboard/provider" : "/login";
   const primaryActionLabel =
@@ -378,6 +402,9 @@ export default async function ProviderOpportunitiesPage({
         {projects.length > 0 ? (
           projects.map((project) => {
             const tags = getTagLabels(project).slice(0, 5);
+            const providerApplication = providerApplicationsByProjectId.get(
+              project.id,
+            );
 
             return (
               <article
@@ -385,6 +412,11 @@ export default async function ProviderOpportunitiesPage({
                 className="flex min-w-0 flex-col rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)] sm:p-6"
               >
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  {providerApplication ? (
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      Applied
+                    </span>
+                  ) : null}
                   <span className="min-w-0 wrap-break-word text-xs font-medium text-secondary">
                     {budgetTypeLabel(project.budget_type)} ·{" "}
                     {formatPostedLabel(project.created_at)}
@@ -441,7 +473,11 @@ export default async function ProviderOpportunitiesPage({
                       background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
                     }}
                   >
-                    {role === "provider" ? "View brief" : "View details"}
+                    {providerApplication
+                      ? "View proposal"
+                      : role === "provider"
+                        ? "View brief"
+                        : "View details"}
                   </Link>
                 </div>
               </article>

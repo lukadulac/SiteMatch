@@ -12,6 +12,7 @@ type ApplicationStatusMeta = {
 	canShortlist: boolean;
 	canReject: boolean;
 	canAccept: boolean;
+	canWithdraw: boolean;
 };
 
 export const applicationStatusMeta = {
@@ -24,6 +25,7 @@ export const applicationStatusMeta = {
 		canShortlist: true,
 		canReject: true,
 		canAccept: true,
+		canWithdraw: true,
 	},
 	viewed: {
 		label: "Viewed",
@@ -34,6 +36,7 @@ export const applicationStatusMeta = {
 		canShortlist: true,
 		canReject: true,
 		canAccept: true,
+		canWithdraw: true,
 	},
 	shortlisted: {
 		label: "Shortlisted",
@@ -44,6 +47,7 @@ export const applicationStatusMeta = {
 		canShortlist: false,
 		canReject: true,
 		canAccept: true,
+		canWithdraw: true,
 	},
 	accepted: {
 		label: "Accepted",
@@ -54,6 +58,7 @@ export const applicationStatusMeta = {
 		canShortlist: false,
 		canReject: false,
 		canAccept: false,
+		canWithdraw: false,
 	},
 	rejected: {
 		label: "Rejected",
@@ -64,6 +69,7 @@ export const applicationStatusMeta = {
 		canShortlist: false,
 		canReject: false,
 		canAccept: false,
+		canWithdraw: false,
 	},
 	withdrawn: {
 		label: "Withdrawn",
@@ -74,9 +80,18 @@ export const applicationStatusMeta = {
 		canShortlist: false,
 		canReject: false,
 		canAccept: false,
+		canWithdraw: false,
 	},
 } satisfies Record<ApplicationStatus, ApplicationStatusMeta>;
 
 export function getApplicationStatusMeta(status: ApplicationStatus) {
 	return applicationStatusMeta[status];
+}
+
+export function canMessageForApplicationStatus(status: ApplicationStatus) {
+	return applicationStatusMeta[status].canMessage;
+}
+
+export function canWithdrawForApplicationStatus(status: ApplicationStatus) {
+	return applicationStatusMeta[status].canWithdraw;
 }
