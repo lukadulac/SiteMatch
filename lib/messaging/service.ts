@@ -149,7 +149,7 @@ export async function ensureConversationForApplication(
     return { data: existingConversationResult.data };
   }
 
-  if (!isProjectClient) {
+  if (!isProjectClient && !isApplicationProvider) {
     return { error: "Conversation not found." };
   }
 

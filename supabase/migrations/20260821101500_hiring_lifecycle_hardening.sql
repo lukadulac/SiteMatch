@@ -452,8 +452,9 @@ with check (
 drop policy if exists "Conversations are insertable by participants or admin" on public.conversations;
 drop policy if exists "conversations_insert_participants_only" on public.conversations;
 drop policy if exists "conversations_insert_valid_application_client" on public.conversations;
+drop policy if exists "conversations_insert_valid_application_participant" on public.conversations;
 
-create policy "conversations_insert_valid_application_client"
+create policy "conversations_insert_valid_application_participant"
 on public.conversations
 for insert
 to authenticated
@@ -469,6 +470,7 @@ with check (
       and a.status in ('pending', 'viewed', 'shortlisted', 'accepted')
       and (
         conversations.client_id = auth.uid()
+        or conversations.provider_id = auth.uid()
         or public.is_admin()
       )
   )

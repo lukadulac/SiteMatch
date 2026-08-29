@@ -3,9 +3,12 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createApplicationSchema } from "@/lib/projects/schemas";
-import { createProjectApplication } from "@/lib/projects/service";
+import {
+	createProjectApplication,
+	withdrawProjectApplicationForProvider,
+} from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
+import { ensureConversationForApplication } from "@/lib/messaging/service";
 
 export type JobApplicationActionState = {
 	formError?: string;
@@ -104,4 +107,71 @@ export async function applyToProjectAction(
 	revalidatePath("/dashboard/provider");
 
 	redirect("/dashboard/provider");
+}
+export async function openProviderApplicationConversationAction(
+	projectId: string,
+	applicationId: string,
+) {
+	const supabase = await createSupabaseServerClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+	if (!user) {
+		redirect("/login");
+	}
+
+	const result = await ensureConversationForApplication(
+		supabase,
+		user.id,
+		applicationId,
+	);
+
+	if (result.error || !result.data) {
+		redirect(
+			`/jobs/${projectId}?applicationError=${encodeURIComponent(
+				result.error ?? "Conversation could not be opened.",
+			)}`,
+		);
+	}
+
+	revalidatePath(`/jobs/${projectId}`);
+	revalidatePath("/dashboard/messages");
+	redirect(`/dashboard/messages/${result.data.id}`);
+}
+
+export async function withdrawProviderApplicationFromJobAction(
+	projectId: string,
+	applicationId: string,
+) {
+	const supabase = await createSupabaseServerClient();
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	if (!user) {
+		redirect("/login");
+	}
+
+	const result = await withdrawProjectApplicationForProvider(
+		supabase,
+		user.id,
+		applicationId,
+	);
+
+	if (result.error) {
+		redirect(
+			`/jobs/${projectId}?applicationError=${encodeURIComponent(result.error)}`,
+		);
+	}
+
+	revalidatePath("/jobs");
+	revalidatePath(`/jobs/${projectId}`);
+	revalidatePath("/dashboard/provider");
+	revalidatePath("/dashboard/provider/applications");
+	revalidatePath("/dashboard/messages");
+	redirect(
+		`/jobs/${projectId}?applicationStatus=${encodeURIComponent(
+			"Proposal withdrawn.",
+		)}`,
+	);
 }

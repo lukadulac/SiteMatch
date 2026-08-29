@@ -1158,3 +1158,22 @@ export async function withdrawProjectApplicationForProvider(
 		},
 	};
 }
+
+export async function getProviderApplicationForProject(
+	supabase: SupabaseClient<Database>,
+	providerId: string,
+	projectId: string,
+) {
+	const { data, error } = await supabase
+		.from("applications")
+		.select("id, status, proposed_price, estimated_delivery_days, created_at")
+		.eq("project_id", projectId)
+		.eq("provider_id", providerId)
+		.maybeSingle();
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	return { data };
+}
