@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IdleSessionTimeout } from "@/components/auth/idle-session-timeout";
 import Header from "@/components/header/Header";
 import SiteContainer from "@/components/layout/SiteContainer";
 import { getDashboardPath } from "@/lib/auth/roles";
@@ -19,6 +20,7 @@ export default async function RootLayout({
 	return (
 		<html lang="en" className="h-full antialiased">
 			<body className="min-h-full flex flex-col bg-background text-foreground">
+				<IdleSessionTimeout />
 				<Header {...headerAuthState} />
 				<main className="flex-1 w-full">
 					<SiteContainer>{children}</SiteContainer>
