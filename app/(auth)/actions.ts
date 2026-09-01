@@ -1,11 +1,21 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { AuthActionState } from "@/app/(auth)/action-state";
 import { clientProfileInputSchema } from "@/lib/auth/client-profile";
 import { providerProfileInputSchema } from "@/lib/auth/provider-profile";
 import { ensureUserProfile } from "@/lib/auth/provision";
+import {
+	AUTH_RATE_LIMITS,
+	checkAuthRateLimit,
+	createRateLimitKey,
+	getRequestIp,
+	normalizeRateLimitEmail,
+	recordAuthRateLimitAttempt,
+	resetAuthRateLimit,
+} from "@/lib/auth/rate-limit";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -222,6 +232,26 @@ export async function registerAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  const requestIp = getRequestIp(await headers());
+  const registerIpKey = createRateLimitKey([
+    AUTH_RATE_LIMITS.registerIp.scope,
+    requestIp,
+  ]);
+  const registerLimit = await recordAuthRateLimitAttempt(
+    supabase,
+    AUTH_RATE_LIMITS.registerIp,
+    registerIpKey,
+  );
+
+  if (!registerLimit.allowed) {
+    return {
+      formError: "We could not create your account. Please try again.",
+      formSuccess: undefined,
+      fieldErrors: {},
+      fields,
+    };
+  }
+
   let redirectUserId: string | null = null;
 
   try {
@@ -264,9 +294,7 @@ export async function registerAction(
 
     if (signUpError || !authData.user) {
       return {
-        formError:
-          signUpError?.message ??
-          "We could not create your account. Please try again.",
+        formError: "We could not create your account. Please try again.",
         formSuccess: undefined,
         fieldErrors: {},
         fields,
@@ -297,13 +325,11 @@ export async function registerAction(
 
     redirectUserId = userId;
   } catch (error) {
+    console.error("Registration failed", error);
     await supabase.auth.signOut();
 
     return {
-      formError:
-        error instanceof Error
-          ? `${error.message} If the auth user was created before this failed, you may need to remove that user from Supabase Auth before retrying.`
-          : "We could not finish creating your account. Please try again.",
+      formError: "We could not finish creating your account. Please try again.",
       formSuccess: undefined,
       fieldErrors: {},
       fields,
@@ -340,12 +366,29 @@ export async function loginAction(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
-    password: parsed.data.password,
-  });
+  const requestIp = getRequestIp(await headers());
+  const normalizedEmail = normalizeRateLimitEmail(parsed.data.email);
+  const loginEmailIpKey = createRateLimitKey([
+    AUTH_RATE_LIMITS.loginEmailIp.scope,
+    normalizedEmail,
+    requestIp,
+  ]);
+  const loginIpKey = createRateLimitKey([
+    AUTH_RATE_LIMITS.loginIp.scope,
+    requestIp,
+  ]);
+  const loginEmailIpLimit = await checkAuthRateLimit(
+    supabase,
+    AUTH_RATE_LIMITS.loginEmailIp.scope,
+    loginEmailIpKey,
+  );
+  const loginIpLimit = await checkAuthRateLimit(
+    supabase,
+    AUTH_RATE_LIMITS.loginIp.scope,
+    loginIpKey,
+  );
 
-  if (signInError) {
+  if (!loginEmailIpLimit.allowed || !loginIpLimit.allowed) {
     return {
       formError: "Invalid email or password.",
       formSuccess: undefined,
@@ -353,6 +396,37 @@ export async function loginAction(
       fields,
     };
   }
+
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: parsed.data.email,
+    password: parsed.data.password,
+  });
+
+  if (signInError) {
+    await recordAuthRateLimitAttempt(
+      supabase,
+      AUTH_RATE_LIMITS.loginEmailIp,
+      loginEmailIpKey,
+    );
+    await recordAuthRateLimitAttempt(
+      supabase,
+      AUTH_RATE_LIMITS.loginIp,
+      loginIpKey,
+    );
+
+    return {
+      formError: "Invalid email or password.",
+      formSuccess: undefined,
+      fieldErrors: {},
+      fields,
+    };
+  }
+
+  await resetAuthRateLimit(
+    supabase,
+    AUTH_RATE_LIMITS.loginEmailIp.scope,
+    loginEmailIpKey,
+  );
 
   const {
     data: { user },

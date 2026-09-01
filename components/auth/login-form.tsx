@@ -28,6 +28,7 @@ export function LoginForm() {
 							id="email"
 							name="email"
 							type="email"
+							autoComplete="email"
 							defaultValue={state.fields?.email}
 							placeholder="youremail@example.com"
 							className="w-full rounded-2xl border p-2.5 placeholder:pl-2"
@@ -43,6 +44,7 @@ export function LoginForm() {
 							id="password"
 							name="password"
 							type="password"
+							autoComplete="current-password"
 							placeholder="Your password"
 							className="w-full rounded-2xl border p-2.5 placeholder:pl-2"
 						/>
