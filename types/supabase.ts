@@ -910,6 +910,82 @@ export type Database = {
           },
         ];
       };
+      provider_service_listings: {
+        Row: {
+          category_id: string | null;
+          category_text: string | null;
+          created_at: string;
+          delivery_estimate: string | null;
+          description: string;
+          id: string;
+          price_type: Database["public"]["Enums"]["provider_service_price_type"];
+          provider_id: string;
+          published_at: string | null;
+          service_type_id: string | null;
+          service_type_text: string | null;
+          starting_price: number | null;
+          status: Database["public"]["Enums"]["provider_service_listing_status"];
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          category_id?: string | null;
+          category_text?: string | null;
+          created_at?: string;
+          delivery_estimate?: string | null;
+          description: string;
+          id?: string;
+          price_type?: Database["public"]["Enums"]["provider_service_price_type"];
+          provider_id: string;
+          published_at?: string | null;
+          service_type_id?: string | null;
+          service_type_text?: string | null;
+          starting_price?: number | null;
+          status?: Database["public"]["Enums"]["provider_service_listing_status"];
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          category_id?: string | null;
+          category_text?: string | null;
+          created_at?: string;
+          delivery_estimate?: string | null;
+          description?: string;
+          id?: string;
+          price_type?: Database["public"]["Enums"]["provider_service_price_type"];
+          provider_id?: string;
+          published_at?: string | null;
+          service_type_id?: string | null;
+          service_type_text?: string | null;
+          starting_price?: number | null;
+          status?: Database["public"]["Enums"]["provider_service_listing_status"];
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "provider_service_listings_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "project_categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "provider_service_listings_provider_id_fkey";
+            columns: ["provider_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "provider_service_listings_service_type_id_fkey";
+            columns: ["service_type_id"];
+            isOneToOne: false;
+            referencedRelation: "service_types";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       provider_service_types: {
         Row: {
           created_at: string;
@@ -1035,6 +1111,12 @@ export type Database = {
         | "ecommerce"
         | "automation"
         | "other";
+      provider_service_listing_status: "draft" | "published" | "paused";
+      provider_service_price_type:
+        | "fixed"
+        | "hourly"
+        | "starting_at"
+        | "negotiable";
       project_readiness_level:
         | "idea_only"
         | "need_guidance"

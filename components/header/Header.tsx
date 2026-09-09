@@ -122,7 +122,7 @@ export default function Header({
 					<ul className="flex items-center gap-6">
 						<li>
 							<Link
-								href="/"
+								href="/find-talent"
 								className="text-[16px] font-semibold transition hover:opacity-70"
 								style={{ color: headerTheme.muted }}
 							>
@@ -255,7 +255,7 @@ export default function Header({
 						<ul className="space-y-1">
 							<li>
 								<Link
-									href="/"
+									href="/find-talent"
 									onClick={closeMenu}
 									className="block py-2 text-[16px] font-semibold"
 									style={{ color: headerTheme.muted }}
