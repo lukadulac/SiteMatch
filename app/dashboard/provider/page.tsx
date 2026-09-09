@@ -76,12 +76,12 @@ function OverviewStat({
   detail: string;
 }) {
   return (
-    <article className="min-w-0 rounded-[1.5rem] border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
-      <p className="break-words text-3xl font-semibold text-black sm:text-4xl">
+    <article className="min-w-0 rounded-3xl border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
+      <p className="wrap-break-word text-3xl font-semibold text-black sm:text-4xl">
         {value}
       </p>
-      <p className="mt-3 break-words text-sm font-semibold text-black">{label}</p>
-      <p className="mt-1 break-words text-xs leading-5 text-secondary">{detail}</p>
+      <p className="mt-3 wrap-break-word text-sm font-semibold text-black">{label}</p>
+      <p className="mt-1 wrap-break-word text-xs leading-5 text-secondary">{detail}</p>
     </article>
   );
 }
@@ -186,6 +186,7 @@ export default async function ProviderDashboardPage() {
           label: "Applications",
           count: applications.length,
         },
+        { href: "/dashboard/provider/services", label: "Services" },
         {
           href: "/dashboard/messages",
           label: "Messages",
@@ -195,7 +196,7 @@ export default async function ProviderDashboardPage() {
       ]}
     >
       {!isReady ? (
-        <section className="flex flex-col gap-3 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+        <section className="flex flex-col gap-3 rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
           <p className="font-semibold">
             Complete your profile to improve visibility with clients.
           </p>
@@ -226,7 +227,7 @@ export default async function ProviderDashboardPage() {
       <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 rounded-[1.75rem] border border-line bg-white shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
           <div className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
-            <h2 className="min-w-0 break-words text-xl font-semibold text-black">
+            <h2 className="min-w-0 wrap-break-word text-xl font-semibold text-black">
               Recent Applications
             </h2>
             <Link
@@ -249,7 +250,7 @@ export default async function ProviderDashboardPage() {
                   >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="break-words text-base font-semibold text-black">
+                      <h3 className="wrap-break-word text-base font-semibold text-black">
                         {application.project?.title ?? "Untitled project"}
                       </h3>
                       <span
@@ -301,7 +302,7 @@ export default async function ProviderDashboardPage() {
         <aside className="min-w-0 space-y-5">
           <section className="min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
             <div className="flex min-w-0 items-center justify-between gap-4">
-              <h2 className="min-w-0 break-words text-xl font-semibold text-black">
+              <h2 className="min-w-0 wrap-break-word text-xl font-semibold text-black">
                 Recent Messages
               </h2>
               <Link

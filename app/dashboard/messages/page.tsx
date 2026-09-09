@@ -61,6 +61,14 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
               : "/dashboard/provider/applications",
           label: provisioned.role === "client" ? "Projects" : "Applications",
         },
+        ...(provisioned.role === "provider"
+          ? [
+              {
+                href: "/dashboard/provider/services",
+                label: "Services",
+              },
+            ]
+          : []),
         {
           href: "/dashboard/messages",
           label: "Messages",

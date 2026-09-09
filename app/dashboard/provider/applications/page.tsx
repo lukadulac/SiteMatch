@@ -300,6 +300,7 @@ export default async function ProviderApplicationsPage() {
           count: applications.length,
           active: true,
         },
+        { href: "/dashboard/provider/services", label: "Services" },
         {
           href: "/dashboard/messages",
           label: "Messages",
