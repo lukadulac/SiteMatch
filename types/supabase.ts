@@ -915,6 +915,7 @@ export type Database = {
           category_id: string | null;
           category_text: string | null;
           created_at: string;
+          delivery_bucket: Database["public"]["Enums"]["provider_service_delivery_bucket"];
           delivery_estimate: string | null;
           description: string;
           id: string;
@@ -932,6 +933,7 @@ export type Database = {
           category_id?: string | null;
           category_text?: string | null;
           created_at?: string;
+          delivery_bucket?: Database["public"]["Enums"]["provider_service_delivery_bucket"];
           delivery_estimate?: string | null;
           description: string;
           id?: string;
@@ -949,6 +951,7 @@ export type Database = {
           category_id?: string | null;
           category_text?: string | null;
           created_at?: string;
+          delivery_bucket?: Database["public"]["Enums"]["provider_service_delivery_bucket"];
           delivery_estimate?: string | null;
           description?: string;
           id?: string;
@@ -1021,6 +1024,7 @@ export type Database = {
       };
       service_types: {
         Row: {
+          category_id: string | null;
           created_at: string;
           description: string | null;
           id: string;
@@ -1031,6 +1035,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          category_id?: string | null;
           created_at?: string;
           description?: string | null;
           id?: string;
@@ -1041,6 +1046,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          category_id?: string | null;
           created_at?: string;
           description?: string | null;
           id?: string;
@@ -1050,7 +1056,15 @@ export type Database = {
           sort_order?: number;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "service_types_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "project_categories";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;
@@ -1112,6 +1126,13 @@ export type Database = {
         | "automation"
         | "other";
       provider_service_listing_status: "draft" | "published" | "paused";
+      provider_service_delivery_bucket:
+        | "urgent_24h"
+        | "up_to_3_days"
+        | "up_to_1_week"
+        | "up_to_2_weeks"
+        | "up_to_1_month"
+        | "flexible";
       provider_service_price_type:
         | "fixed"
         | "hourly"

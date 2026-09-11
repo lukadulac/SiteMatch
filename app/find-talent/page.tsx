@@ -2,6 +2,11 @@ import Link from "next/link";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
 import {
+	getDefaultFindTalentQuery,
+	parseFindTalentQuery,
+	type RawFindTalentQuery,
+} from "@/lib/provider-services/find-talent-query";
+import {
 	getPublicPublishedProviderServices,
 	type PublicProviderServiceListing,
 } from "@/lib/provider-services/service";
@@ -9,16 +14,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { headerTheme } from "@/theme/header-theme";
 
 type FindTalentPageProps = {
-	searchParams: Promise<{
-		q?: string;
-		price?: string;
-		sort?: string;
-	}>;
+	searchParams: Promise<RawFindTalentQuery>;
 };
-
-function getSearchParam(value: string | string[] | undefined) {
-	return typeof value === "string" ? value : "";
-}
 
 function getServiceTypeLabel(service: PublicProviderServiceListing) {
 	return service.service_type_text || service.service_type?.name || "Service";
@@ -93,9 +90,14 @@ export default async function FindTalentPage({
 		data: { user },
 	} = await supabase.auth.getUser();
 	const query = await searchParams;
-	const q = getSearchParam(query.q);
-	const price = getSearchParam(query.price);
-	const sort = getSearchParam(query.sort) || "newest";
+	const parsedQuery = parseFindTalentQuery(query);
+	const filters = parsedQuery.data ?? getDefaultFindTalentQuery();
+	const filterError = parsedQuery.error
+		? "Some filters were invalid and were ignored."
+		: null;
+	const q = filters.q ?? "";
+	const price = filters.priceType ?? "";
+	const sort = filters.sort;
 
 	let role: UserRole | null = null;
 
@@ -104,27 +106,29 @@ export default async function FindTalentPage({
 		role = provisioned.role ?? null;
 	}
 
-	const servicesResult = await getPublicPublishedProviderServices(supabase, {
-		q,
-		priceType:
-			price === "fixed" ||
-			price === "hourly" ||
-			price === "starting_at" ||
-			price === "negotiable"
-				? price
-				: "",
-		sort:
-			sort === "oldest" || sort === "price_high" || sort === "price_low"
-				? sort
-				: "newest",
-	});
+	const servicesResult = await getPublicPublishedProviderServices(
+		supabase,
+		filters,
+	);
 
 	if (servicesResult.error) {
 		throw new Error(servicesResult.error);
 	}
 
-	const services = servicesResult.data ?? [];
+	const services = servicesResult.data?.services ?? [];
 	const dashboardHref = role ? getDashboardPath(role) : null;
+	const preservedFilterInputs = [
+		["category", filters.categorySlug],
+		["serviceType", filters.serviceTypeSlug],
+		["minPrice", filters.minPrice],
+		["maxPrice", filters.maxPrice],
+		["delivery", filters.deliveryBucket],
+		["pageSize", filters.pageSize],
+	].filter((input): input is [string, string | number] => {
+		const value = input[1];
+
+		return value !== undefined && value !== "";
+	});
 	const activeFilters = [
 		q ? `Search: ${q}` : null,
 		price ? priceTypeLabel(price) : null,
@@ -133,6 +137,12 @@ export default async function FindTalentPage({
 	return (
 		<section className="space-y-7 py-4 sm:py-8">
 			<div className="space-y-6">
+				{filterError ? (
+					<div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+						{filterError}
+					</div>
+				) : null}
+
 				<div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
 					<div>
 						<p className="text-sm font-semibold uppercase tracking-[0.18em] text-secondary">
@@ -147,16 +157,6 @@ export default async function FindTalentPage({
 							flow is stable.
 						</p>
 					</div>
-
-					<Link
-						href={dashboardHref ?? "/login"}
-						className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-						style={{
-							background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
-						}}
-					>
-						{role ? "Dashboard" : "Sign in"}
-					</Link>
 				</div>
 
 				<form
@@ -167,6 +167,14 @@ export default async function FindTalentPage({
 						<label className="sr-only" htmlFor="talent-search">
 							Search services
 						</label>
+						{preservedFilterInputs.map(([name, value]) => (
+							<input
+								key={name}
+								type="hidden"
+								name={name}
+								value={String(value)}
+							/>
+						))}
 						<input
 							id="talent-search"
 							name="q"
@@ -181,7 +189,7 @@ export default async function FindTalentPage({
 						</label>
 						<select
 							id="price-filter"
-							name="price"
+							name="priceType"
 							defaultValue={price}
 							className="min-h-11 rounded-2xl border border-line-strong bg-white px-4 text-sm font-semibold text-black outline-none transition focus:border-black"
 						>
@@ -203,8 +211,8 @@ export default async function FindTalentPage({
 						>
 							<option value="newest">Newest</option>
 							<option value="oldest">Oldest</option>
-							<option value="price_high">Price high</option>
-							<option value="price_low">Price low</option>
+							<option value="price_desc">Price high</option>
+							<option value="price_asc">Price low</option>
 						</select>
 
 						<button
@@ -244,7 +252,9 @@ export default async function FindTalentPage({
 
 			<div className="flex flex-col gap-3 border-b border-line pb-4 sm:flex-row sm:items-end sm:justify-between">
 				<div>
-					<h2 className="text-xl font-semibold text-black">Published Services</h2>
+					<h2 className="text-xl font-semibold text-black">
+						Published Services
+					</h2>
 					<p className="mt-1 text-sm text-secondary">
 						{services.length} result{services.length === 1 ? "" : "s"} available
 					</p>
@@ -254,9 +264,9 @@ export default async function FindTalentPage({
 					<span className="text-black">
 						{sort === "oldest"
 							? "oldest"
-							: sort === "price_high"
+							: sort === "price_desc"
 								? "highest price"
-								: sort === "price_low"
+								: sort === "price_asc"
 									? "lowest price"
 									: "newest"}
 					</span>
@@ -278,8 +288,7 @@ export default async function FindTalentPage({
 										Available
 									</span>
 									<span className="min-w-0 wrap-break-word text-xs font-medium text-secondary">
-										{getServiceTypeLabel(service)} ·{" "}
-										{getCategoryLabel(service)}
+										{getServiceTypeLabel(service)} · {getCategoryLabel(service)}
 									</span>
 								</div>
 
@@ -324,7 +333,7 @@ export default async function FindTalentPage({
 
 								<div className="mt-auto pt-6">
 									<Link
-										href={role ? dashboardHref ?? "/dashboard" : "/login"}
+										href={role ? (dashboardHref ?? "/dashboard") : "/login"}
 										className="inline-flex min-h-11 items-center justify-center rounded-2xl px-5 text-sm font-semibold text-white transition hover:opacity-90"
 										style={{
 											background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
