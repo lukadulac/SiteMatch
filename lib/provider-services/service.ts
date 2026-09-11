@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+	FIND_TALENT_DEFAULT_PAGE,
+	FIND_TALENT_DEFAULT_PAGE_SIZE,
+	type FindTalentQuery,
+} from "@/lib/provider-services/find-talent-query";
+import {
 	providerServiceListingInputSchema,
 	type ProviderServiceListingFormFields,
 	type ProviderServiceListingIntent,
@@ -37,10 +42,16 @@ export type PublicProviderServiceListing = ProviderServiceListingDetail & {
 	> | null;
 };
 
-type PublicProviderServiceFilters = {
-	q?: string;
-	priceType?: string;
-	sort?: string;
+export type PublicProviderServicesPage = {
+	services: PublicProviderServiceListing[];
+	totalCount: number;
+	page: number;
+	pageSize: number;
+	totalPages: number;
+};
+
+type PublicProviderServiceFilters = Partial<Omit<FindTalentQuery, "sort">> & {
+	sort?: FindTalentQuery["sort"] | "price_high" | "price_low";
 };
 
 type ProviderServiceListing = Pick<
@@ -75,16 +86,122 @@ async function ensureProviderUser(
 	return { data: null };
 }
 
+function buildPublicProviderServicesPage({
+	services,
+	totalCount,
+	page,
+	pageSize,
+}: {
+	services: PublicProviderServiceListing[];
+	totalCount: number;
+	page: number;
+	pageSize: number;
+}): PublicProviderServicesPage {
+	return {
+		services,
+		totalCount,
+		page,
+		pageSize,
+		totalPages: totalCount === 0 ? 0 : Math.ceil(totalCount / pageSize),
+	};
+}
+
+function emptyPublicProviderServicesResult(
+	page: number,
+	pageSize: number,
+): ProviderServiceResult<PublicProviderServicesPage> {
+	return {
+		data: buildPublicProviderServicesPage({
+			services: [],
+			totalCount: 0,
+			page,
+			pageSize,
+		}),
+	};
+}
+
+async function resolveCategoryIdBySlug(
+	supabase: SupabaseClient<Database>,
+	slug: string,
+) {
+	const { data, error } = await supabase
+		.from("project_categories")
+		.select("id")
+		.eq("slug", slug)
+		.maybeSingle();
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	return { data: data?.id ?? null };
+}
+
+async function resolveServiceTypeIdBySlug(
+	supabase: SupabaseClient<Database>,
+	slug: string,
+) {
+	const { data, error } = await supabase
+		.from("service_types")
+		.select("id")
+		.eq("slug", slug)
+		.maybeSingle();
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	return { data: data?.id ?? null };
+}
+
 export async function getPublicPublishedProviderServices(
 	supabase: SupabaseClient<Database>,
 	filters: PublicProviderServiceFilters = {},
-): Promise<ProviderServiceResult<PublicProviderServiceListing[]>> {
+): Promise<ProviderServiceResult<PublicProviderServicesPage>> {
+	const page = filters.page ?? FIND_TALENT_DEFAULT_PAGE;
+	const pageSize = filters.pageSize ?? FIND_TALENT_DEFAULT_PAGE_SIZE;
+	const offset = filters.offset ?? (page - 1) * pageSize;
 	let query = supabase
 		.from("provider_service_listings")
 		.select(
-			"id, provider_id, title, description, status, price_type, starting_price, delivery_estimate, published_at, created_at, updated_at, service_type_id, service_type_text, category_id, category_text, provider:profiles!provider_service_listings_provider_id_fkey(id, full_name, avatar_url, country, city), service_type:service_types!provider_service_listings_service_type_id_fkey(id, name, slug), category:project_categories!provider_service_listings_category_id_fkey(id, name, slug)",
+			"id, provider_id, title, description, status, price_type, starting_price, delivery_bucket, delivery_estimate, published_at, created_at, updated_at, service_type_id, service_type_text, category_id, category_text, provider:profiles!provider_service_listings_provider_id_fkey(id, full_name, avatar_url, country, city), service_type:service_types!provider_service_listings_service_type_id_fkey(id, name, slug), category:project_categories!provider_service_listings_category_id_fkey(id, name, slug)",
+			{ count: "exact" },
 		)
 		.eq("status", "published");
+
+	if (filters.categorySlug) {
+		const categoryResult = await resolveCategoryIdBySlug(
+			supabase,
+			filters.categorySlug,
+		);
+
+		if (categoryResult.error) {
+			return { error: categoryResult.error };
+		}
+
+		if (!categoryResult.data) {
+			return emptyPublicProviderServicesResult(page, pageSize);
+		}
+
+		query = query.eq("category_id", categoryResult.data);
+	}
+
+	if (filters.serviceTypeSlug) {
+		const serviceTypeResult = await resolveServiceTypeIdBySlug(
+			supabase,
+			filters.serviceTypeSlug,
+		);
+
+		if (serviceTypeResult.error) {
+			return { error: serviceTypeResult.error };
+		}
+
+		if (!serviceTypeResult.data) {
+			return emptyPublicProviderServicesResult(page, pageSize);
+		}
+
+		query = query.eq("service_type_id", serviceTypeResult.data);
+	}
 
 	const search = filters.q?.trim();
 
@@ -103,12 +220,24 @@ export async function getPublicPublishedProviderServices(
 		query = query.eq("price_type", filters.priceType);
 	}
 
-	if (filters.sort === "price_high") {
+	if (filters.minPrice !== undefined) {
+		query = query.gte("starting_price", filters.minPrice);
+	}
+
+	if (filters.maxPrice !== undefined) {
+		query = query.lte("starting_price", filters.maxPrice);
+	}
+
+	if (filters.deliveryBucket) {
+		query = query.eq("delivery_bucket", filters.deliveryBucket);
+	}
+
+	if (filters.sort === "price_desc" || filters.sort === "price_high") {
 		query = query.order("starting_price", {
 			ascending: false,
 			nullsFirst: false,
 		});
-	} else if (filters.sort === "price_low") {
+	} else if (filters.sort === "price_asc" || filters.sort === "price_low") {
 		query = query.order("starting_price", {
 			ascending: true,
 			nullsFirst: false,
@@ -122,13 +251,22 @@ export async function getPublicPublishedProviderServices(
 		});
 	}
 
-	const { data, error } = await query;
+	query = query.range(offset, offset + pageSize - 1);
+
+	const { data, error, count } = await query;
 
 	if (error) {
 		return { error: error.message };
 	}
 
-	return { data: (data ?? []) as PublicProviderServiceListing[] };
+	return {
+		data: buildPublicProviderServicesPage({
+			services: (data ?? []) as PublicProviderServiceListing[],
+			totalCount: count ?? 0,
+			page,
+			pageSize,
+		}),
+	};
 }
 
 export async function createProviderServiceListing(
