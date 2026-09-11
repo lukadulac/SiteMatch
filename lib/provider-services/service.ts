@@ -59,6 +59,9 @@ type ProviderServiceListing = Pick<
 	"id" | "provider_id" | "status"
 >;
 
+const publicProviderServiceSelect =
+	"id, provider_id, title, description, status, price_type, starting_price, delivery_bucket, delivery_estimate, published_at, created_at, updated_at, service_type_id, service_type_text, category_id, category_text, provider:profiles!provider_service_listings_provider_id_fkey(id, full_name, avatar_url, country, city), service_type:service_types!provider_service_listings_service_type_id_fkey(id, name, slug), category:project_categories!provider_service_listings_category_id_fkey(id, name, slug)";
+
 const deletableServiceStatuses: Array<ProviderServiceListing["status"]> = [
 	"draft",
 	"published",
@@ -163,10 +166,7 @@ export async function getPublicPublishedProviderServices(
 	const offset = filters.offset ?? (page - 1) * pageSize;
 	let query = supabase
 		.from("provider_service_listings")
-		.select(
-			"id, provider_id, title, description, status, price_type, starting_price, delivery_bucket, delivery_estimate, published_at, created_at, updated_at, service_type_id, service_type_text, category_id, category_text, provider:profiles!provider_service_listings_provider_id_fkey(id, full_name, avatar_url, country, city), service_type:service_types!provider_service_listings_service_type_id_fkey(id, name, slug), category:project_categories!provider_service_listings_category_id_fkey(id, name, slug)",
-			{ count: "exact" },
-		)
+		.select(publicProviderServiceSelect, { count: "exact" })
 		.eq("status", "published");
 
 	if (filters.categorySlug) {
@@ -267,6 +267,28 @@ export async function getPublicPublishedProviderServices(
 			pageSize,
 		}),
 	};
+}
+
+export async function getPublicProviderServiceById(
+	supabase: SupabaseClient<Database>,
+	serviceId: string,
+): Promise<ProviderServiceResult<PublicProviderServiceListing>> {
+	const { data, error } = await supabase
+		.from("provider_service_listings")
+		.select(publicProviderServiceSelect)
+		.eq("id", serviceId)
+		.eq("status", "published")
+		.maybeSingle();
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	if (!data) {
+		return { error: "Service not found." };
+	}
+
+	return { data: data as PublicProviderServiceListing };
 }
 
 export async function createProviderServiceListing(
