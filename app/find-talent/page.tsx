@@ -1,29 +1,23 @@
 import Link from "next/link";
-import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
 import {
 	getDefaultFindTalentQuery,
 	parseFindTalentQuery,
 	type RawFindTalentQuery,
 } from "@/lib/provider-services/find-talent-query";
 import {
-	getPublicPublishedProviderServices,
-	type PublicProviderServiceListing,
-} from "@/lib/provider-services/service";
+	formatProviderServicePrice,
+	getCategoryLabel,
+	getServiceTypeLabel,
+	priceTypeLabel,
+	providerLocation,
+} from "@/lib/provider-services/formatters";
+import { getPublicPublishedProviderServices } from "@/lib/provider-services/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { headerTheme } from "@/theme/header-theme";
 
 type FindTalentPageProps = {
 	searchParams: Promise<RawFindTalentQuery>;
 };
-
-function getServiceTypeLabel(service: PublicProviderServiceListing) {
-	return service.service_type_text || service.service_type?.name || "Service";
-}
-
-function getCategoryLabel(service: PublicProviderServiceListing) {
-	return service.category_text || service.category?.name || "General";
-}
 
 function getServiceExcerpt(description: string) {
 	const trimmedDescription = description.trim().replace(/\s+/g, " ");
@@ -35,60 +29,10 @@ function getServiceExcerpt(description: string) {
 	return `${trimmedDescription.slice(0, 150).trimEnd()}...`;
 }
 
-function priceTypeLabel(value: string) {
-	switch (value) {
-		case "fixed":
-			return "Fixed";
-		case "hourly":
-			return "Hourly";
-		case "starting_at":
-			return "Starting at";
-		case "negotiable":
-			return "Negotiable";
-		default:
-			return "Price";
-	}
-}
-
-function formatPrice(service: PublicProviderServiceListing) {
-	if (service.price_type === "negotiable") {
-		return "Negotiable";
-	}
-
-	if (service.starting_price == null) {
-		return "Price not set";
-	}
-
-	const formattedPrice = new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: "USD",
-		maximumFractionDigits: 0,
-	}).format(service.starting_price);
-
-	if (service.price_type === "hourly") {
-		return `${formattedPrice}/hr`;
-	}
-
-	if (service.price_type === "starting_at") {
-		return `Starting at ${formattedPrice}`;
-	}
-
-	return formattedPrice;
-}
-
-function providerLocation(service: PublicProviderServiceListing) {
-	return [service.provider?.city, service.provider?.country]
-		.filter((value): value is string => Boolean(value))
-		.join(", ");
-}
-
 export default async function FindTalentPage({
 	searchParams,
 }: FindTalentPageProps) {
 	const supabase = await createSupabaseServerClient();
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
 	const query = await searchParams;
 	const parsedQuery = parseFindTalentQuery(query);
 	const filters = parsedQuery.data ?? getDefaultFindTalentQuery();
@@ -98,13 +42,6 @@ export default async function FindTalentPage({
 	const q = filters.q ?? "";
 	const price = filters.priceType ?? "";
 	const sort = filters.sort;
-
-	let role: UserRole | null = null;
-
-	if (user) {
-		const provisioned = await ensureUserProfile(supabase, user);
-		role = provisioned.role ?? null;
-	}
 
 	const servicesResult = await getPublicPublishedProviderServices(
 		supabase,
@@ -116,7 +53,6 @@ export default async function FindTalentPage({
 	}
 
 	const services = servicesResult.data?.services ?? [];
-	const dashboardHref = role ? getDashboardPath(role) : null;
 	const preservedFilterInputs = [
 		["category", filters.categorySlug],
 		["serviceType", filters.serviceTypeSlug],
@@ -307,7 +243,7 @@ export default async function FindTalentPage({
 									</p>
 									<p>
 										<span className="font-semibold text-black">Price:</span>{" "}
-										{formatPrice(service)}
+										{formatProviderServicePrice(service)}
 									</p>
 									<p>
 										<span className="font-semibold text-black">Delivery:</span>{" "}
@@ -333,17 +269,13 @@ export default async function FindTalentPage({
 
 								<div className="mt-auto pt-6">
 									<Link
-										href={role ? (dashboardHref ?? "/dashboard") : "/login"}
+										href={`/find-talent/${service.id}`}
 										className="inline-flex min-h-11 items-center justify-center rounded-2xl px-5 text-sm font-semibold text-white transition hover:opacity-90"
 										style={{
 											background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
 										}}
 									>
-										{role === "client"
-											? "Request service soon"
-											: role === "provider"
-												? "Provider dashboard"
-												: "Sign in to request"}
+										View more
 									</Link>
 								</div>
 							</article>
