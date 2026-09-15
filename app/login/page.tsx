@@ -1,6 +1,16 @@
 import { LoginForm } from "@/components/auth/login-form";
+import { getSafeReturnPath } from "@/lib/auth/return-url";
 
-export default async function LoginPage() {
+type LoginPageProps = {
+	searchParams: Promise<{
+		next?: string | string[];
+	}>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+	const { next } = await searchParams;
+	const safeNext = getSafeReturnPath(next);
+
 	return (
 		<section>
 			<h1 className="text-center text-4xl font-semibold">
@@ -14,7 +24,7 @@ export default async function LoginPage() {
 			</p>
 
 			<section>
-				<LoginForm />
+				<LoginForm next={safeNext} />
 			</section>
 		</section>
 	);

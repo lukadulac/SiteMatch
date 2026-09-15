@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ensureUserProfile } from "@/lib/auth/provision";
+import { getLoginHref } from "@/lib/auth/return-url";
 import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
 import {
 	formatProviderServicePrice,
@@ -37,16 +38,18 @@ function getCta({
 	userId,
 	service,
 	dashboardHref,
+	returnPath,
 }: {
 	role: UserRole | null;
 	userId: string | null;
 	service: PublicProviderServiceListing;
 	dashboardHref: string | null;
+	returnPath: string;
 }) {
 	if (!role) {
 		return {
 			label: "Sign in to request this service",
-			href: "/login",
+			href: getLoginHref(returnPath),
 			disabled: false,
 		};
 	}
@@ -108,6 +111,7 @@ export default async function FindTalentServicePage({
 		userId: user?.id ?? null,
 		service,
 		dashboardHref,
+		returnPath: `/find-talent/${service.id}`,
 	});
 	const location = providerLocation(service);
 

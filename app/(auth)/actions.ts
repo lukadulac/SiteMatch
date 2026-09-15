@@ -16,6 +16,7 @@ import {
 	recordAuthRateLimitAttempt,
 	resetAuthRateLimit,
 } from "@/lib/auth/rate-limit";
+import { getSafeReturnPath } from "@/lib/auth/return-url";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -352,6 +353,7 @@ export async function loginAction(
   _previousState: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  const safeNext = getSafeReturnPath(getStringValue(formData, "next"));
   const fields = {
     email: getStringValue(formData, "email"),
   };
@@ -454,6 +456,10 @@ export async function loginAction(
       fieldErrors: {},
       fields,
     };
+  }
+
+  if (safeNext) {
+    redirect(safeNext);
   }
 
   await redirectToRoleHome(provisioned.role, user.id, supabase);
