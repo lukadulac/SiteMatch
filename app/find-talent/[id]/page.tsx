@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requestProviderServiceAction } from "@/app/find-talent/[id]/actions";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getLoginHref } from "@/lib/auth/return-url";
-import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
+import type { UserRole } from "@/lib/auth/roles";
+import { getActiveServiceRequest } from "@/lib/provider-service-requests/service";
 import {
 	formatProviderServicePrice,
 	getCategoryLabel,
@@ -19,6 +21,10 @@ import { headerTheme } from "@/theme/header-theme";
 
 type FindTalentServicePageProps = {
 	params: Promise<{ id: string }>;
+	searchParams?: Promise<{
+		requestError?: string | string[];
+		requestStatus?: string | string[];
+	}>;
 };
 
 function formatPublishedDate(value: string | null) {
@@ -37,50 +43,61 @@ function getCta({
 	role,
 	userId,
 	service,
-	dashboardHref,
 	returnPath,
+	hasActiveRequest,
 }: {
 	role: UserRole | null;
 	userId: string | null;
 	service: PublicProviderServiceListing;
-	dashboardHref: string | null;
 	returnPath: string;
+	hasActiveRequest: boolean;
 }) {
 	if (!role) {
 		return {
+			kind: "link" as const,
 			label: "Sign in to request this service",
 			href: getLoginHref(returnPath),
-			disabled: false,
 		};
 	}
 
 	if (role === "provider" && userId === service.provider_id) {
 		return {
+			kind: "link" as const,
 			label: "Edit service",
 			href: `/dashboard/provider/services/${service.id}`,
-			disabled: false,
 		};
 	}
 
 	if (role === "client") {
+		if (hasActiveRequest) {
+			return {
+				kind: "sent" as const,
+				label: "Request sent",
+			};
+		}
+
 		return {
-			label: "Request service soon",
-			href: dashboardHref ?? "/dashboard/client",
-			disabled: true,
+			kind: "request" as const,
+			label: "Request service",
 		};
 	}
 
 	return {
+		kind: "disabled" as const,
 		label: "Service requests are for client accounts",
-		href: dashboardHref ?? "/dashboard/provider",
-		disabled: true,
 	};
 }
 
 export default async function FindTalentServicePage({
 	params,
+	searchParams,
 }: FindTalentServicePageProps) {
 	const { id } = await params;
+	const query = await searchParams;
+	const requestError =
+		typeof query?.requestError === "string" ? query.requestError : null;
+	const requestStatus =
+		typeof query?.requestStatus === "string" ? query.requestStatus : null;
 	const supabase = await createSupabaseServerClient();
 	const {
 		data: { user },
@@ -105,15 +122,25 @@ export default async function FindTalentServicePage({
 		notFound();
 	}
 
-	const dashboardHref = role ? getDashboardPath(role) : null;
+	const activeRequestResult =
+		role === "client" && user
+			? await getActiveServiceRequest(supabase, user.id, service.id)
+			: null;
+
+	if (activeRequestResult?.error) {
+		throw new Error(activeRequestResult.error);
+	}
+
+	const activeRequest = activeRequestResult?.data ?? null;
 	const cta = getCta({
 		role,
 		userId: user?.id ?? null,
 		service,
-		dashboardHref,
 		returnPath: `/find-talent/${service.id}`,
+		hasActiveRequest: Boolean(activeRequest),
 	});
 	const location = providerLocation(service);
+	const requestAction = requestProviderServiceAction.bind(null, service.id);
 
 	const detailItems = [
 		["Service type", getServiceTypeLabel(service)],
@@ -241,7 +268,51 @@ export default async function FindTalentServicePage({
 							are confirmed only after the provider responds.
 						</p>
 
-						{cta.disabled ? (
+						{requestStatus ? (
+							<div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+								{requestStatus}
+							</div>
+						) : null}
+
+						{requestError ? (
+							<div className="mt-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+								{requestError}
+							</div>
+						) : null}
+
+						{cta.kind === "request" ? (
+							<form action={requestAction} className="mt-5 space-y-3">
+								<label
+									htmlFor="message"
+									className="block text-sm font-semibold text-black"
+								>
+									Request message
+								</label>
+								<textarea
+									id="message"
+									name="message"
+									required
+									minLength={10}
+									maxLength={2000}
+									rows={5}
+									placeholder="Share what you need, timing, and any important context."
+									className="w-full resize-y rounded-2xl border border-line bg-white px-4 py-3 text-sm leading-6 outline-none transition focus:border-black"
+								/>
+								<button
+									type="submit"
+									className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl px-5 text-sm font-semibold text-white transition hover:opacity-90"
+									style={{
+										background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
+									}}
+								>
+									{cta.label}
+								</button>
+							</form>
+						) : cta.kind === "sent" ? (
+							<div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+								{cta.label}
+							</div>
+						) : cta.kind === "disabled" ? (
 							<div className="mt-5 rounded-2xl border border-line bg-panel-soft px-4 py-3 text-sm font-semibold text-secondary">
 								{cta.label}
 							</div>

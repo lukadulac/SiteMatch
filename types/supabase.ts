@@ -989,6 +989,61 @@ export type Database = {
           },
         ];
       };
+      provider_service_requests: {
+        Row: {
+          client_id: string;
+          created_at: string;
+          id: string;
+          message: string;
+          provider_id: string;
+          service_id: string;
+          status: Database["public"]["Enums"]["provider_service_request_status"];
+          updated_at: string;
+        };
+        Insert: {
+          client_id: string;
+          created_at?: string;
+          id?: string;
+          message: string;
+          provider_id: string;
+          service_id: string;
+          status?: Database["public"]["Enums"]["provider_service_request_status"];
+          updated_at?: string;
+        };
+        Update: {
+          client_id?: string;
+          created_at?: string;
+          id?: string;
+          message?: string;
+          provider_id?: string;
+          service_id?: string;
+          status?: Database["public"]["Enums"]["provider_service_request_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "provider_service_requests_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "provider_service_requests_provider_id_fkey";
+            columns: ["provider_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "provider_service_requests_service_id_fkey";
+            columns: ["service_id"];
+            isOneToOne: false;
+            referencedRelation: "provider_service_listings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       provider_service_types: {
         Row: {
           created_at: string;
@@ -1126,6 +1181,11 @@ export type Database = {
         | "automation"
         | "other";
       provider_service_listing_status: "draft" | "published" | "paused";
+      provider_service_request_status:
+        | "pending"
+        | "accepted"
+        | "rejected"
+        | "cancelled";
       provider_service_delivery_bucket:
         | "urgent_24h"
         | "up_to_3_days"

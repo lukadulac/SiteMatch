@@ -5,6 +5,7 @@ import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
 import { getUserConversations } from "@/lib/messaging/service";
+import { getClientServiceRequests } from "@/lib/provider-service-requests/service";
 import { getClientProjects } from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -64,6 +65,31 @@ function statusClasses(status: string) {
     default:
       return "bg-zinc-100 text-zinc-700";
   }
+}
+
+function serviceRequestStatusLabel(status: string) {
+	switch (status) {
+		case "accepted":
+			return "Accepted";
+		case "rejected":
+			return "Rejected";
+		case "cancelled":
+			return "Cancelled";
+		default:
+			return "Pending";
+	}
+}
+
+function serviceRequestStatusClasses(status: string) {
+	switch (status) {
+		case "accepted":
+			return "bg-emerald-50 text-emerald-700";
+		case "rejected":
+		case "cancelled":
+			return "bg-red-50 text-red-700";
+		default:
+			return "bg-blue-50 text-blue-700";
+	}
 }
 
 function formatBudgetLabel(
@@ -141,7 +167,13 @@ export default async function ClientDashboardPage() {
     redirect(getDashboardPath(provisioned.role));
   }
 
-  const [profileResult, clientProfileResult, projectsResult, conversationsResult] =
+  const [
+    profileResult,
+    clientProfileResult,
+    projectsResult,
+    conversationsResult,
+    serviceRequestsResult,
+  ] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -157,6 +189,7 @@ export default async function ClientDashboardPage() {
         .maybeSingle(),
       getClientProjects(supabase, user.id),
       getUserConversations(supabase, user.id),
+      getClientServiceRequests(supabase, user.id),
     ]);
 
   if (profileResult.error || !profileResult.data) {
@@ -175,10 +208,15 @@ export default async function ClientDashboardPage() {
     throw new Error(conversationsResult.error);
   }
 
+  if (serviceRequestsResult.error) {
+    throw new Error(serviceRequestsResult.error);
+  }
+
   const profile = profileResult.data;
   const clientProfile = clientProfileResult.data;
   const projects = projectsResult.data ?? [];
   const conversations = conversationsResult.data ?? [];
+  const serviceRequests = serviceRequestsResult.data ?? [];
   const projectIds = projects.map((project) => project.id);
   const applicationsResult =
     projectIds.length > 0
@@ -255,6 +293,61 @@ export default async function ClientDashboardPage() {
           value={String(unreadConversations.length)}
           detail="Conversations needing a reply"
         />
+      </section>
+
+      <section className="min-w-0 rounded-[1.75rem] border border-line bg-white shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
+        <div className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
+          <h2 className="min-w-0 break-words text-xl font-semibold text-black">
+            Service Requests
+          </h2>
+          <Link
+            href="/find-talent"
+            className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
+          >
+            Find Talent
+          </Link>
+        </div>
+
+        <div className="divide-y divide-line">
+          {serviceRequests.length > 0 ? (
+            serviceRequests.slice(0, 5).map((request) => (
+              <article
+                key={request.id}
+                className="flex min-w-0 flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="break-words text-base font-semibold text-black">
+                      {request.service?.title ?? "Requested service"}
+                    </h3>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${serviceRequestStatusClasses(
+                        request.status,
+                      )}`}
+                    >
+                      {serviceRequestStatusLabel(request.status)}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-1 break-words text-sm text-secondary">
+                    {request.provider?.full_name ?? "Provider"} ·{" "}
+                    {formatTimeAgo(request.created_at)}
+                  </p>
+                </div>
+                <Link
+                  href={`/find-talent/${request.service_id}`}
+                  className="shrink-0 rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                >
+                  View Service
+                </Link>
+              </article>
+            ))
+          ) : (
+            <div className="p-8 text-sm leading-6 text-secondary">
+              No service requests yet. Browse Find Talent to request a provider
+              service.
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
