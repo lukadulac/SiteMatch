@@ -5,6 +5,7 @@ import { DashboardPanel, DashboardShell } from "@/components/dashboard/Dashboard
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
+import { getProviderIncomingServiceRequests } from "@/lib/provider-service-requests/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function statusClasses(status: string) {
@@ -27,6 +28,43 @@ function statusLabel(status: string) {
 		default:
 			return "Draft";
 	}
+}
+
+function serviceRequestStatusLabel(status: string) {
+	switch (status) {
+		case "accepted":
+			return "Accepted";
+		case "rejected":
+			return "Rejected";
+		case "cancelled":
+			return "Cancelled";
+		default:
+			return "Pending";
+	}
+}
+
+function serviceRequestStatusClasses(status: string) {
+	switch (status) {
+		case "accepted":
+			return "bg-emerald-50 text-emerald-700";
+		case "rejected":
+		case "cancelled":
+			return "bg-red-50 text-red-700";
+		default:
+			return "bg-blue-50 text-blue-700";
+	}
+}
+
+function formatTimeAgo(value: string) {
+	const diffMs = Date.now() - new Date(value).getTime();
+	const diffHours = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60)));
+
+	if (diffHours < 24) {
+		return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+	}
+
+	const diffDays = Math.floor(diffHours / 24);
+	return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
 function priceLabel({
@@ -85,7 +123,12 @@ export default async function ProviderServicesPage({
 		redirect(getDashboardPath(provisioned.role));
 	}
 
-	const [conversationsResult, applicationsResult, servicesResult] =
+	const [
+		conversationsResult,
+		applicationsResult,
+		servicesResult,
+		serviceRequestsResult,
+	] =
 		await Promise.all([
 			getUserConversations(supabase, user.id),
 			supabase
@@ -99,6 +142,7 @@ export default async function ProviderServicesPage({
 				)
 				.eq("provider_id", user.id)
 				.order("created_at", { ascending: false }),
+			getProviderIncomingServiceRequests(supabase, user.id),
 		]);
 
 	if (conversationsResult.error) {
@@ -113,11 +157,16 @@ export default async function ProviderServicesPage({
 		throw new Error(servicesResult.error.message);
 	}
 
+	if (serviceRequestsResult.error) {
+		throw new Error(serviceRequestsResult.error);
+	}
+
 	const unreadConversations =
 		conversationsResult.data?.filter((conversation) => conversation.unread_count > 0) ??
 		[];
 	const applications = applicationsResult.data ?? [];
 	const services = servicesResult.data ?? [];
+	const serviceRequests = serviceRequestsResult.data ?? [];
 
 	return (
 		<DashboardShell
@@ -146,6 +195,59 @@ export default async function ProviderServicesPage({
 				{ href: "/dashboard/provider/profile", label: "Profile" },
 			]}
 		>
+			<DashboardPanel title="Incoming Service Requests">
+				{serviceRequests.length ? (
+					<div className="space-y-4">
+						{serviceRequests.slice(0, 6).map((request) => (
+							<article
+								key={request.id}
+								className="rounded-3xl border border-line bg-white p-5"
+							>
+								<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+									<div className="min-w-0">
+										<div className="flex flex-wrap items-center gap-2">
+											<h2 className="wrap-break-word text-lg font-semibold text-black">
+												{request.service?.title ?? "Requested service"}
+											</h2>
+											<span
+												className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${serviceRequestStatusClasses(
+													request.status,
+												)}`}
+											>
+												{serviceRequestStatusLabel(request.status)}
+											</span>
+										</div>
+										<p className="mt-1 text-sm text-secondary">
+											{request.client?.full_name ?? "Client"} ·{" "}
+											{formatTimeAgo(request.created_at)}
+										</p>
+										<p className="mt-4 whitespace-pre-line wrap-break-word text-sm leading-6 text-black/75">
+											{request.message}
+										</p>
+									</div>
+									<Link
+										href={`/find-talent/${request.service_id}`}
+										className="shrink-0 rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+									>
+										View Service
+									</Link>
+								</div>
+							</article>
+						))}
+					</div>
+				) : (
+					<div className="rounded-3xl border border-dashed border-line-strong bg-panel-soft p-8 text-center">
+						<h2 className="text-2xl font-semibold text-black">
+							No incoming requests yet
+						</h2>
+						<p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-secondary">
+							When clients request one of your published services, those
+							requests will appear here.
+						</p>
+					</div>
+				)}
+			</DashboardPanel>
+
 			<DashboardPanel title="My Services">
 				{serviceError ? (
 					<div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
