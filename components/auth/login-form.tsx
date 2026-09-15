@@ -12,7 +12,11 @@ function fieldError(state: AuthActionState, name: string): string | undefined {
 	return state.fieldErrors?.[name]?.[0];
 }
 
-export function LoginForm() {
+type LoginFormProps = {
+	next?: string | null;
+};
+
+export function LoginForm({ next }: LoginFormProps) {
 	const [state, formAction] = useActionState(
 		loginAction,
 		initialAuthActionState,
@@ -20,6 +24,7 @@ export function LoginForm() {
 
 	return (
 		<form action={formAction} className="max-w-112.5 mx-auto">
+			{next ? <input type="hidden" name="next" value={next} /> : null}
 			<section className="p-2 ">
 				<div className="flex flex-col gap-2">
 					<div className="my-2 flex w-full flex-col gap-2">

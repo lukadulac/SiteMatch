@@ -5,6 +5,7 @@ import {
 	withdrawProviderApplicationFromJobAction,
 } from "@/app/jobs/actions";
 import { ensureUserProfile } from "@/lib/auth/provision";
+import { getLoginHref } from "@/lib/auth/return-url";
 import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
 import {
 	getProviderApplicationForProject,
@@ -315,6 +316,7 @@ export default async function JobDetailsPage({ params, searchParams }: PageProps
 	}
 
 	const isProvider = role === "provider";
+	const returnPath = `/jobs/${project.id}`;
 	const dashboardHref = role ? getDashboardPath(role) : null;
 	const projectTags = getProjectTags(project);
 	const gradientBackground = `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`;
@@ -548,7 +550,7 @@ export default async function JobDetailsPage({ params, searchParams }: PageProps
 									<p className="mt-5 text-center text-sm text-secondary">
 										Already have an account?{" "}
 										<Link
-											href="/login"
+											href={getLoginHref(returnPath)}
 											className="font-semibold text-black underline"
 										>
 											Log in

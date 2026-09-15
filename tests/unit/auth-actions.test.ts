@@ -198,6 +198,48 @@ describe("loginAction", () => {
 		expect(recordAuthRateLimitAttempt).not.toHaveBeenCalled();
 	});
 
+	it("redirects to a safe submitted return path after login", async () => {
+		arrangeSupabase({ user: stubUser({ id: "user-1" }) });
+		vi.mocked(ensureUserProfile).mockResolvedValue({ role: "client" });
+
+		const path = await expectRedirect(
+			loginAction(
+				initialAuthActionState,
+				loginForm({ next: "/find-talent/service-1?tab=details" }),
+			),
+		);
+
+		expect(path).toBe("/find-talent/service-1?tab=details");
+	});
+
+	it("falls back to the role dashboard when the submitted return path is unsafe", async () => {
+		arrangeSupabase({ user: stubUser({ id: "user-1" }) });
+		vi.mocked(ensureUserProfile).mockResolvedValue({ role: "client" });
+
+		const path = await expectRedirect(
+			loginAction(
+				initialAuthActionState,
+				loginForm({ next: "https://evil.com" }),
+			),
+		);
+
+		expect(path).toBe("/dashboard/client");
+	});
+
+	it("does not redirect on failed login even when next is present", async () => {
+		arrangeSupabase({
+			signInWithPassword: { error: { message: "Invalid login credentials" } },
+		});
+
+		const state = await loginAction(
+			initialAuthActionState,
+			loginForm({ next: "/jobs/123" }),
+		);
+
+		expect(state.formError).toBe("Invalid email or password.");
+		expect(recordAuthRateLimitAttempt).toHaveBeenCalledTimes(2);
+	});
+
 	it("reports a session that could not be established", async () => {
 		arrangeSupabase({ user: null });
 
