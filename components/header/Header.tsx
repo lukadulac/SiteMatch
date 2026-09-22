@@ -112,6 +112,7 @@ export default function Header({
 						src="/images/workbridge-logo.png"
 						alt="WorkBridge"
 						className="h-16 w-auto object-contain sm:h-16 lg:h-20"
+						style={{width: "auto"}}
 						width={240}
 						height={80}
 						priority
