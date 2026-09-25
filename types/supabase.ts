@@ -161,8 +161,9 @@ export type Database = {
           client_id: string;
           created_at: string;
           id: string;
-          project_id: string;
+          project_id: string | null;
           provider_id: string;
+          service_request_id: string | null;
           updated_at: string;
         };
         Insert: {
@@ -170,8 +171,9 @@ export type Database = {
           client_id: string;
           created_at?: string;
           id?: string;
-          project_id: string;
+          project_id?: string | null;
           provider_id: string;
+          service_request_id?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -179,8 +181,9 @@ export type Database = {
           client_id?: string;
           created_at?: string;
           id?: string;
-          project_id?: string;
+          project_id?: string | null;
           provider_id?: string;
+          service_request_id?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -210,6 +213,13 @@ export type Database = {
             columns: ["provider_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_service_request_id_fkey";
+            columns: ["service_request_id"];
+            isOneToOne: false;
+            referencedRelation: "provider_service_requests";
             referencedColumns: ["id"];
           },
         ];
@@ -1124,6 +1134,26 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      accept_provider_service_request: {
+        Args: {
+          target_request_id: string;
+        };
+        Returns: {
+          request_id: string;
+          request_status: Database["public"]["Enums"]["provider_service_request_status"];
+          conversation_id: string | null;
+        }[];
+      };
+      cancel_provider_service_request: {
+        Args: {
+          target_request_id: string;
+        };
+        Returns: {
+          request_id: string;
+          request_status: Database["public"]["Enums"]["provider_service_request_status"];
+          conversation_id: string | null;
+        }[];
+      };
       is_admin: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
@@ -1145,6 +1175,27 @@ export type Database = {
           target_provider_profile_id: string;
         };
         Returns: boolean;
+      };
+      reject_provider_service_request: {
+        Args: {
+          target_request_id: string;
+        };
+        Returns: {
+          request_id: string;
+          request_status: Database["public"]["Enums"]["provider_service_request_status"];
+          conversation_id: string | null;
+        }[];
+      };
+      request_provider_service: {
+        Args: {
+          target_service_id: string;
+          request_message: string;
+        };
+        Returns: {
+          request_id: string;
+          request_status: Database["public"]["Enums"]["provider_service_request_status"];
+          conversation_id: string;
+        }[];
       };
     };
     Enums: {

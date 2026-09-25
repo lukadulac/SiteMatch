@@ -16,6 +16,17 @@ export type ConversationListItem =
     Database["public"]["Tables"]["applications"]["Row"],
     "id" | "status" | "proposed_price" | "estimated_delivery_days"
   > | null;
+  service_request:
+    | (Pick<
+        Database["public"]["Tables"]["provider_service_requests"]["Row"],
+        "id" | "status" | "service_id" | "message"
+      > & {
+        service: Pick<
+          Database["public"]["Tables"]["provider_service_listings"]["Row"],
+          "id" | "title" | "status" | "price_type" | "starting_price"
+        > | null;
+      })
+    | null;
   client: Pick<
     Database["public"]["Tables"]["profiles"]["Row"],
     "id" | "full_name" | "email" | "phone" | "country" | "city"
@@ -41,6 +52,9 @@ type GetConversationMessagesOptions = {
   limit?: number;
   before?: string | null;
 };
+
+const conversationSelect =
+  "id, application_id, client_id, provider_id, project_id, service_request_id, created_at, updated_at, project:projects!conversations_project_id_fkey(id, title, slug, status), application:applications!conversations_application_id_fkey(id, status, proposed_price, estimated_delivery_days), service_request:provider_service_requests!conversations_service_request_id_fkey(id, status, service_id, message, service:provider_service_listings!provider_service_requests_service_id_fkey(id, title, status, price_type, starting_price)), client:profiles!conversations_client_id_fkey(id, full_name, email, phone, country, city), provider:profiles!conversations_provider_id_fkey(id, full_name, email, phone, country, city)";
 
 async function getConversationByApplicationId(
   supabase: SupabaseClient<Database>,
@@ -71,7 +85,22 @@ function canSendMessagesForApplication(
   );
 }
 
-function firstOrNull<T>(value: T | T[] | null): T | null {
+function canSendMessagesForConversation(conversation: {
+  application: ConversationListItem["application"];
+  service_request: ConversationListItem["service_request"];
+}) {
+  if (conversation.service_request) {
+    return true;
+  }
+
+  return canSendMessagesForApplication(conversation.application?.status);
+}
+
+function firstOrNull<T>(value: T | T[] | null | undefined): T | null {
+  if (value == null) {
+    return null;
+  }
+
   if (Array.isArray(value)) {
     return value[0] ?? null;
   }
@@ -192,9 +221,7 @@ export async function getUserConversations(
 ): Promise<Result<ConversationListItem[]>> {
   const { data, error } = await supabase
     .from("conversations")
-    .select(
-      "id, application_id, client_id, provider_id, project_id, created_at, updated_at, project:projects!conversations_project_id_fkey(id, title, slug, status), application:applications!conversations_application_id_fkey(id, status, proposed_price, estimated_delivery_days), client:profiles!conversations_client_id_fkey(id, full_name, email, phone, country, city), provider:profiles!conversations_provider_id_fkey(id, full_name, email, phone, country, city)",
-    )
+    .select(conversationSelect)
     .or(`client_id.eq.${userId},provider_id.eq.${userId}`)
     .order("updated_at", { ascending: false });
 
@@ -249,6 +276,7 @@ export async function getUserConversations(
       ...item,
       project: firstOrNull(item.project),
       application: firstOrNull(item.application),
+      service_request: firstOrNull(item.service_request),
       client: firstOrNull(item.client),
       provider: firstOrNull(item.provider),
       last_message: lastMessageMap.get(item.id) ?? null,
@@ -266,9 +294,7 @@ export async function getConversationById(
   const messageLimit = Math.min(Math.max(options.limit ?? 50, 1), 100);
   const { data, error } = await supabase
     .from("conversations")
-    .select(
-      "id, application_id, client_id, provider_id, project_id, created_at, updated_at, project:projects!conversations_project_id_fkey(id, title, slug, status), application:applications!conversations_application_id_fkey(id, status, proposed_price, estimated_delivery_days), client:profiles!conversations_client_id_fkey(id, full_name, email, phone, country, city), provider:profiles!conversations_provider_id_fkey(id, full_name, email, phone, country, city)",
-    )
+    .select(conversationSelect)
     .eq("id", conversationId)
     .maybeSingle();
 
@@ -337,6 +363,7 @@ export async function getConversationById(
       ...data,
       project: firstOrNull(data.project),
       application: firstOrNull(data.application),
+      service_request: firstOrNull(data.service_request),
       client: firstOrNull(data.client),
       provider: firstOrNull(data.provider),
       last_message: lastMessage
@@ -376,8 +403,12 @@ export async function sendConversationMessage(
     return { error: "Conversation not found." };
   }
 
-  if (!canSendMessagesForApplication(conversationResult.data.application?.status)) {
-    return { error: "This application is no longer open for messaging." };
+  if (!canSendMessagesForConversation(conversationResult.data)) {
+    if (conversationResult.data.application) {
+      return { error: "This application is no longer open for messaging." };
+    }
+
+    return { error: "This conversation is read-only." };
   }
 
   const { data, error } = await supabase

@@ -33,14 +33,49 @@ function conversationRow(overrides: Record<string, unknown> = {}) {
 		client_id: CLIENT_ID,
 		provider_id: PROVIDER_ID,
 		project_id: PROJECT_ID,
+		service_request_id: null,
 		created_at: "2026-01-01T00:00:00.000Z",
 		updated_at: "2026-01-02T00:00:00.000Z",
 		project: { id: PROJECT_ID, title: "Landing page", slug: "landing", status: "in_discussion" },
 		application: { id: APPLICATION_ID, status: "pending", proposed_price: null, estimated_delivery_days: null },
+		service_request: null,
 		client: { id: CLIENT_ID, full_name: "Client" },
 		provider: { id: PROVIDER_ID, full_name: "Provider" },
 		...overrides,
 	};
+}
+
+function serviceConversationRow(overrides: Record<string, unknown> = {}) {
+	return conversationRow({
+		application_id: null,
+		project_id: null,
+		service_request_id: "service-request-1",
+		project: null,
+		application: null,
+		service_request: {
+			id: "service-request-1",
+			status: "pending",
+			service_id: "service-1",
+			message: "We need this service for a launch next month.",
+			service: {
+				id: "service-1",
+				title: "Brand identity",
+				status: "published",
+				price_type: "fixed",
+				starting_price: 1200,
+			},
+		},
+		...overrides,
+	});
+}
+
+function projectOnlyConversationRow(overrides: Record<string, unknown> = {}) {
+	return conversationRow({
+		application_id: null,
+		application: null,
+		service_request: null,
+		...overrides,
+	});
 }
 
 function message(overrides: Record<string, unknown> = {}) {
@@ -432,6 +467,59 @@ describe("sendConversationMessage", () => {
 		expect(stub.callsFor("conversations.update")[0]?.payload).toHaveProperty(
 			"updated_at",
 		);
+	});
+
+	it("allows service request messaging in every request status", async () => {
+		for (const status of ["pending", "accepted", "rejected", "cancelled"]) {
+			const stub = createSupabaseStub({
+				...conversationReadStubs(
+					[message()],
+					0,
+					serviceConversationRow({
+						service_request: {
+							id: "service-request-1",
+							status,
+							service_id: "service-1",
+							message: "We need this service for a launch next month.",
+							service: {
+								id: "service-1",
+								title: "Brand identity",
+								status: "published",
+								price_type: "fixed",
+								starting_price: 1200,
+							},
+						},
+					}),
+				),
+				"messages.insert": { data: message({ id: `message-${status}` }) },
+				"conversations.update": {},
+			});
+
+			const result = await sendConversationMessage(
+				stub.client,
+				CLIENT_ID,
+				CONVERSATION_ID,
+				{ message_text: "Hello there" },
+			);
+
+			expect(result.data?.id).toBe(`message-${status}`);
+		}
+	});
+
+	it("keeps project-only conversations read-only", async () => {
+		const stub = createSupabaseStub(
+			conversationReadStubs([message()], 0, projectOnlyConversationRow()),
+		);
+
+		const result = await sendConversationMessage(
+			stub.client,
+			CLIENT_ID,
+			CONVERSATION_ID,
+			{ message_text: "Hello there" },
+		);
+
+		expect(result.error).toBe("This conversation is read-only.");
+		expect(stub.callKeys()).not.toContain("messages.insert");
 	});
 });
 

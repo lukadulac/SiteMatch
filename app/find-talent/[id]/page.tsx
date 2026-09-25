@@ -72,7 +72,7 @@ function getCta({
 		if (hasActiveRequest) {
 			return {
 				kind: "sent" as const,
-				label: "Request sent",
+				label: "Request already sent",
 			};
 		}
 
@@ -309,9 +309,18 @@ export default async function FindTalentServicePage({
 								</button>
 							</form>
 						) : cta.kind === "sent" ? (
-							<div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-								{cta.label}
-							</div>
+							activeRequest?.conversation_id ? (
+								<Link
+									href={`/dashboard/messages?conversation=${activeRequest.conversation_id}`}
+									className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+								>
+									Message provider
+								</Link>
+							) : (
+								<div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+									{cta.label}
+								</div>
+							)
 						) : cta.kind === "disabled" ? (
 							<div className="mt-5 rounded-2xl border border-line bg-panel-soft px-4 py-3 text-sm font-semibold text-secondary">
 								{cta.label}

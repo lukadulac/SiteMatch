@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+	acceptServiceRequestAction,
+	rejectServiceRequestAction,
+} from "@/app/dashboard/service-request-actions";
 import { deleteProviderServiceListingAction } from "@/app/dashboard/provider/services/actions";
 import { DashboardPanel, DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ensureUserProfile } from "@/lib/auth/provision";
@@ -98,11 +102,16 @@ function priceLabel({
 export default async function ProviderServicesPage({
 	searchParams,
 }: {
-	searchParams?: Promise<{ serviceError?: string | string[] }>;
+	searchParams?: Promise<{
+		serviceError?: string | string[];
+		serviceStatus?: string | string[];
+	}>;
 }) {
 	const params = await searchParams;
 	const serviceError =
 		typeof params?.serviceError === "string" ? params.serviceError : null;
+	const serviceStatus =
+		typeof params?.serviceStatus === "string" ? params.serviceStatus : null;
 	const supabase = await createSupabaseServerClient();
 	const {
 		data: { user },
@@ -196,6 +205,16 @@ export default async function ProviderServicesPage({
 			]}
 		>
 			<DashboardPanel title="Incoming Service Requests">
+				{serviceStatus ? (
+					<div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+						{serviceStatus}
+					</div>
+				) : null}
+				{serviceError ? (
+					<div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+						{serviceError}
+					</div>
+				) : null}
 				{serviceRequests.length ? (
 					<div className="space-y-4">
 						{serviceRequests.slice(0, 6).map((request) => (
@@ -225,12 +244,46 @@ export default async function ProviderServicesPage({
 											{request.message}
 										</p>
 									</div>
-									<Link
-										href={`/find-talent/${request.service_id}`}
-										className="shrink-0 rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-									>
-										View Service
-									</Link>
+									<div className="flex shrink-0 flex-wrap gap-2">
+										{request.conversation_id ? (
+											<Link
+												href={`/dashboard/messages?conversation=${request.conversation_id}`}
+												className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+											>
+												Message
+											</Link>
+										) : null}
+										<Link
+											href={`/find-talent/${request.service_id}`}
+											className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+										>
+											View Service
+										</Link>
+										{request.status === "pending" ? (
+											<>
+												<form
+													action={acceptServiceRequestAction.bind(null, request.id)}
+												>
+													<button
+														type="submit"
+														className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+													>
+														Accept
+													</button>
+												</form>
+												<form
+													action={rejectServiceRequestAction.bind(null, request.id)}
+												>
+													<button
+														type="submit"
+														className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+													>
+														Reject
+													</button>
+												</form>
+											</>
+										) : null}
+									</div>
 								</div>
 							</article>
 						))}
@@ -249,11 +302,6 @@ export default async function ProviderServicesPage({
 			</DashboardPanel>
 
 			<DashboardPanel title="My Services">
-				{serviceError ? (
-					<div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-						{serviceError}
-					</div>
-				) : null}
 				{services.length ? (
 					<div className="space-y-4">
 						{services.map((service) => (
