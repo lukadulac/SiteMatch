@@ -43,6 +43,7 @@ export async function requestProviderServiceAction(
 	revalidatePath(returnPath);
 	revalidatePath("/dashboard/client");
 	revalidatePath("/dashboard/provider/services");
+	revalidatePath("/dashboard/messages");
 	redirect(
 		`${returnPath}?requestStatus=${encodeURIComponent("Request sent.")}`,
 	);

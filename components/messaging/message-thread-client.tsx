@@ -89,8 +89,33 @@ function applicationStatusClasses(status: string | null | undefined) {
   }
 }
 
+function serviceRequestStatusClasses(status: string | null | undefined) {
+  switch (status) {
+    case "accepted":
+      return "bg-emerald-50 text-emerald-700";
+    case "rejected":
+    case "cancelled":
+      return "bg-red-50 text-red-700";
+    default:
+      return "bg-blue-50 text-blue-700";
+  }
+}
+
 function applicationStatusLabel(status: ApplicationStatus | null | undefined) {
   return status ? getApplicationStatusMeta(status).label : "Application";
+}
+
+function serviceRequestStatusLabel(status: string | null | undefined) {
+  switch (status) {
+    case "accepted":
+      return "Accepted";
+    case "rejected":
+      return "Rejected";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return "Pending";
+  }
 }
 
 function canSendMessages(status: string | null | undefined) {
@@ -100,6 +125,14 @@ function canSendMessages(status: string | null | undefined) {
     status === "shortlisted" ||
     status === "accepted"
   );
+}
+
+function canSendConversationMessages(conversation: ConversationDetail) {
+  if (conversation.service_request) {
+    return true;
+  }
+
+  return canSendMessages(conversation.application?.status);
 }
 
 function readOnlyConversationMessage(status: string | null | undefined) {
@@ -112,6 +145,40 @@ function readOnlyConversationMessage(status: string | null | undefined) {
   }
 
   return "This application is closed. Conversation history remains visible, but new messages are disabled.";
+}
+
+function getConversationTitle(conversation: ConversationDetail) {
+  return (
+    conversation.project?.title ??
+    conversation.service_request?.service?.title ??
+    "Marketplace conversation"
+  );
+}
+
+function getConversationStatus(conversation: ConversationDetail) {
+  if (conversation.service_request) {
+    return {
+      label: serviceRequestStatusLabel(conversation.service_request.status),
+      classes: serviceRequestStatusClasses(conversation.service_request.status),
+    };
+  }
+
+  return {
+    label: applicationStatusLabel(conversation.application?.status),
+    classes: applicationStatusClasses(conversation.application?.status),
+  };
+}
+
+function getReadOnlyMessage(conversation: ConversationDetail) {
+  if (conversation.service_request) {
+    return "";
+  }
+
+  if (conversation.application) {
+    return readOnlyConversationMessage(conversation.application.status);
+  }
+
+  return "This conversation is read-only. Conversation history remains visible, but new messages are disabled.";
 }
 
 function MessageStatusTicks({
@@ -169,8 +236,8 @@ export function MessageThread({
     conversation.client_id === currentUserId
       ? conversation.provider
       : conversation.client;
-  const applicationStatus = conversation.application?.status;
-  const composerEnabled = canSendMessages(applicationStatus);
+  const composerEnabled = canSendConversationMessages(conversation);
+  const conversationStatus = getConversationStatus(conversation);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -291,7 +358,7 @@ export function MessageThread({
     event.preventDefault();
 
     if (!composerEnabled) {
-      setError(readOnlyConversationMessage(applicationStatus));
+      setError(getReadOnlyMessage(conversation));
       return;
     }
 
@@ -450,15 +517,13 @@ export function MessageThread({
               {otherParty?.full_name ?? "Marketplace conversation"}
             </p>
             <h2 className="mt-1 truncate text-2xl font-semibold text-black">
-              {conversation.project?.title ?? "Untitled project"}
+              {getConversationTitle(conversation)}
             </h2>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${applicationStatusClasses(
-                  applicationStatus,
-                )}`}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${conversationStatus.classes}`}
               >
-                {applicationStatusLabel(applicationStatus)}
+                {conversationStatus.label}
               </span>
               {conversation.project ? (
                 <Link
@@ -466,6 +531,14 @@ export function MessageThread({
                   className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-black transition hover:bg-black/3"
                 >
                   View project
+                </Link>
+              ) : null}
+              {conversation.service_request?.service ? (
+                <Link
+                  href={`/find-talent/${conversation.service_request.service.id}`}
+                  className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-black transition hover:bg-black/3"
+                >
+                  View service
                 </Link>
               ) : null}
               {connectionStatus !== "connected" ? (
@@ -543,7 +616,7 @@ export function MessageThread({
           <div className="rounded-3xl border border-dashed border-line p-8 text-sm leading-6 text-secondary">
             {composerEnabled
               ? "No messages yet. Send the first message to discuss scope, budget, timing, or project details."
-              : "No messages were sent before this application was closed."}
+              : "No messages were sent before this conversation became read-only."}
           </div>
         )}
         <div ref={bottomRef} />
@@ -585,7 +658,7 @@ export function MessageThread({
         ) : (
           <div className="rounded-3xl border border-red-100 bg-red-50 p-5 text-sm leading-6 text-red-700">
             <p className="font-semibold text-red-800">Conversation is read-only</p>
-            <p className="mt-1">{readOnlyConversationMessage(applicationStatus)}</p>
+            <p className="mt-1">{getReadOnlyMessage(conversation)}</p>
           </div>
         )}
       </footer>

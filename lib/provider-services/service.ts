@@ -479,6 +479,14 @@ export async function deleteProviderServiceListing(
 
 	if (deleteError) {
 		console.error("Provider service listing delete failed", deleteError);
+
+		if (deleteError.code === "23503") {
+			return {
+				error:
+					"This service has client requests and cannot be deleted. Pause it instead.",
+			};
+		}
+
 		return { error: "Service listing could not be deleted." };
 	}
 

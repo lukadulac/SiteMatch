@@ -30,9 +30,15 @@ const productionSecurityHeaders =
 			]
 		: securityHeaders;
 
+const developmentServerActionOrigins =
+	process.env.NODE_ENV === "development"
+		? ["localhost:3000", "127.0.0.1:3000", "0.0.0.0:3000", "192.168.1.5:3000"]
+		: [];
+
 const nextConfig: NextConfig = {
 	experimental: {
 		serverActions: {
+			allowedOrigins: developmentServerActionOrigins,
 			bodySizeLimit: "64kb",
 		},
 	},

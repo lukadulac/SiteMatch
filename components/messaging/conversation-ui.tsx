@@ -41,8 +41,59 @@ function applicationStatusClasses(status: string | null | undefined) {
   }
 }
 
+function serviceRequestStatusClasses(status: string | null | undefined) {
+  switch (status) {
+    case "accepted":
+      return "bg-emerald-50 text-emerald-700";
+    case "rejected":
+    case "cancelled":
+      return "bg-red-50 text-red-700";
+    default:
+      return "bg-blue-50 text-blue-700";
+  }
+}
+
 function applicationStatusLabel(status: ApplicationStatus | null | undefined) {
   return status ? getApplicationStatusMeta(status).label : "Application";
+}
+
+function serviceRequestStatusLabel(status: string | null | undefined) {
+  switch (status) {
+    case "accepted":
+      return "Accepted";
+    case "rejected":
+      return "Rejected";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return "Pending";
+  }
+}
+
+function getConversationTitle(
+  conversation: ConversationListItem | ConversationDetail,
+) {
+  return (
+    conversation.project?.title ??
+    conversation.service_request?.service?.title ??
+    "Marketplace conversation"
+  );
+}
+
+function getConversationStatus(
+  conversation: ConversationListItem | ConversationDetail,
+) {
+  if (conversation.service_request) {
+    return {
+      label: serviceRequestStatusLabel(conversation.service_request.status),
+      classes: serviceRequestStatusClasses(conversation.service_request.status),
+    };
+  }
+
+  return {
+    label: applicationStatusLabel(conversation.application?.status),
+    classes: applicationStatusClasses(conversation.application?.status),
+  };
 }
 
 function getOtherParty(
@@ -81,6 +132,7 @@ export function ConversationInbox({
       {conversations.map((conversation) => {
         const otherParty = getOtherParty(conversation, currentUserId);
         const isActive = conversation.id === activeConversationId;
+        const status = getConversationStatus(conversation);
 
         return (
           <button
@@ -107,7 +159,7 @@ export function ConversationInbox({
                     isActive ? "text-white/70" : "text-secondary"
                   }`}
                 >
-                  {conversation.project?.title ?? "Untitled project"}
+                  {getConversationTitle(conversation)}
                 </p>
               </div>
               {conversation.unread_count > 0 ? (
@@ -127,12 +179,10 @@ export function ConversationInbox({
             <div className="mt-4 flex items-center justify-between gap-3">
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  isActive
-                    ? "bg-white/15 text-white"
-                    : applicationStatusClasses(conversation.application?.status)
+                  isActive ? "bg-white/15 text-white" : status.classes
                 }`}
               >
-                {applicationStatusLabel(conversation.application?.status)}
+                {status.label}
               </span>
               <span
                 className={`shrink-0 text-xs ${

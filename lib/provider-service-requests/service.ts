@@ -23,9 +23,12 @@ export type ProviderServiceRequestStatus =
 export type ActiveServiceRequest = Pick<
 	ProviderServiceRequestRow,
 	"id" | "status" | "created_at"
->;
+> & {
+	conversation_id: string | null;
+};
 
 export type ClientServiceRequest = ProviderServiceRequestRow & {
+	conversation_id: string | null;
 	service: Pick<
 		Database["public"]["Tables"]["provider_service_listings"]["Row"],
 		"id" | "title" | "status" | "price_type" | "starting_price"
@@ -37,6 +40,7 @@ export type ClientServiceRequest = ProviderServiceRequestRow & {
 };
 
 export type ProviderIncomingServiceRequest = ProviderServiceRequestRow & {
+	conversation_id: string | null;
 	service: Pick<
 		Database["public"]["Tables"]["provider_service_listings"]["Row"],
 		"id" | "title" | "status" | "price_type" | "starting_price"
@@ -47,10 +51,31 @@ export type ProviderIncomingServiceRequest = ProviderServiceRequestRow & {
 	> | null;
 };
 
-const activeServiceRequestStatuses: ProviderServiceRequestStatus[] = [
-	"pending",
-	"accepted",
-];
+type ServiceRequestRpcRow = {
+	request_id: string;
+	request_status: ProviderServiceRequestStatus;
+	conversation_id: string | null;
+};
+
+type SupabaseClientWithServiceRequestRpc = SupabaseClient<Database> & {
+	rpc(
+		fn: "request_provider_service",
+		args: { target_service_id: string; request_message: string },
+	): Promise<{
+		data: ServiceRequestRpcRow[] | null;
+		error: { message: string; code?: string } | null;
+	}>;
+	rpc(
+		fn:
+			| "accept_provider_service_request"
+			| "reject_provider_service_request"
+			| "cancel_provider_service_request",
+		args: { target_request_id: string },
+	): Promise<{
+		data: ServiceRequestRpcRow[] | null;
+		error: { message: string; code?: string } | null;
+	}>;
+};
 
 const serviceRequestListSelect =
 	"id, service_id, client_id, provider_id, status, message, created_at, updated_at, service:provider_service_listings!provider_service_requests_service_id_fkey(id, title, status, price_type, starting_price)";
@@ -86,7 +111,6 @@ export async function getActiveServiceRequest(
 		.select("id, status, created_at")
 		.eq("client_id", userId)
 		.eq("service_id", serviceId)
-		.in("status", activeServiceRequestStatuses)
 		.order("created_at", { ascending: false })
 		.limit(1)
 		.maybeSingle();
@@ -95,7 +119,71 @@ export async function getActiveServiceRequest(
 		return { error: error.message };
 	}
 
-	return { data: data ?? null };
+	if (!data) {
+		return { data: null };
+	}
+
+	const conversationResult = await getConversationIdByServiceRequestIds(
+		supabase,
+		[data.id],
+	);
+
+	if (conversationResult.error) {
+		return { error: conversationResult.error };
+	}
+
+	const conversationByRequestId = conversationResult.data ?? new Map<string, string>();
+
+	return {
+		data: {
+			...data,
+			conversation_id: conversationByRequestId.get(data.id) ?? null,
+		},
+	};
+}
+
+async function getConversationIdByServiceRequestIds(
+	supabase: SupabaseClient<Database>,
+	requestIds: string[],
+): Promise<ServiceRequestResult<Map<string, string>>> {
+	if (requestIds.length === 0) {
+		return { data: new Map() };
+	}
+
+	const { data, error } = await supabase
+		.from("conversations")
+		.select("id, service_request_id")
+		.in("service_request_id", requestIds);
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	const conversationByRequestId = new Map<string, string>();
+
+	for (const conversation of data ?? []) {
+		if (conversation.service_request_id) {
+			conversationByRequestId.set(conversation.service_request_id, conversation.id);
+		}
+	}
+
+	return { data: conversationByRequestId };
+}
+
+function mapServiceRequestRpcError(message: string) {
+	if (message.includes("already requested")) {
+		return "You already requested this service.";
+	}
+
+	return message;
+}
+
+function mapServiceRequestRpcRow(row: ServiceRequestRpcRow) {
+	return {
+		id: row.request_id,
+		status: row.request_status,
+		conversation_id: row.conversation_id,
+	};
 }
 
 export async function createServiceRequest(
@@ -103,7 +191,13 @@ export async function createServiceRequest(
 	userId: string,
 	serviceId: string,
 	input: CreateServiceRequestInput | CreateServiceRequestFormFields,
-): Promise<ServiceRequestResult<ProviderServiceRequestRow>> {
+): Promise<
+	ServiceRequestResult<{
+		id: string;
+		status: ProviderServiceRequestStatus;
+		conversation_id: string | null;
+	}>
+> {
 	const roleResult = await getUserRole(supabase, userId);
 
 	if (roleResult.error) {
@@ -123,45 +217,24 @@ export async function createServiceRequest(
 		};
 	}
 
-	const { data: service, error: serviceError } = await supabase
-		.from("provider_service_listings")
-		.select("id, provider_id, status")
-		.eq("id", serviceId)
-		.maybeSingle();
+	const { data: createdRows, error } = await (
+		supabase as SupabaseClientWithServiceRequestRpc
+	).rpc("request_provider_service", {
+		target_service_id: serviceId,
+		request_message: parsed.data.message,
+	});
 
-	if (serviceError) {
-		return { error: serviceError.message };
+	if (error) {
+		return { error: mapServiceRequestRpcError(error.message) };
 	}
 
-	if (!service || service.status !== "published") {
-		return { error: "Service is not available for requests." };
+	const createdRequest = createdRows?.[0];
+
+	if (!createdRequest) {
+		return { error: "Service request could not be created." };
 	}
 
-	if (service.provider_id === userId) {
-		return { error: "You cannot request your own service." };
-	}
-
-	const { data: request, error: insertError } = await supabase
-		.from("provider_service_requests")
-		.insert({
-			service_id: service.id,
-			client_id: userId,
-			provider_id: service.provider_id,
-			message: parsed.data.message,
-			status: "pending",
-		})
-		.select("*")
-		.single();
-
-	if (insertError) {
-		if (insertError.code === "23505") {
-			return { error: "You already have an active request for this service." };
-		}
-
-		return { error: insertError.message };
-	}
-
-	return { data: request };
+	return { data: mapServiceRequestRpcRow(createdRequest) };
 }
 
 export async function getClientServiceRequests(
@@ -180,7 +253,27 @@ export async function getClientServiceRequests(
 		return { error: error.message };
 	}
 
-	return { data: (data ?? []) as ClientServiceRequest[] };
+	const requestRows = (data ?? []) as Omit<
+		ClientServiceRequest,
+		"conversation_id"
+	>[];
+	const conversationResult = await getConversationIdByServiceRequestIds(
+		supabase,
+		requestRows.map((request) => request.id),
+	);
+
+	if (conversationResult.error) {
+		return { error: conversationResult.error };
+	}
+
+	const conversationByRequestId = conversationResult.data ?? new Map<string, string>();
+
+	return {
+		data: requestRows.map((request) => ({
+			...request,
+			conversation_id: conversationByRequestId.get(request.id) ?? null,
+		})),
+	};
 }
 
 export async function getProviderIncomingServiceRequests(
@@ -199,5 +292,115 @@ export async function getProviderIncomingServiceRequests(
 		return { error: error.message };
 	}
 
-	return { data: (data ?? []) as ProviderIncomingServiceRequest[] };
+	const requestRows = (data ?? []) as Omit<
+		ProviderIncomingServiceRequest,
+		"conversation_id"
+	>[];
+	const conversationResult = await getConversationIdByServiceRequestIds(
+		supabase,
+		requestRows.map((request) => request.id),
+	);
+
+	if (conversationResult.error) {
+		return { error: conversationResult.error };
+	}
+
+	const conversationByRequestId = conversationResult.data ?? new Map<string, string>();
+
+	return {
+		data: requestRows.map((request) => ({
+			...request,
+			conversation_id: conversationByRequestId.get(request.id) ?? null,
+		})),
+	};
+}
+
+export async function acceptServiceRequestForProvider(
+	supabase: SupabaseClient<Database>,
+	_userId: string,
+	requestId: string,
+): Promise<
+	ServiceRequestResult<{
+		id: string;
+		status: ProviderServiceRequestStatus;
+		conversation_id: string | null;
+	}>
+> {
+	const { data, error } = await (
+		supabase as SupabaseClientWithServiceRequestRpc
+	).rpc("accept_provider_service_request", {
+		target_request_id: requestId,
+	});
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	const request = data?.[0];
+
+	if (!request) {
+		return { error: "Service request could not be accepted." };
+	}
+
+	return { data: mapServiceRequestRpcRow(request) };
+}
+
+export async function rejectServiceRequestForProvider(
+	supabase: SupabaseClient<Database>,
+	_userId: string,
+	requestId: string,
+): Promise<
+	ServiceRequestResult<{
+		id: string;
+		status: ProviderServiceRequestStatus;
+		conversation_id: string | null;
+	}>
+> {
+	const { data, error } = await (
+		supabase as SupabaseClientWithServiceRequestRpc
+	).rpc("reject_provider_service_request", {
+		target_request_id: requestId,
+	});
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	const request = data?.[0];
+
+	if (!request) {
+		return { error: "Service request could not be rejected." };
+	}
+
+	return { data: mapServiceRequestRpcRow(request) };
+}
+
+export async function cancelServiceRequestForClient(
+	supabase: SupabaseClient<Database>,
+	_userId: string,
+	requestId: string,
+): Promise<
+	ServiceRequestResult<{
+		id: string;
+		status: ProviderServiceRequestStatus;
+		conversation_id: string | null;
+	}>
+> {
+	const { data, error } = await (
+		supabase as SupabaseClientWithServiceRequestRpc
+	).rpc("cancel_provider_service_request", {
+		target_request_id: requestId,
+	});
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	const request = data?.[0];
+
+	if (!request) {
+		return { error: "Service request could not be cancelled." };
+	}
+
+	return { data: mapServiceRequestRpcRow(request) };
 }

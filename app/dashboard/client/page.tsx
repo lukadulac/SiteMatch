@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cancelServiceRequestAction } from "@/app/dashboard/service-request-actions";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
@@ -146,7 +147,19 @@ function OverviewStat({
   );
 }
 
-export default async function ClientDashboardPage() {
+export default async function ClientDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    serviceError?: string | string[];
+    serviceStatus?: string | string[];
+  }>;
+}) {
+  const params = await searchParams;
+  const serviceError =
+    typeof params?.serviceError === "string" ? params.serviceError : null;
+  const serviceStatus =
+    typeof params?.serviceStatus === "string" ? params.serviceStatus : null;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -308,6 +321,18 @@ export default async function ClientDashboardPage() {
           </Link>
         </div>
 
+        {serviceStatus ? (
+          <div className="mx-5 mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+            {serviceStatus}
+          </div>
+        ) : null}
+
+        {serviceError ? (
+          <div className="mx-5 mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {serviceError}
+          </div>
+        ) : null}
+
         <div className="divide-y divide-line">
           {serviceRequests.length > 0 ? (
             serviceRequests.slice(0, 5).map((request) => (
@@ -333,12 +358,32 @@ export default async function ClientDashboardPage() {
                     {formatTimeAgo(request.created_at)}
                   </p>
                 </div>
-                <Link
-                  href={`/find-talent/${request.service_id}`}
-                  className="shrink-0 rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-                >
-                  View Service
-                </Link>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {request.conversation_id ? (
+                    <Link
+                      href={`/dashboard/messages?conversation=${request.conversation_id}`}
+                      className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                    >
+                      Message
+                    </Link>
+                  ) : null}
+                  <Link
+                    href={`/find-talent/${request.service_id}`}
+                    className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+                  >
+                    View Service
+                  </Link>
+                  {request.status === "pending" ? (
+                    <form action={cancelServiceRequestAction.bind(null, request.id)}>
+                      <button
+                        type="submit"
+                        className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                      >
+                        Cancel
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
               </article>
             ))
           ) : (
