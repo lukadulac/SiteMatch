@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-	acceptServiceRequestAction,
-	rejectServiceRequestAction,
-} from "@/app/dashboard/service-request-actions";
 import { deleteProviderServiceListingAction } from "@/app/dashboard/provider/services/actions";
 import { DashboardPanel, DashboardShell } from "@/components/dashboard/DashboardShell";
+import {
+	ServiceRequestCard,
+	ServiceRequestNotice,
+} from "@/components/service-requests/service-request-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
-import { getProviderIncomingServiceRequests } from "@/lib/provider-service-requests/service";
+import { getProviderServiceRequestPreview } from "@/lib/provider-service-requests/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function statusClasses(status: string) {
@@ -32,43 +32,6 @@ function statusLabel(status: string) {
 		default:
 			return "Draft";
 	}
-}
-
-function serviceRequestStatusLabel(status: string) {
-	switch (status) {
-		case "accepted":
-			return "Accepted";
-		case "rejected":
-			return "Rejected";
-		case "cancelled":
-			return "Cancelled";
-		default:
-			return "Pending";
-	}
-}
-
-function serviceRequestStatusClasses(status: string) {
-	switch (status) {
-		case "accepted":
-			return "bg-emerald-50 text-emerald-700";
-		case "rejected":
-		case "cancelled":
-			return "bg-red-50 text-red-700";
-		default:
-			return "bg-blue-50 text-blue-700";
-	}
-}
-
-function formatTimeAgo(value: string) {
-	const diffMs = Date.now() - new Date(value).getTime();
-	const diffHours = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60)));
-
-	if (diffHours < 24) {
-		return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-	}
-
-	const diffDays = Math.floor(diffHours / 24);
-	return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
 function priceLabel({
@@ -151,7 +114,7 @@ export default async function ProviderServicesPage({
 				)
 				.eq("provider_id", user.id)
 				.order("created_at", { ascending: false }),
-			getProviderIncomingServiceRequests(supabase, user.id),
+			getProviderServiceRequestPreview(supabase, user.id),
 		]);
 
 	if (conversationsResult.error) {
@@ -197,6 +160,10 @@ export default async function ProviderServicesPage({
 					active: true,
 				},
 				{
+					href: "/dashboard/provider/service-requests",
+					label: "Service Requests",
+				},
+				{
 					href: "/dashboard/messages",
 					label: "Messages",
 					count: unreadConversations.length,
@@ -204,88 +171,30 @@ export default async function ProviderServicesPage({
 				{ href: "/dashboard/provider/profile", label: "Profile" },
 			]}
 		>
-			<DashboardPanel title="Incoming Service Requests">
-				{serviceStatus ? (
-					<div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-						{serviceStatus}
-					</div>
-				) : null}
-				{serviceError ? (
-					<div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-						{serviceError}
-					</div>
-				) : null}
+			<DashboardPanel
+				title="Incoming Service Requests"
+				action={
+					<Link
+						href="/dashboard/provider/service-requests"
+						className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
+					>
+						View all requests
+					</Link>
+				}
+			>
+				<div className="mb-4 space-y-3">
+					<ServiceRequestNotice status={serviceStatus} error={serviceError} />
+				</div>
 				{serviceRequests.length ? (
 					<div className="space-y-4">
-						{serviceRequests.slice(0, 6).map((request) => (
-							<article
+						{serviceRequests.map((request) => (
+							<ServiceRequestCard
 								key={request.id}
-								className="rounded-3xl border border-line bg-white p-5"
-							>
-								<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-									<div className="min-w-0">
-										<div className="flex flex-wrap items-center gap-2">
-											<h2 className="wrap-break-word text-lg font-semibold text-black">
-												{request.service?.title ?? "Requested service"}
-											</h2>
-											<span
-												className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${serviceRequestStatusClasses(
-													request.status,
-												)}`}
-											>
-												{serviceRequestStatusLabel(request.status)}
-											</span>
-										</div>
-										<p className="mt-1 text-sm text-secondary">
-											{request.client?.full_name ?? "Client"} ·{" "}
-											{formatTimeAgo(request.created_at)}
-										</p>
-										<p className="mt-4 whitespace-pre-line wrap-break-word text-sm leading-6 text-black/75">
-											{request.message}
-										</p>
-									</div>
-									<div className="flex shrink-0 flex-wrap gap-2">
-										{request.conversation_id ? (
-											<Link
-												href={`/dashboard/messages?conversation=${request.conversation_id}`}
-												className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-											>
-												Message
-											</Link>
-										) : null}
-										<Link
-											href={`/find-talent/${request.service_id}`}
-											className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-										>
-											View Service
-										</Link>
-										{request.status === "pending" ? (
-											<>
-												<form
-													action={acceptServiceRequestAction.bind(null, request.id)}
-												>
-													<button
-														type="submit"
-														className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-													>
-														Accept
-													</button>
-												</form>
-												<form
-													action={rejectServiceRequestAction.bind(null, request.id)}
-												>
-													<button
-														type="submit"
-														className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-													>
-														Reject
-													</button>
-												</form>
-											</>
-										) : null}
-									</div>
-								</div>
-							</article>
+								request={request}
+								viewerRole="provider"
+								context="provider-services"
+								compact
+							/>
 						))}
 					</div>
 				) : (

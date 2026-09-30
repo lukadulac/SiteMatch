@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { cancelServiceRequestAction } from "@/app/dashboard/service-request-actions";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import {
+	ServiceRequestCard,
+	ServiceRequestNotice,
+} from "@/components/service-requests/service-request-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
 import { getUserConversations } from "@/lib/messaging/service";
-import { getClientServiceRequests } from "@/lib/provider-service-requests/service";
+import { getClientServiceRequestPreview } from "@/lib/provider-service-requests/service";
 import { getClientProjects } from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -66,31 +69,6 @@ function statusClasses(status: string) {
     default:
       return "bg-zinc-100 text-zinc-700";
   }
-}
-
-function serviceRequestStatusLabel(status: string) {
-	switch (status) {
-		case "accepted":
-			return "Accepted";
-		case "rejected":
-			return "Rejected";
-		case "cancelled":
-			return "Cancelled";
-		default:
-			return "Pending";
-	}
-}
-
-function serviceRequestStatusClasses(status: string) {
-	switch (status) {
-		case "accepted":
-			return "bg-emerald-50 text-emerald-700";
-		case "rejected":
-		case "cancelled":
-			return "bg-red-50 text-red-700";
-		default:
-			return "bg-blue-50 text-blue-700";
-	}
 }
 
 function formatBudgetLabel(
@@ -202,7 +180,7 @@ export default async function ClientDashboardPage({
         .maybeSingle(),
       getClientProjects(supabase, user.id),
       getUserConversations(supabase, user.id),
-      getClientServiceRequests(supabase, user.id),
+      getClientServiceRequestPreview(supabase, user.id),
     ]);
 
   if (profileResult.error || !profileResult.data) {
@@ -272,6 +250,10 @@ export default async function ClientDashboardPage({
           count: projects.length,
         },
         {
+          href: "/dashboard/client/service-requests",
+          label: "Service Requests",
+        },
+        {
           href: "/dashboard/messages",
           label: "Messages",
           count: unreadConversations.length,
@@ -314,80 +296,30 @@ export default async function ClientDashboardPage({
             Service Requests
           </h2>
           <Link
-            href="/find-talent"
+            href="/dashboard/client/service-requests"
             className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
           >
-            Find Talent
+            View all requests
           </Link>
         </div>
 
-        {serviceStatus ? (
-          <div className="mx-5 mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
-            {serviceStatus}
-          </div>
-        ) : null}
+        <div className="mx-5 mt-4 space-y-3">
+          <ServiceRequestNotice status={serviceStatus} error={serviceError} />
+        </div>
 
-        {serviceError ? (
-          <div className="mx-5 mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {serviceError}
-          </div>
-        ) : null}
-
-        <div className="divide-y divide-line">
+        <div className="space-y-4 p-5">
           {serviceRequests.length > 0 ? (
-            serviceRequests.slice(0, 5).map((request) => (
-              <article
+            serviceRequests.map((request) => (
+              <ServiceRequestCard
                 key={request.id}
-                className="flex min-w-0 flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="break-words text-base font-semibold text-black">
-                      {request.service?.title ?? "Requested service"}
-                    </h3>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${serviceRequestStatusClasses(
-                        request.status,
-                      )}`}
-                    >
-                      {serviceRequestStatusLabel(request.status)}
-                    </span>
-                  </div>
-                  <p className="mt-1 line-clamp-1 break-words text-sm text-secondary">
-                    {request.provider?.full_name ?? "Provider"} ·{" "}
-                    {formatTimeAgo(request.created_at)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  {request.conversation_id ? (
-                    <Link
-                      href={`/dashboard/messages?conversation=${request.conversation_id}`}
-                      className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-                    >
-                      Message
-                    </Link>
-                  ) : null}
-                  <Link
-                    href={`/find-talent/${request.service_id}`}
-                    className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-                  >
-                    View Service
-                  </Link>
-                  {request.status === "pending" ? (
-                    <form action={cancelServiceRequestAction.bind(null, request.id)}>
-                      <button
-                        type="submit"
-                        className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                      >
-                        Cancel
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-              </article>
+                request={request}
+                viewerRole="client"
+                context="client-home"
+                compact
+              />
             ))
           ) : (
-            <div className="p-8 text-sm leading-6 text-secondary">
+            <div className="rounded-3xl border border-dashed border-line p-8 text-sm leading-6 text-secondary">
               No service requests yet. Browse Find Talent to request a provider
               service.
             </div>
