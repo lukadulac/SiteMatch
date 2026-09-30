@@ -188,6 +188,10 @@ export default async function ProviderDashboardPage() {
         },
         { href: "/dashboard/provider/services", label: "Services" },
         {
+          href: "/dashboard/provider/service-requests",
+          label: "Service Requests",
+        },
+        {
           href: "/dashboard/messages",
           label: "Messages",
           count: unreadConversations.length,
