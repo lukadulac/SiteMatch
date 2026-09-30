@@ -2,23 +2,23 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import {
-	formatServiceRequestDate,
-	ServiceRequestActions,
-	ServiceRequestNotice,
-	ServiceRequestStatusBadge,
-} from "@/components/service-requests/service-request-ui";
+	formatWorkroomDate,
+	WorkroomActions,
+	WorkroomNotice,
+	WorkroomStatusBadge,
+} from "@/components/workrooms/workroom-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
-import { getServiceRequestDetailForParticipant } from "@/lib/provider-service-requests/service";
 import { priceTypeLabel } from "@/lib/provider-services/formatters";
+import { getWorkroomDetailForParticipant } from "@/lib/service-workrooms/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type ServiceRequestDetailPageProps = {
+type WorkroomDetailPageProps = {
 	params: Promise<{ id: string }>;
 	searchParams?: Promise<{
-		serviceError?: string | string[];
-		serviceStatus?: string | string[];
+		workroomError?: string | string[];
+		workroomStatus?: string | string[];
 	}>;
 };
 
@@ -60,16 +60,16 @@ function partyLocation(party: { city: string | null; country: string | null } | 
 		.join(", ");
 }
 
-export default async function ServiceRequestDetailPage({
+export default async function WorkroomDetailPage({
 	params,
 	searchParams,
-}: ServiceRequestDetailPageProps) {
+}: WorkroomDetailPageProps) {
 	const { id } = await params;
 	const query = await searchParams;
-	const serviceError =
-		typeof query?.serviceError === "string" ? query.serviceError : null;
-	const serviceStatus =
-		typeof query?.serviceStatus === "string" ? query.serviceStatus : null;
+	const workroomError =
+		typeof query?.workroomError === "string" ? query.workroomError : null;
+	const workroomStatus =
+		typeof query?.workroomStatus === "string" ? query.workroomStatus : null;
 	const supabase = await createSupabaseServerClient();
 	const {
 		data: { user },
@@ -90,38 +90,43 @@ export default async function ServiceRequestDetailPage({
 		redirect(getDashboardPath(provisioned.role));
 	}
 
-	const [conversationsResult, requestResult] = await Promise.all([
+	const [conversationsResult, workroomResult] = await Promise.all([
 		getUserConversations(supabase, user.id),
-		getServiceRequestDetailForParticipant(supabase, user.id, id),
+		getWorkroomDetailForParticipant(supabase, user.id, id),
 	]);
 
 	if (conversationsResult.error) {
 		throw new Error(conversationsResult.error);
 	}
 
-	if (requestResult.error) {
-		throw new Error(requestResult.error);
+	if (workroomResult.error) {
+		throw new Error(workroomResult.error);
 	}
 
-	if (!requestResult.data) {
+	if (!workroomResult.data) {
 		notFound();
 	}
 
-	const request = requestResult.data;
-	const viewerRole = request.client_id === user.id ? "client" : "provider";
-	const otherParty = viewerRole === "client" ? request.provider : request.client;
+	const workroom = workroomResult.data;
+	const viewerRole = workroom.client_id === user.id ? "client" : "provider";
+	const otherParty = viewerRole === "client" ? workroom.provider : workroom.client;
 	const otherPartyLabel = viewerRole === "client" ? "Provider" : "Client";
+	const listPath =
+		viewerRole === "client"
+			? "/dashboard/client/workrooms"
+			: "/dashboard/provider/workrooms";
 	const unreadConversations =
 		conversationsResult.data?.filter((conversation) => conversation.unread_count > 0) ??
 		[];
-	const roleDashboardPath = getDashboardPath(provisioned.role);
-	const listPath =
-		viewerRole === "client"
-			? "/dashboard/client/service-requests"
-			: "/dashboard/provider/service-requests";
-	const service = request.service;
+	const service = workroom.service;
+	const serviceRequest = workroom.service_request;
 	const detailItems = [
-		["Status", service ? service.status : "Service unavailable"],
+		["Status", workroom.status],
+		["Accepted", formatWorkroomDate(workroom.accepted_at)],
+		[
+			"Completed",
+			workroom.completed_at ? formatWorkroomDate(workroom.completed_at) : "Not completed",
+		],
 		["Pricing", service ? formatPrice({
 			priceType: service.price_type,
 			startingPrice: service.starting_price,
@@ -134,32 +139,32 @@ export default async function ServiceRequestDetailPage({
 
 	return (
 		<DashboardShell
-			title="Service Request"
-			subtitle="Review request details, continue the conversation, and manage the request decision."
+			title="Workroom"
+			subtitle="Agreement summary, participant details, and the active conversation for accepted service work."
 			actionHref={listPath}
-			actionLabel="Back to Requests"
+			actionLabel="Back to Workrooms"
 			navItems={[
-				{ href: roleDashboardPath, label: "Overview" },
+				{
+					href: viewerRole === "client" ? "/dashboard/client" : "/dashboard/provider",
+					label: "Overview",
+				},
 				...(viewerRole === "client"
-					? [{ href: "/dashboard/client/projects", label: "Projects" }]
+					? [
+							{ href: "/dashboard/client/projects", label: "Projects" },
+							{ href: "/dashboard/client/service-requests", label: "Service Requests" },
+						]
 					: [
 							{
 								href: "/dashboard/provider/applications",
 								label: "Applications",
 							},
 							{ href: "/dashboard/provider/services", label: "Services" },
+							{ href: "/dashboard/provider/service-requests", label: "Service Requests" },
 						]),
 				{
 					href: listPath,
-					label: "Service Requests",
-					active: true,
-				},
-				{
-					href:
-						viewerRole === "client"
-							? "/dashboard/client/workrooms"
-							: "/dashboard/provider/workrooms",
 					label: "Workrooms",
+					active: true,
 				},
 				{
 					href: "/dashboard/messages",
@@ -176,7 +181,7 @@ export default async function ServiceRequestDetailPage({
 			]}
 		>
 			<section className="space-y-5">
-				<ServiceRequestNotice status={serviceStatus} error={serviceError} />
+				<WorkroomNotice status={workroomStatus} error={workroomError} />
 
 				<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
 					<div className="space-y-5">
@@ -184,38 +189,46 @@ export default async function ServiceRequestDetailPage({
 							<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 								<div className="min-w-0">
 									<div className="flex flex-wrap items-center gap-2">
-										<ServiceRequestStatusBadge status={request.status} />
+										<WorkroomStatusBadge status={workroom.status} />
 										<span className="text-sm font-semibold text-secondary">
-											Sent {formatServiceRequestDate(request.created_at)}
+											Accepted {formatWorkroomDate(workroom.accepted_at)}
 										</span>
 									</div>
 									<h2 className="mt-4 wrap-break-word text-3xl font-semibold text-black">
-										{service?.title ?? "Requested service"}
+										{service?.title ?? "Accepted service"}
 									</h2>
 								</div>
-								{service ? (
+								<div className="flex shrink-0 flex-wrap gap-2">
+									{service ? (
+										<Link
+											href={`/find-talent/${service.id}`}
+											className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-line px-4 text-sm font-semibold text-black transition hover:bg-black/3"
+										>
+											View service
+										</Link>
+									) : null}
 									<Link
-										href={`/find-talent/${service.id}`}
-										className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-2xl border border-line px-4 text-sm font-semibold text-black transition hover:bg-black/3"
+										href={`/dashboard/service-requests/${workroom.service_request_id}`}
+										className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-line px-4 text-sm font-semibold text-black transition hover:bg-black/3"
 									>
-										View service
+										View request
 									</Link>
-								) : null}
+								</div>
 							</div>
 
 							<div className="mt-7">
 								<h3 className="text-lg font-semibold text-black">
-									Original request message
+									Agreement summary
 								</h3>
 								<p className="mt-4 whitespace-pre-line wrap-break-word rounded-3xl border border-line bg-panel-soft p-5 text-sm leading-6 text-black/80">
-									{request.message}
+									{serviceRequest?.message ?? "No agreement summary available."}
 								</p>
 							</div>
 						</article>
 
 						<section className="rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)] sm:p-7">
 							<h3 className="text-lg font-semibold text-black">
-								Service information
+								Workroom details
 							</h3>
 							<div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 								{detailItems.map(([label, value]) => (
@@ -255,9 +268,9 @@ export default async function ServiceRequestDetailPage({
 						<section className="rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
 							<h3 className="text-lg font-semibold text-black">Actions</h3>
 							<div className="mt-5 flex flex-col gap-3">
-								{request.conversation_id ? (
+								{workroom.conversation_id ? (
 									<Link
-										href={`/dashboard/messages?conversation=${request.conversation_id}`}
+										href={`/dashboard/messages?conversation=${workroom.conversation_id}`}
 										className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-black px-4 text-sm font-semibold text-white transition hover:opacity-90"
 									>
 										Open conversation
@@ -267,21 +280,13 @@ export default async function ServiceRequestDetailPage({
 										Conversation unavailable
 									</div>
 								)}
-								{request.workroom_id ? (
-									<Link
-										href={`/dashboard/workrooms/${request.workroom_id}`}
-										className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-line px-4 text-sm font-semibold text-black transition hover:bg-black/3"
-									>
-										Open workroom
-									</Link>
-								) : null}
-								<ServiceRequestActions
-									request={request}
+								<WorkroomActions
+									workroom={workroom}
 									viewerRole={viewerRole}
 									context={
 										viewerRole === "client"
-											? "client-detail"
-											: "provider-detail"
+											? "client-workroom-detail"
+											: "provider-workroom-detail"
 									}
 									showDetailsLink={false}
 								/>

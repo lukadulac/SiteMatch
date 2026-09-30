@@ -77,7 +77,12 @@ describe("service request actions", () => {
 
 	it("accepts a request and redirects to provider services", async () => {
 		vi.mocked(acceptServiceRequestForProvider).mockResolvedValue({
-			data: { id: REQUEST_ID, status: "accepted", conversation_id: "conversation-1" },
+			data: {
+				id: REQUEST_ID,
+				status: "accepted",
+				conversation_id: "conversation-1",
+				workroom_id: "workroom-1",
+			},
 		});
 
 		const { pathname, params } = await expectRedirectTo(
@@ -126,7 +131,12 @@ describe("service request actions", () => {
 
 	it("redirects provider decisions back to the filtered provider list", async () => {
 		vi.mocked(acceptServiceRequestForProvider).mockResolvedValue({
-			data: { id: REQUEST_ID, status: "accepted", conversation_id: "conversation-1" },
+			data: {
+				id: REQUEST_ID,
+				status: "accepted",
+				conversation_id: "conversation-1",
+				workroom_id: "workroom-1",
+			},
 		});
 
 		const { pathname, params } = await expectRedirectTo(
@@ -164,7 +174,12 @@ describe("service request actions", () => {
 
 	it("does not accept arbitrary redirect contexts or invalid list params", async () => {
 		vi.mocked(acceptServiceRequestForProvider).mockResolvedValue({
-			data: { id: REQUEST_ID, status: "accepted", conversation_id: "conversation-1" },
+			data: {
+				id: REQUEST_ID,
+				status: "accepted",
+				conversation_id: "conversation-1",
+				workroom_id: "workroom-1",
+			},
 		});
 
 		const { pathname, params } = await expectRedirectTo(

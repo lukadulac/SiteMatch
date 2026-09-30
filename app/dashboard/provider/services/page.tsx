@@ -163,6 +163,7 @@ export default async function ProviderServicesPage({
 					href: "/dashboard/provider/service-requests",
 					label: "Service Requests",
 				},
+				{ href: "/dashboard/provider/workrooms", label: "Workrooms" },
 				{
 					href: "/dashboard/messages",
 					label: "Messages",
