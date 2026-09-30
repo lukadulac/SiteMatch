@@ -5,12 +5,14 @@ import {
 	ServiceRequestCard,
 	ServiceRequestNotice,
 } from "@/components/service-requests/service-request-ui";
+import { WorkroomCard } from "@/components/workrooms/workroom-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
 import { getUserConversations } from "@/lib/messaging/service";
 import { getClientServiceRequestPreview } from "@/lib/provider-service-requests/service";
 import { getClientProjects } from "@/lib/projects/service";
+import { getClientWorkroomPreview } from "@/lib/service-workrooms/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function formatDateLabel(value: string | null) {
@@ -164,6 +166,7 @@ export default async function ClientDashboardPage({
     projectsResult,
     conversationsResult,
     serviceRequestsResult,
+    workroomsResult,
   ] =
     await Promise.all([
       supabase
@@ -181,6 +184,7 @@ export default async function ClientDashboardPage({
       getClientProjects(supabase, user.id),
       getUserConversations(supabase, user.id),
       getClientServiceRequestPreview(supabase, user.id),
+      getClientWorkroomPreview(supabase, user.id),
     ]);
 
   if (profileResult.error || !profileResult.data) {
@@ -203,11 +207,16 @@ export default async function ClientDashboardPage({
     throw new Error(serviceRequestsResult.error);
   }
 
+  if (workroomsResult.error) {
+    throw new Error(workroomsResult.error);
+  }
+
   const profile = profileResult.data;
   const clientProfile = clientProfileResult.data;
   const projects = projectsResult.data ?? [];
   const conversations = conversationsResult.data ?? [];
   const serviceRequests = serviceRequestsResult.data ?? [];
+  const workrooms = workroomsResult.data ?? [];
   const projectIds = projects.map((project) => project.id);
   const applicationsResult =
     projectIds.length > 0
@@ -252,6 +261,10 @@ export default async function ClientDashboardPage({
         {
           href: "/dashboard/client/service-requests",
           label: "Service Requests",
+        },
+        {
+          href: "/dashboard/client/workrooms",
+          label: "Workrooms",
         },
         {
           href: "/dashboard/messages",
@@ -322,6 +335,38 @@ export default async function ClientDashboardPage({
             <div className="rounded-3xl border border-dashed border-line p-8 text-sm leading-6 text-secondary">
               No service requests yet. Browse Find Talent to request a provider
               service.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="min-w-0 rounded-[1.75rem] border border-line bg-white shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
+        <div className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
+          <h2 className="min-w-0 break-words text-xl font-semibold text-black">
+            Workrooms
+          </h2>
+          <Link
+            href="/dashboard/client/workrooms"
+            className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
+          >
+            View all workrooms
+          </Link>
+        </div>
+
+        <div className="space-y-4 p-5">
+          {workrooms.length > 0 ? (
+            workrooms.map((workroom) => (
+              <WorkroomCard
+                key={workroom.id}
+                workroom={workroom}
+                viewerRole="client"
+                context="client-workrooms"
+                compact
+              />
+            ))
+          ) : (
+            <div className="rounded-3xl border border-dashed border-line p-8 text-sm leading-6 text-secondary">
+              Accepted service requests will appear here.
             </div>
           )}
         </div>

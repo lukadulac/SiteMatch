@@ -66,6 +66,7 @@ export type ServiceRequestPage<TRequest> = {
 
 export type ServiceRequestDetail = ProviderServiceRequestRow & {
 	conversation_id: string | null;
+	workroom_id: string | null;
 	service: Pick<
 		Database["public"]["Tables"]["provider_service_listings"]["Row"],
 		| "id"
@@ -94,6 +95,7 @@ type ServiceRequestRpcRow = {
 	request_id: string;
 	request_status: ProviderServiceRequestStatus;
 	conversation_id: string | null;
+	workroom_id?: string | null;
 };
 
 type SupabaseClientWithServiceRequestRpc = SupabaseClient<Database> & {
@@ -212,6 +214,32 @@ async function getConversationIdByServiceRequestIds(
 	return { data: conversationByRequestId };
 }
 
+async function getWorkroomIdByServiceRequestIds(
+	supabase: SupabaseClient<Database>,
+	requestIds: string[],
+): Promise<ServiceRequestResult<Map<string, string>>> {
+	if (requestIds.length === 0) {
+		return { data: new Map() };
+	}
+
+	const { data, error } = await supabase
+		.from("service_workrooms")
+		.select("id, service_request_id")
+		.in("service_request_id", requestIds);
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	const workroomByRequestId = new Map<string, string>();
+
+	for (const workroom of data ?? []) {
+		workroomByRequestId.set(workroom.service_request_id, workroom.id);
+	}
+
+	return { data: workroomByRequestId };
+}
+
 function mapServiceRequestRpcError(message: string) {
 	if (message.includes("already requested")) {
 		return "You already requested this service.";
@@ -225,6 +253,7 @@ function mapServiceRequestRpcRow(row: ServiceRequestRpcRow) {
 		id: row.request_id,
 		status: row.request_status,
 		conversation_id: row.conversation_id,
+		workroom_id: row.workroom_id ?? null,
 	};
 }
 
@@ -669,14 +698,18 @@ export async function getServiceRequestDetailForParticipant(
 		return { data: null };
 	}
 
-	const request = data as Omit<ServiceRequestDetail, "conversation_id">;
-	const conversationResult = await getConversationIdByServiceRequestIds(
-		supabase,
-		[request.id],
-	);
+	const request = data as Omit<ServiceRequestDetail, "conversation_id" | "workroom_id">;
+	const [conversationResult, workroomResult] = await Promise.all([
+		getConversationIdByServiceRequestIds(supabase, [request.id]),
+		getWorkroomIdByServiceRequestIds(supabase, [request.id]),
+	]);
 
 	if (conversationResult.error) {
 		return { error: conversationResult.error };
+	}
+
+	if (workroomResult.error) {
+		return { error: workroomResult.error };
 	}
 
 	return {
@@ -684,6 +717,7 @@ export async function getServiceRequestDetailForParticipant(
 			...request,
 			conversation_id:
 				conversationResult.data?.get(request.id) ?? null,
+			workroom_id: workroomResult.data?.get(request.id) ?? null,
 		},
 	};
 }
@@ -697,6 +731,7 @@ export async function acceptServiceRequestForProvider(
 		id: string;
 		status: ProviderServiceRequestStatus;
 		conversation_id: string | null;
+		workroom_id: string | null;
 	}>
 > {
 	const { data, error } = await (

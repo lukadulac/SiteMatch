@@ -1054,6 +1054,74 @@ export type Database = {
           },
         ];
       };
+      service_workrooms: {
+        Row: {
+          accepted_at: string;
+          client_id: string;
+          completed_at: string | null;
+          created_at: string;
+          id: string;
+          provider_id: string;
+          service_id: string;
+          service_request_id: string;
+          status: Database["public"]["Enums"]["service_workroom_status"];
+          updated_at: string;
+        };
+        Insert: {
+          accepted_at?: string;
+          client_id: string;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          provider_id: string;
+          service_id: string;
+          service_request_id: string;
+          status?: Database["public"]["Enums"]["service_workroom_status"];
+          updated_at?: string;
+        };
+        Update: {
+          accepted_at?: string;
+          client_id?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          provider_id?: string;
+          service_id?: string;
+          service_request_id?: string;
+          status?: Database["public"]["Enums"]["service_workroom_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_workrooms_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_workrooms_provider_id_fkey";
+            columns: ["provider_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_workrooms_service_id_fkey";
+            columns: ["service_id"];
+            isOneToOne: false;
+            referencedRelation: "provider_service_listings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_workrooms_service_request_id_fkey";
+            columns: ["service_request_id"];
+            isOneToOne: true;
+            referencedRelation: "provider_service_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       provider_service_types: {
         Row: {
           created_at: string;
@@ -1142,6 +1210,7 @@ export type Database = {
           request_id: string;
           request_status: Database["public"]["Enums"]["provider_service_request_status"];
           conversation_id: string | null;
+          workroom_id: string | null;
         }[];
       };
       cancel_provider_service_request: {
@@ -1197,6 +1266,15 @@ export type Database = {
           conversation_id: string;
         }[];
       };
+      complete_service_workroom: {
+        Args: {
+          target_workroom_id: string;
+        };
+        Returns: {
+          workroom_id: string;
+          workroom_status: Database["public"]["Enums"]["service_workroom_status"];
+        }[];
+      };
     };
     Enums: {
       application_status:
@@ -1237,6 +1315,9 @@ export type Database = {
         | "accepted"
         | "rejected"
         | "cancelled";
+      service_workroom_status:
+        | "active"
+        | "completed";
       provider_service_delivery_bucket:
         | "urgent_24h"
         | "up_to_3_days"

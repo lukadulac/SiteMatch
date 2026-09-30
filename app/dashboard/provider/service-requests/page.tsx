@@ -129,6 +129,7 @@ export default async function ProviderServiceRequestsPage({
 					count: pageData.totalCount,
 					active: true,
 				},
+				{ href: "/dashboard/provider/workrooms", label: "Workrooms" },
 				{
 					href: "/dashboard/messages",
 					label: "Messages",

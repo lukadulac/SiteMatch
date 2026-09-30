@@ -73,6 +73,7 @@ describe("createServiceRequest", () => {
 			id: REQUEST_ID,
 			status: "pending",
 			conversation_id: CONVERSATION_ID,
+			workroom_id: null,
 		});
 		expect(stub.callsFor("rpc.request_provider_service")[0]?.payload).toEqual({
 			target_service_id: SERVICE_ID,
@@ -377,6 +378,9 @@ describe("getServiceRequestDetailForParticipant", () => {
 				}),
 			},
 			"conversations.select": { data: [conversationRow()] },
+			"service_workrooms.select": {
+				data: [{ id: "workroom-1", service_request_id: REQUEST_ID }],
+			},
 		});
 
 		const result = await getServiceRequestDetailForParticipant(
@@ -387,6 +391,7 @@ describe("getServiceRequestDetailForParticipant", () => {
 
 		expect(result.data?.id).toBe(REQUEST_ID);
 		expect(result.data?.conversation_id).toBe(CONVERSATION_ID);
+		expect(result.data?.workroom_id).toBe("workroom-1");
 		expect(stub.callsFor("provider_service_requests.select")[0]?.filters).toEqual(
 			expect.arrayContaining([
 				{ method: "eq", args: ["id", REQUEST_ID] },
@@ -418,7 +423,12 @@ describe("provider service request decisions", () => {
 	it("accepts a pending request through the database function", async () => {
 		const stub = createSupabaseStub({
 			"rpc.accept_provider_service_request": {
-				data: [requestRpcRow({ request_status: "accepted" })],
+				data: [
+					requestRpcRow({
+						request_status: "accepted",
+						workroom_id: "workroom-1",
+					}),
+				],
 			},
 		});
 
@@ -432,6 +442,7 @@ describe("provider service request decisions", () => {
 			id: REQUEST_ID,
 			status: "accepted",
 			conversation_id: CONVERSATION_ID,
+			workroom_id: "workroom-1",
 		});
 		expect(stub.callsFor("rpc.accept_provider_service_request")[0]?.payload).toEqual({
 			target_request_id: "request-1",

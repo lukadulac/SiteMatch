@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { WorkroomCard } from "@/components/workrooms/workroom-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
 import { getApplicationStatusMeta } from "@/lib/projects/application-status";
+import { getProviderWorkroomPreview } from "@/lib/service-workrooms/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function formatTimeAgo(value: string) {
@@ -107,7 +109,13 @@ export default async function ProviderDashboardPage() {
     redirect(getDashboardPath(provisioned.role));
   }
 
-  const [profileResult, providerProfileResult, conversationsResult, applicationsResult] =
+  const [
+    profileResult,
+    providerProfileResult,
+    conversationsResult,
+    applicationsResult,
+    workroomsResult,
+  ] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -129,6 +137,7 @@ export default async function ProviderDashboardPage() {
         )
         .eq("provider_id", user.id)
         .order("created_at", { ascending: false }),
+      getProviderWorkroomPreview(supabase, user.id),
     ]);
 
   if (profileResult.error || !profileResult.data) {
@@ -149,9 +158,14 @@ export default async function ProviderDashboardPage() {
     throw new Error(applicationsResult.error.message);
   }
 
+  if (workroomsResult.error) {
+    throw new Error(workroomsResult.error);
+  }
+
   const profile = profileResult.data;
   const providerProfile = providerProfileResult.data;
   const conversations = conversationsResult.data ?? [];
+  const workrooms = workroomsResult.data ?? [];
   const applications =
     (applicationsResult.data ?? []).map((item) => ({
       ...item,
@@ -191,6 +205,7 @@ export default async function ProviderDashboardPage() {
           href: "/dashboard/provider/service-requests",
           label: "Service Requests",
         },
+        { href: "/dashboard/provider/workrooms", label: "Workrooms" },
         {
           href: "/dashboard/messages",
           label: "Messages",
@@ -304,6 +319,37 @@ export default async function ProviderDashboardPage() {
         </div>
 
         <aside className="min-w-0 space-y-5">
+          <section className="min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
+            <div className="flex min-w-0 items-center justify-between gap-4">
+              <h2 className="min-w-0 wrap-break-word text-xl font-semibold text-black">
+                Workrooms
+              </h2>
+              <Link
+                href="/dashboard/provider/workrooms"
+                className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
+              >
+                View all
+              </Link>
+            </div>
+            <div className="mt-5 space-y-4">
+              {workrooms.length > 0 ? (
+                workrooms.map((workroom) => (
+                  <WorkroomCard
+                    key={workroom.id}
+                    workroom={workroom}
+                    viewerRole="provider"
+                    context="provider-home"
+                    compact
+                  />
+                ))
+              ) : (
+                <p className="rounded-2xl border border-dashed border-line p-4 text-sm text-secondary">
+                  Accepted service requests will appear here.
+                </p>
+              )}
+            </div>
+          </section>
+
           <section className="min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
             <div className="flex min-w-0 items-center justify-between gap-4">
               <h2 className="min-w-0 wrap-break-word text-xl font-semibold text-black">

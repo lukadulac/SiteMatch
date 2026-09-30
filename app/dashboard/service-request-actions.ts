@@ -158,11 +158,20 @@ function redirectWithNotice(path: string, key: string, message: string) {
 
 function revalidateServiceRequestPaths(requestId: string) {
 	revalidatePath("/dashboard/client");
+	revalidatePath("/dashboard/provider");
 	revalidatePath("/dashboard/provider/services");
 	revalidatePath("/dashboard/client/service-requests");
 	revalidatePath("/dashboard/provider/service-requests");
+	revalidatePath("/dashboard/client/workrooms");
+	revalidatePath("/dashboard/provider/workrooms");
 	revalidatePath(`/dashboard/service-requests/${requestId}`);
 	revalidatePath("/dashboard/messages");
+}
+
+function revalidateWorkroomPath(workroomId: string | null) {
+	if (workroomId) {
+		revalidatePath(`/dashboard/workrooms/${workroomId}`);
+	}
 }
 
 export async function acceptServiceRequestAction(
@@ -220,6 +229,7 @@ export async function acceptServiceRequestAction(
 	const acceptedRequest = result.data;
 
 	revalidateServiceRequestPaths(acceptedRequest.id);
+	revalidateWorkroomPath(acceptedRequest.workroom_id);
 	redirectWithNotice(
 		buildRedirectPath({
 			context,
