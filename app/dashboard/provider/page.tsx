@@ -4,7 +4,10 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { WorkroomCard } from "@/components/workrooms/workroom-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
-import { getUserConversations } from "@/lib/messaging/service";
+import {
+  getUnreadConversationCount,
+  getUserConversations,
+} from "@/lib/messaging/service";
 import { getApplicationStatusMeta } from "@/lib/projects/application-status";
 import { getProviderWorkroomPreview } from "@/lib/service-workrooms/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -112,6 +115,7 @@ export default async function ProviderDashboardPage() {
   const [
     profileResult,
     providerProfileResult,
+    unreadConversationCountResult,
     conversationsResult,
     applicationsResult,
     workroomsResult,
@@ -129,7 +133,8 @@ export default async function ProviderDashboardPage() {
         )
         .eq("user_id", user.id)
         .maybeSingle(),
-      getUserConversations(supabase, user.id),
+      getUnreadConversationCount(supabase, user.id),
+      getUserConversations(supabase, user.id, { limit: 3 }),
       supabase
         .from("applications")
         .select(
@@ -150,6 +155,10 @@ export default async function ProviderDashboardPage() {
     );
   }
 
+  if (unreadConversationCountResult.error) {
+    throw new Error(unreadConversationCountResult.error);
+  }
+
   if (conversationsResult.error) {
     throw new Error(conversationsResult.error);
   }
@@ -164,6 +173,7 @@ export default async function ProviderDashboardPage() {
 
   const profile = profileResult.data;
   const providerProfile = providerProfileResult.data;
+  const unreadConversationCount = unreadConversationCountResult.data;
   const conversations = conversationsResult.data ?? [];
   const workrooms = workroomsResult.data ?? [];
   const applications =
@@ -171,9 +181,6 @@ export default async function ProviderDashboardPage() {
       ...item,
       project: Array.isArray(item.project) ? item.project[0] ?? null : item.project,
     })) ?? [];
-  const unreadConversations = conversations.filter(
-    (conversation) => conversation.unread_count > 0,
-  );
   const shortlistedApplications = applications.filter(
     (application) => application.status === "shortlisted",
   );
@@ -209,7 +216,7 @@ export default async function ProviderDashboardPage() {
         {
           href: "/dashboard/messages",
           label: "Messages",
-          count: unreadConversations.length,
+          count: unreadConversationCount,
         },
         { href: "/dashboard/provider/profile", label: "Profile" },
       ]}
@@ -238,7 +245,7 @@ export default async function ProviderDashboardPage() {
         />
         <OverviewStat
           label="Unread Messages"
-          value={String(unreadConversations.length)}
+          value={String(unreadConversationCount)}
           detail="Client conversations needing a reply"
         />
       </section>
@@ -364,7 +371,7 @@ export default async function ProviderDashboardPage() {
             </div>
             <div className="mt-5 space-y-4">
               {conversations.length > 0 ? (
-                conversations.slice(0, 3).map((conversation) => {
+                conversations.map((conversation) => {
                   const otherParty =
                     conversation.client_id === user.id
                       ? conversation.provider

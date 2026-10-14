@@ -379,16 +379,18 @@ export async function loginAction(
     AUTH_RATE_LIMITS.loginIp.scope,
     requestIp,
   ]);
-  const loginEmailIpLimit = await checkAuthRateLimit(
-    supabase,
-    AUTH_RATE_LIMITS.loginEmailIp.scope,
-    loginEmailIpKey,
-  );
-  const loginIpLimit = await checkAuthRateLimit(
-    supabase,
-    AUTH_RATE_LIMITS.loginIp.scope,
-    loginIpKey,
-  );
+  const [loginEmailIpLimit, loginIpLimit] = await Promise.all([
+    checkAuthRateLimit(
+      supabase,
+      AUTH_RATE_LIMITS.loginEmailIp.scope,
+      loginEmailIpKey,
+    ),
+    checkAuthRateLimit(
+      supabase,
+      AUTH_RATE_LIMITS.loginIp.scope,
+      loginIpKey,
+    ),
+  ]);
 
   if (!loginEmailIpLimit.allowed || !loginIpLimit.allowed) {
     return {
@@ -399,7 +401,7 @@ export async function loginAction(
     };
   }
 
-  const { error: signInError } = await supabase.auth.signInWithPassword({
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   });
@@ -430,11 +432,8 @@ export async function loginAction(
     loginEmailIpKey,
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const user = signInData.user;
+  if (!user || !signInData.session) {
     return {
       formError: "Your session could not be established. Please try again.",
       formSuccess: undefined,
