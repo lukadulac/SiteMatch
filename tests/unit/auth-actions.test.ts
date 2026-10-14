@@ -249,6 +249,20 @@ describe("loginAction", () => {
 		expect(ensureUserProfile).not.toHaveBeenCalled();
 	});
 
+	it("does not use a returned user without a session", async () => {
+		arrangeSupabase({
+			signInWithPassword: {
+				data: { user: stubUser({ id: "user-1" }), session: null },
+				error: null,
+			},
+		});
+
+		const state = await loginAction(initialAuthActionState, loginForm());
+
+		expect(state.formError).toMatch(/session/i);
+		expect(ensureUserProfile).not.toHaveBeenCalled();
+	});
+
 	it("signs the user back out when the marketplace profile is unusable", async () => {
 		const stub = arrangeSupabase({ user: stubUser({ id: "user-1" }) });
 		vi.mocked(ensureUserProfile).mockResolvedValue({

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	ensureConversationForApplication,
 	getConversationById,
+	getUnreadConversationCount,
 	getUserConversations,
 	markConversationAsRead,
 	sendConversationMessage,
@@ -607,6 +608,24 @@ describe("getUserConversations", () => {
 		expect(result.data?.[0]?.last_message?.id).toBe("newest");
 	});
 
+	it("limits a dashboard preview before loading its messages", async () => {
+		const stub = createSupabaseStub({
+			"conversations.select": { data: [conversationRow()] },
+			"messages.select": { data: [] },
+		});
+
+		await getUserConversations(stub.client, CLIENT_ID, { limit: 3 });
+
+		expect(stub.callsFor("conversations.select")[0]?.filters).toContainEqual({
+			method: "limit",
+			args: [3],
+		});
+		expect(stub.callsFor("messages.select")[0]?.filters).toContainEqual({
+			method: "in",
+			args: ["conversation_id", [CONVERSATION_ID]],
+		});
+	});
+
 	it("counts only unread messages sent by the other participant", async () => {
 		const stub = createSupabaseStub({
 			"conversations.select": { data: [conversationRow()] },
@@ -658,6 +677,48 @@ describe("getUserConversations", () => {
 		expect(result.data?.[0]?.client).toEqual({
 			id: CLIENT_ID,
 			full_name: "Client",
+		});
+	});
+});
+
+describe("getUnreadConversationCount", () => {
+	it("does not query messages when the user has no conversations", async () => {
+		const stub = createSupabaseStub({ "conversations.select": { data: [] } });
+
+		expect(await getUnreadConversationCount(stub.client, CLIENT_ID)).toEqual({ data: 0 });
+		expect(stub.callKeys()).not.toContain("messages.select");
+	});
+
+	it("counts conversations with unread messages once and filters on the server", async () => {
+		const stub = createSupabaseStub({
+			"conversations.select": {
+				data: [{ id: CONVERSATION_ID }, { id: "conversation-2" }],
+			},
+			"messages.select": {
+				data: [
+					{ conversation_id: CONVERSATION_ID },
+					{ conversation_id: CONVERSATION_ID },
+					{ conversation_id: "conversation-2" },
+				],
+			},
+		});
+
+		expect(await getUnreadConversationCount(stub.client, CLIENT_ID)).toEqual({ data: 2 });
+		expect(stub.callsFor("messages.select")[0]?.filters).toEqual([
+			{ method: "in", args: ["conversation_id", [CONVERSATION_ID, "conversation-2"]] },
+			{ method: "eq", args: ["is_read", false] },
+			{ method: "neq", args: ["sender_id", CLIENT_ID] },
+		]);
+	});
+
+	it("returns database errors instead of a misleading zero", async () => {
+		const stub = createSupabaseStub({
+			"conversations.select": { data: [{ id: CONVERSATION_ID }] },
+			"messages.select": { error: { message: "messages unavailable" } },
+		});
+
+		expect(await getUnreadConversationCount(stub.client, CLIENT_ID)).toEqual({
+			error: "messages unavailable",
 		});
 	});
 });

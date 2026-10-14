@@ -218,12 +218,19 @@ export async function ensureConversationForApplication(
 export async function getUserConversations(
   supabase: SupabaseClient<Database>,
   userId: string,
+  options?: { limit?: number },
 ): Promise<Result<ConversationListItem[]>> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("conversations")
     .select(conversationSelect)
     .or(`client_id.eq.${userId},provider_id.eq.${userId}`)
     .order("updated_at", { ascending: false });
+
+  if (options?.limit !== undefined) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return { error: error.message };
@@ -282,6 +289,40 @@ export async function getUserConversations(
       last_message: lastMessageMap.get(item.id) ?? null,
       unread_count: unreadCountMap.get(item.id) ?? 0,
     })),
+  };
+}
+
+export async function getUnreadConversationCount(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<Result<number>> {
+  const { data: conversations, error: conversationsError } = await supabase
+    .from("conversations")
+    .select("id")
+    .or(`client_id.eq.${userId},provider_id.eq.${userId}`);
+
+  if (conversationsError) {
+    return { error: conversationsError.message };
+  }
+
+  const conversationIds = (conversations ?? []).map((conversation) => conversation.id);
+  if (conversationIds.length === 0) {
+    return { data: 0 };
+  }
+
+  const { data: unreadMessages, error: messagesError } = await supabase
+    .from("messages")
+    .select("conversation_id")
+    .in("conversation_id", conversationIds)
+    .eq("is_read", false)
+    .neq("sender_id", userId);
+
+  if (messagesError) {
+    return { error: messagesError.message };
+  }
+
+  return {
+    data: new Set((unreadMessages ?? []).map((message) => message.conversation_id)).size,
   };
 }
 

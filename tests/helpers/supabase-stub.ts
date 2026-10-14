@@ -34,7 +34,10 @@ export type AuthStubOptions = {
 	user?: Partial<User> | null;
 	getSession?: StubResponse;
 	signUp?: { data?: unknown; error?: { message: string } | null };
-	signInWithPassword?: { error?: { message: string } | null };
+	signInWithPassword?: {
+		data?: { user?: Partial<User> | null; session?: unknown };
+		error?: { message: string } | null;
+	};
 };
 
 const CHAIN_METHODS = [
@@ -218,7 +221,13 @@ export function createSupabaseStub(
 					filters: [],
 				});
 
-				return auth.signInWithPassword ?? { data: {}, error: null };
+				return auth.signInWithPassword ?? {
+					data: {
+						user: auth.user ?? null,
+						session: auth.user ? { access_token: "test-token" } : null,
+					},
+					error: null,
+				};
 			},
 			signOut: async () => {
 				calls.push({
