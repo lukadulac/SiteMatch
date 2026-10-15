@@ -52,7 +52,7 @@ export async function ensureUserProfile(
 
   const role = getStringValue(metadata.role);
 
-  if (!role || !isAppRole(role)) {
+  if (role !== "client" && role !== "provider") {
     return { error: "Your account is missing a valid role." };
   }
 

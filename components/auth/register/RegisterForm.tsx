@@ -15,7 +15,6 @@ export type RegisterRole = "client" | "provider";
 export type RegisterFieldErrors = Record<string, string[] | undefined>;
 export type RegisterFormFields = Record<string, string>;
 
-const DEFAULT_ROLE: RegisterRole = "client";
 export const MULTI_VALUE_SEPARATOR = "||";
 
 const submitLabelByRole: Record<RegisterRole, string> = {
@@ -58,20 +57,15 @@ export default function RegisterForm() {
 		registerAction,
 		initialAuthActionState,
 	);
-	const [selectedRole, setSelectedRole] = useState<RegisterRole>(
-		getRegisterFieldValue(state.fields, "role") === "provider"
-			? "provider"
-			: DEFAULT_ROLE,
-	);
+	const [selectedRole, setSelectedRole] = useState<RegisterRole | null>(null);
 
 	return (
 		<form action={formAction}>
 			<RoleSelector
 				selectedRole={selectedRole}
 				onRoleChange={setSelectedRole}
+				error={state.fieldErrors?.role?.[0]}
 			/>
-
-			<input type="hidden" name="role" value={selectedRole} />
 
 			<SharedAccountFields errors={state.fieldErrors} fields={state.fields} />
 
@@ -84,7 +78,7 @@ export default function RegisterForm() {
 						"interested_solution_types",
 					)}
 				/>
-			) : (
+			) : selectedRole === "provider" ? (
 				<ProviderFields
 					errors={state.fieldErrors}
 					fields={state.fields}
@@ -93,7 +87,7 @@ export default function RegisterForm() {
 						"service_categories",
 					)}
 				/>
-			)}
+			) : null}
 
 			{state.formError ? (
 				<div className="my-4 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -108,7 +102,7 @@ export default function RegisterForm() {
 			) : null}
 
 			<div className="my-2 w-full">
-				<RegisterSubmitButton label={submitLabelByRole[selectedRole]} />
+				<RegisterSubmitButton label={selectedRole ? submitLabelByRole[selectedRole] : "Create account"} />
 				<p className="mt-4 text-center text-xl text-muted-foreground">
 					Already have an account?{" "}
 					<Link href="/login" className="font-semibold text-black">

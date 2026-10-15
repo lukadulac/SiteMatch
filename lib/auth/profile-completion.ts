@@ -22,10 +22,7 @@ export function isClientProfileComplete(profile: ClientCompletionProfile) {
 
   return (
     hasText(profile.business_name) &&
-    hasText(profile.business_type) &&
     (profile.business_type !== "other" || hasText(profile.business_type_text)) &&
-    hasText(profile.project_idea) &&
-    profile.interested_solution_types.length > 0 &&
     (!profile.interested_solution_types.includes("other") ||
       hasText(profile.interested_solution_other_text))
   );

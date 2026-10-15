@@ -33,16 +33,20 @@ describe("clientProfileInputSchema", () => {
 		);
 	});
 
-	it("requires a project idea of at least 20 characters", () => {
+	it("allows an omitted project idea but validates one when supplied", () => {
+		expect(clientProfileInputSchema.parse(baseClientProfile({ project_idea: "" })).project_idea).toBeNull();
 		expect(
 			fieldErrors(baseClientProfile({ project_idea: "A small site" })),
 		).toHaveProperty("project_idea");
 	});
 
-	it("requires at least one solution type", () => {
-		expect(
-			fieldErrors(baseClientProfile({ interested_solution_types: [] })),
-		).toHaveProperty("interested_solution_types");
+	it("allows business type and interests to be completed later", () => {
+		const parsed = clientProfileInputSchema.parse(baseClientProfile({
+			business_type: "",
+			interested_solution_types: [],
+		}));
+		expect(parsed.business_type).toBeNull();
+		expect(parsed.interested_solution_types).toEqual([]);
 	});
 
 	it("rejects unknown business and solution types", () => {
@@ -118,9 +122,9 @@ describe("clientProfileInputSchema", () => {
 		});
 	});
 
-	describe("tax id (PIB)", () => {
-		it("accepts 8 to 12 digits", () => {
-			for (const business_tax_id of ["12345678", "123456789012"]) {
+	describe("optional business identifier", () => {
+		it("accepts identifiers used outside Serbia", () => {
+			for (const business_tax_id of ["12345678", "GB123456789"]) {
 				expect(
 					clientProfileInputSchema.safeParse(
 						baseClientProfile({ business_tax_id }),
@@ -129,12 +133,8 @@ describe("clientProfileInputSchema", () => {
 			}
 		});
 
-		it("rejects values that are too short, too long, or non-numeric", () => {
-			for (const business_tax_id of ["1234567", "1234567890123", "1234567A"]) {
-				expect(
-					fieldErrors(baseClientProfile({ business_tax_id })),
-				).toHaveProperty("business_tax_id");
-			}
+		it("rejects an excessively long identifier", () => {
+			expect(fieldErrors(baseClientProfile({ business_tax_id: "x".repeat(61) }))).toHaveProperty("business_tax_id");
 		});
 
 		it("treats a blank tax id as absent", () => {

@@ -11,6 +11,7 @@ import {
 	type RegisterFieldErrors,
 	type RegisterFormFields,
 } from "@/components/auth/register/RegisterForm";
+import { FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 
 type ProviderFieldsProps = {
 	errors?: RegisterFieldErrors;
@@ -55,13 +56,14 @@ export default function ProviderFields({
 			<hr className="border-gray-400 mx-auto my-2" />
 			<div className="flex flex-col gap-2 md:flex-row">
 				<div className="flex flex-col my-2">
-					<label htmlFor="provider_type">Provider type</label>
+					<FieldLabel htmlFor="provider_type" required>Provider type</FieldLabel>
 					<select
 						id="provider_type"
 						name="provider_type"
 						value={providerType}
 						onChange={(event) => setProviderType(event.target.value)}
-						className="border border-gray-500 p-2 my-2 rounded-2xl"
+						className={fieldClass(fieldError(errors, "provider_type"))}
+						required
 					>
 						<option value="" disabled>
 							Select a provider type
@@ -79,12 +81,12 @@ export default function ProviderFields({
 
 				{shouldShowTaxId ? (
 					<div className="flex flex-col">
-						<label htmlFor="tax_id">Tax ID</label>
+						<FieldLabel htmlFor="tax_id">Business registration ID</FieldLabel>
 						<input
 							id="tax_id"
 							name="tax_id"
 							type="text"
-							className="border border-gray-500 p-2 rounded-2xl my-2"
+							className={fieldClass(fieldError(errors, "tax_id"))}
 							placeholder="xxxxxxxx"
 							defaultValue={getRegisterFieldValue(fields, "tax_id")}
 						/>
@@ -96,15 +98,15 @@ export default function ProviderFields({
 			</div>
 			<div className="flex flex-col gap-2  md:flex-row">
 				<div className="flex flex-col my-2">
-					<label htmlFor="years_of_experience">Years of experience</label>
+					<FieldLabel htmlFor="years_of_experience">Years of experience</FieldLabel>
 					<select
 						id="years_of_experience"
 						name="years_of_experience"
 						defaultValue={getRegisterFieldValue(fields, "years_of_experience")}
-						className="border border-gray-500 p-2 my-2 rounded-2xl"
+						className={fieldClass(fieldError(errors, "years_of_experience"))}
 					>
-						<option value="" disabled>
-							Select range
+						<option value="">
+							Not specified
 						</option>
 						{providerExperienceOptions.map((option) => (
 							<option value={option.value} key={option.value}>
@@ -118,13 +120,13 @@ export default function ProviderFields({
 				</div>
 
 				<div className="flex flex-col gap-2">
-					<label htmlFor="portfolio_url">Portfolio URL</label>
+					<FieldLabel htmlFor="portfolio_url">Portfolio URL</FieldLabel>
 					<input
 						id="portfolio_url"
 						name="portfolio_url"
 						type="url"
-						className="border border-gray-500 p-2  rounded-2xl"
-						placeholder="https://yourportfoliolnik.com"
+						className={fieldClass(fieldError(errors, "portfolio_url"))}
+						placeholder="https://yourportfolio.com"
 						defaultValue={getRegisterFieldValue(fields, "portfolio_url")}
 					/>
 					{getError(errors, "portfolio_url") ? (
@@ -134,13 +136,13 @@ export default function ProviderFields({
 			</div>
 
 			<div className="flex flex-col gap-2 my-4">
-				<label htmlFor="social_link">Social link</label>
+				<FieldLabel htmlFor="social_link">Social link</FieldLabel>
 				<input
 					id="social_link"
 					name="social_link"
 					type="url"
-					className="border border-gray-500 p-2 rounded-2xl"
-					placeholder="https://linkedin/com/in/yourprofile"
+					className={fieldClass(fieldError(errors, "social_link"))}
+					placeholder="https://linkedin.com/in/yourprofile"
 					defaultValue={getRegisterFieldValue(fields, "social_link")}
 				/>
 				{getError(errors, "social_link") ? (
@@ -149,7 +151,7 @@ export default function ProviderFields({
 			</div>
 
 			<fieldset className="mt-4">
-				<h3 className="font-semibold">Service categories</h3>
+				<legend className="flex w-full justify-between gap-2 font-semibold">Service categories <span className="text-xs font-semibold text-red-700">Required</span></legend>
 				<div className="grid grid-cols-1 gap-3 mt-2 md:grid-cols-2">
 					{providerServiceCategories.map((category) => (
 						<label
@@ -176,14 +178,13 @@ export default function ProviderFields({
 
 			{selectedCategories.includes("other") ? (
 				<div className="flex flex-col gap-2 my-4">
-					<label htmlFor="service_category_other_text">
-						Other service category
-					</label>
+					<FieldLabel htmlFor="service_category_other_text" required>Other service category</FieldLabel>
 					<input
 						id="service_category_other_text"
 						name="service_category_other_text"
 						type="text"
-						className="border border-gray-500 p-2 rounded-2xl"
+						className={fieldClass(fieldError(errors, "service_category_other_text"))}
+						required
 						placeholder="Tell us your service category"
 						defaultValue={getRegisterFieldValue(
 							fields,
@@ -197,12 +198,12 @@ export default function ProviderFields({
 			) : null}
 
 			<div className="flex flex-col gap-2 my-4">
-				<label htmlFor="about">About</label>
+				<FieldLabel htmlFor="about">About</FieldLabel>
 				<textarea
 					id="about"
 					name="about"
 					rows={5}
-					className="border w-full rounded-2xl p-2"
+					className={fieldClass(fieldError(errors, "about"))}
 					placeholder="Tell us about your experience, skills, and what makes you unique..."
 					defaultValue={getRegisterFieldValue(fields, "about")}
 				/>

@@ -38,38 +38,26 @@ describe("providerProfileInputSchema", () => {
 		).toHaveProperty("service_categories");
 	});
 
-	describe("tax id (PIB) by provider type", () => {
-		it("is required for agencies, companies, and studios", () => {
+	describe("optional business identifier", () => {
+		it("is not required for agencies, companies, and studios", () => {
 			for (const provider_type of ["agency", "company", "studio"]) {
 				expect(
-					fieldErrors(baseProviderProfile({ provider_type })),
-				).toHaveProperty("tax_id");
+					providerProfileInputSchema.safeParse(baseProviderProfile({ provider_type })).success,
+				).toBe(true);
 			}
 		});
 
-		it("is rejected for freelancers and other provider types", () => {
-			for (const provider_type of ["freelancer", "other"]) {
-				expect(
-					fieldErrors(
-						baseProviderProfile({ provider_type, tax_id: "12345678" }),
-					),
-				).toHaveProperty("tax_id");
-			}
-		});
-
-		it("accepts a valid PIB for an agency", () => {
+		it("accepts a non-Serbian identifier", () => {
 			expect(
 				providerProfileInputSchema.safeParse(
-					baseProviderProfile({ provider_type: "agency", tax_id: "12345678" }),
+					baseProviderProfile({ provider_type: "agency", tax_id: "GB123456789" }),
 				).success,
 			).toBe(true);
 		});
 
-		it("rejects a malformed PIB", () => {
+		it("rejects an excessively long identifier", () => {
 			expect(
-				fieldErrors(
-					baseProviderProfile({ provider_type: "agency", tax_id: "12A45678" }),
-				),
+				fieldErrors(baseProviderProfile({ tax_id: "x".repeat(61) })),
 			).toHaveProperty("tax_id");
 		});
 	});
@@ -94,10 +82,8 @@ describe("providerProfileInputSchema", () => {
 	});
 
 	describe("portfolio and social URLs", () => {
-		it("requires a portfolio URL", () => {
-			expect(
-				fieldErrors(baseProviderProfile({ portfolio_url: "" })),
-			).toHaveProperty("portfolio_url");
+		it("allows a portfolio URL to be completed later", () => {
+			expect(providerProfileInputSchema.parse(baseProviderProfile({ portfolio_url: "" })).portfolio_url).toBeNull();
 		});
 
 		it("rejects non-http(s) schemes in either URL", () => {
@@ -121,6 +107,9 @@ describe("providerProfileInputSchema", () => {
 	});
 
 	describe("years of experience", () => {
+		it("does not turn an empty choice into zero", () => {
+			expect(providerProfileInputSchema.parse(baseProviderProfile({ years_of_experience: "" })).years_of_experience).toBeNull();
+		});
 		it("coerces a numeric string", () => {
 			const parsed = providerProfileInputSchema.parse(
 				baseProviderProfile({ years_of_experience: "5" }),
