@@ -7,6 +7,8 @@ import {
 	type AuthActionState,
 } from "@/app/(auth)/action-state";
 import { loginAction } from "@/app/(auth)/actions";
+import { getRegistrationHref, getVerificationHref } from "@/lib/auth/email-verification";
+import { VerifyEmailForm } from "@/components/auth/verify-email-form";
 
 function fieldError(state: AuthActionState, name: string): string | undefined {
 	return state.fieldErrors?.[name]?.[0];
@@ -21,6 +23,9 @@ export function LoginForm({ next }: LoginFormProps) {
 		loginAction,
 		initialAuthActionState,
 	);
+	if (state.verificationRequired) {
+		return <VerifyEmailForm email={state.fields?.email} next={next} />;
+	}
 
 	return (
 		<form action={formAction} className="max-w-112.5 mx-auto">
@@ -65,6 +70,9 @@ export function LoginForm({ next }: LoginFormProps) {
 					{state.formError}
 				</div>
 			) : null}
+			<p className="my-3 text-sm text-secondary">
+				Email not confirmed? <Link href={getVerificationHref(next)} className="font-semibold text-black underline underline-offset-4">Resend confirmation</Link>
+			</p>
 
 			<div className="my-2 w-full">
 				<button
@@ -75,7 +83,7 @@ export function LoginForm({ next }: LoginFormProps) {
 				</button>
 					<p className="mt-4 text-center text-sm text-muted-foreground">
 						Don&apos;t have an account?{" "}
-					<Link href="/register" className="font-semibold text-black">
+					<Link href={getRegistrationHref(next)} className="font-semibold text-black">
 						Register
 					</Link>
 				</p>
