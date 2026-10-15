@@ -9,6 +9,8 @@ import ClientFields from "@/components/auth/register/ClientFields";
 import ProviderFields from "@/components/auth/register/ProviderFields";
 import RoleSelector from "@/components/auth/register/RoleSelector";
 import SharedAccountFields from "@/components/auth/register/SharedAccountFields";
+import { VerifyEmailForm } from "@/components/auth/verify-email-form";
+import { getLoginHref } from "@/lib/auth/return-url";
 
 export type RegisterRole = "client" | "provider";
 
@@ -52,15 +54,24 @@ function RegisterSubmitButton({ label }: { label: string }) {
 	);
 }
 
-export default function RegisterForm() {
+export default function RegisterForm({ next }: { next?: string | null }) {
 	const [state, formAction] = useActionState(
 		registerAction,
 		initialAuthActionState,
 	);
 	const [selectedRole, setSelectedRole] = useState<RegisterRole | null>(null);
+	if (state.verificationRequired) {
+		return <VerifyEmailForm email={state.fields?.email} next={next} registered />;
+	}
 
 	return (
+		<>
+		<h1 className="text-4xl text-center font-semibold">
+			Join Work<span className="bg-linear-to-r from-violet-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">Bridge</span>
+		</h1>
+		<p className="text-center mb-4 mt-2">Create your account and get started.</p>
 		<form action={formAction}>
+			{next ? <input type="hidden" name="next" value={next} /> : null}
 			<RoleSelector
 				selectedRole={selectedRole}
 				onRoleChange={setSelectedRole}
@@ -105,11 +116,12 @@ export default function RegisterForm() {
 				<RegisterSubmitButton label={selectedRole ? submitLabelByRole[selectedRole] : "Create account"} />
 				<p className="mt-4 text-center text-xl text-muted-foreground">
 					Already have an account?{" "}
-					<Link href="/login" className="font-semibold text-black">
+					<Link href={getLoginHref(next)} className="font-semibold text-black">
 						Sign in
 					</Link>
 				</p>
 			</div>
 		</form>
+		</>
 	);
 }

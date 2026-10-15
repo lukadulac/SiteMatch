@@ -52,7 +52,10 @@ const ALLOWED = { allowed: true, retryAfterSeconds: 0 };
 const BLOCKED = { allowed: false, retryAfterSeconds: 900 };
 
 function arrangeSupabase(auth: AuthStubOptions = {}) {
-	const stub = createSupabaseStub({}, auth);
+	const stub = createSupabaseStub({}, {
+		...auth,
+		user: auth.user ? { email_confirmed_at: "2026-10-01T12:00:00Z", ...auth.user } : auth.user,
+	});
 
 	vi.mocked(createSupabaseServerClient).mockResolvedValue(stub.client);
 
@@ -102,6 +105,7 @@ function registerForm(overrides: Record<string, string | string[]> = {}) {
 }
 
 beforeEach(() => {
+	vi.stubEnv("NEXT_PUBLIC_SITE_URL", "http://localhost:3000");
 	vi.mocked(checkAuthRateLimit).mockResolvedValue(ALLOWED);
 	vi.mocked(recordAuthRateLimitAttempt).mockResolvedValue(ALLOWED);
 	vi.mocked(resetAuthRateLimit).mockResolvedValue(undefined);
@@ -109,6 +113,13 @@ beforeEach(() => {
 });
 
 describe("loginAction", () => {
+	it("signs an unverified session out before provisioning or redirecting", async () => {
+		const stub = arrangeSupabase({ user: stubUser({ email_confirmed_at: undefined }) });
+		const state = await loginAction(initialAuthActionState, loginForm({ next: "/jobs/123" }));
+		expect(state.verificationRequired).toBe(true);
+		expect(stub.callKeys()).toContain("auth.signOut");
+		expect(ensureUserProfile).not.toHaveBeenCalled();
+	});
 	it("reports an invalid email without touching the database", async () => {
 		const stub = arrangeSupabase();
 
@@ -371,14 +382,31 @@ describe("registerAction", () => {
 		const state = await registerAction(initialAuthActionState, registerForm());
 
 		expect(state.formSuccess).toMatch(/confirm your email/i);
+		expect(state.verificationRequired).toBe(true);
 		expect(state.fields).toEqual({ email: "ana@example.com" });
+		expect(ensureUserProfile).not.toHaveBeenCalled();
+	});
+
+	it("sends a trusted confirmation callback with a safe return destination", async () => {
+		const stub = arrangeSupabase({ signUp: { data: { user: { id: "user-1" }, session: null } } });
+		await registerAction(initialAuthActionState, registerForm({ next: "/find-talent/123" }));
+		expect(stub.callsFor("auth.signUp")[0]?.payload).toMatchObject({
+			options: { emailRedirectTo: "http://localhost:3000/auth/confirm?next=%2Ffind-talent%2F123" },
+		});
+	});
+
+	it("rejects an unverified signup session before provisioning", async () => {
+		const stub = arrangeSupabase({ signUp: { data: { user: { id: "user-1" }, session: { access_token: "token" } } } });
+		const state = await registerAction(initialAuthActionState, registerForm());
+		expect(state.verificationRequired).toBe(true);
+		expect(stub.callKeys()).toContain("auth.signOut");
 		expect(ensureUserProfile).not.toHaveBeenCalled();
 	});
 
 	it("provisions the profile and lands the user on their dashboard", async () => {
 		arrangeSupabase({
 			signUp: {
-				data: { user: { id: "user-1" }, session: { access_token: "token" } },
+				data: { user: { id: "user-1", email_confirmed_at: "2026-10-01T12:00:00Z" }, session: { access_token: "token" } },
 			},
 		});
 
@@ -393,7 +421,7 @@ describe("registerAction", () => {
 	it("signs the half-created account out when provisioning fails", async () => {
 		const stub = arrangeSupabase({
 			signUp: {
-				data: { user: { id: "user-1" }, session: { access_token: "token" } },
+				data: { user: { id: "user-1", email_confirmed_at: "2026-10-01T12:00:00Z" }, session: { access_token: "token" } },
 			},
 		});
 		vi.mocked(ensureUserProfile).mockResolvedValue({ error: "column missing" });

@@ -34,6 +34,7 @@ export type AuthStubOptions = {
 	user?: Partial<User> | null;
 	getSession?: StubResponse;
 	signUp?: { data?: unknown; error?: { message: string } | null };
+	resend?: { data?: unknown; error?: { message: string } | null };
 	signInWithPassword?: {
 		data?: { user?: Partial<User> | null; session?: unknown };
 		error?: { message: string } | null;
@@ -203,15 +204,20 @@ export function createSupabaseStub(
 			}),
 			getSession: async () =>
 				auth.getSession ?? { data: { session: null }, error: null },
-			signUp: async () => {
+			signUp: async (payload: unknown) => {
 				calls.push({
 					key: "auth.signUp",
 					table: "auth",
 					operation: "signUp",
+					payload,
 					filters: [],
 				});
 
 				return auth.signUp ?? { data: { user: null, session: null }, error: null };
+			},
+			resend: async (payload: unknown) => {
+				calls.push({ key: "auth.resend", table: "auth", operation: "resend", payload, filters: [] });
+				return auth.resend ?? { data: {}, error: null };
 			},
 			signInWithPassword: async () => {
 				calls.push({

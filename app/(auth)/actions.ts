@@ -18,6 +18,7 @@ import {
 } from "@/lib/auth/rate-limit";
 import { getSafeReturnPath } from "@/lib/auth/return-url";
 import { getDashboardPath } from "@/lib/auth/roles";
+import { getEmailConfirmationUrl } from "@/lib/auth/site-url";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const passwordSchema = z
@@ -260,6 +261,7 @@ export async function registerAction(
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
+        emailRedirectTo: getEmailConfirmationUrl(getStringValue(formData, "next")),
         data: {
           full_name: parsed.data.full_name,
           email: parsed.data.email,
@@ -306,11 +308,23 @@ export async function registerAction(
       return {
         formError: undefined,
         formSuccess:
-          "Your account was created. Please confirm your email, then log in.",
+          "Check your inbox to confirm your email, then sign in.",
+        verificationRequired: true,
+        resendAfter: Date.now() + 60_000,
         fieldErrors: {},
         fields: {
           email: parsed.data.email,
         },
+      };
+    }
+
+    if (!authData.user.email_confirmed_at) {
+      await supabase.auth.signOut({ scope: "local" });
+      return {
+        verificationRequired: true,
+        formError: "Confirm your email before signing in.",
+        fieldErrors: {},
+        fields: { email: parsed.data.email },
       };
     }
 
@@ -437,6 +451,16 @@ export async function loginAction(
     return {
       formError: "Your session could not be established. Please try again.",
       formSuccess: undefined,
+      fieldErrors: {},
+      fields,
+    };
+  }
+
+  if (!user.email_confirmed_at) {
+    await supabase.auth.signOut({ scope: "local" });
+    return {
+      formError: "Confirm your email before signing in.",
+      verificationRequired: true,
       fieldErrors: {},
       fields,
     };

@@ -4,11 +4,12 @@ import { getSafeReturnPath } from "@/lib/auth/return-url";
 type LoginPageProps = {
 	searchParams: Promise<{
 		next?: string | string[];
+		confirmed?: string | string[];
 	}>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-	const { next } = await searchParams;
+	const { next, confirmed } = await searchParams;
 	const safeNext = getSafeReturnPath(next);
 
 	return (
@@ -24,6 +25,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 			</p>
 
 			<section>
+				{confirmed === "1" ? <p role="status" className="mx-auto my-4 max-w-112.5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">Your email is confirmed. Sign in to continue.</p> : null}
 				<LoginForm next={safeNext} />
 			</section>
 		</section>
