@@ -27,7 +27,7 @@ describe("ensureUserProfile", () => {
 	});
 
 	it("refuses to provision an account whose metadata has no valid role", async () => {
-		for (const role of [undefined, "", "superuser"]) {
+		for (const role of [undefined, "", "superuser", "admin"]) {
 			const stub = createSupabaseStub({ "profiles.select": { data: null } });
 
 			const result = await ensureUserProfile(stub.client, user({ role }));
@@ -306,16 +306,15 @@ describe("ensureUserProfile", () => {
 		});
 	});
 
-	it("provisions an admin without a role-specific profile row", async () => {
+	it("recognises an existing admin profile without provisioning from metadata", async () => {
 		const stub = createSupabaseStub({
-			"profiles.select": { data: null },
-			"profiles.upsert": {},
+			"profiles.select": { data: { role: "admin" } },
 		});
 
 		const result = await ensureUserProfile(stub.client, user({ role: "admin" }));
 
 		expect(result).toEqual({ role: "admin" });
-		expect(stub.callKeys()).toEqual(["profiles.select", "profiles.upsert"]);
+		expect(stub.callKeys()).toEqual(["profiles.select"]);
 	});
 
 	it("surfaces a failure from the role-specific upsert", async () => {

@@ -183,60 +183,9 @@ const clientProfileSchema = profileSchema
 				"Company size can only contain letters, numbers, spaces, plus signs, commas, slashes, and hyphens.",
 		}),
 	})
-	.and(clientProfileInputSchema)
-	.superRefine((data, ctx) => {
-		if (!data.phone) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["phone"],
-				message: "Phone is required.",
-			});
-		}
+	.and(clientProfileInputSchema);
 
-		if (!data.country) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["country"],
-				message: "Country is required.",
-			});
-		}
-
-		if (!data.city) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["city"],
-				message: "City is required.",
-			});
-		}
-	});
-
-const providerProfileSchema = profileSchema
-	.and(providerProfileInputSchema)
-	.superRefine((data, ctx) => {
-		if (!data.phone) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["phone"],
-				message: "Phone is required.",
-			});
-		}
-
-		if (!data.country) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["country"],
-				message: "Country is required.",
-			});
-		}
-
-		if (!data.city) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["city"],
-				message: "City is required.",
-			});
-		}
-	});
+const providerProfileSchema = profileSchema.and(providerProfileInputSchema);
 
 const adminProfileSchema = profileSchema;
 

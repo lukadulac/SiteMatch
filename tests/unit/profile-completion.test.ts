@@ -24,27 +24,14 @@ describe("isClientProfileComplete", () => {
 		expect(isClientProfileComplete(null)).toBe(false);
 	});
 
-	it("rejects blank or whitespace-only required fields", () => {
+	it("requires a business or personal name but not discovery preferences", () => {
 		expect(isClientProfileComplete(completeProfile({ business_name: "" }))).toBe(
 			false,
 		);
 		expect(
 			isClientProfileComplete(completeProfile({ business_name: "   " })),
 		).toBe(false);
-		expect(isClientProfileComplete(completeProfile({ project_idea: null }))).toBe(
-			false,
-		);
-		expect(isClientProfileComplete(completeProfile({ business_type: null }))).toBe(
-			false,
-		);
-	});
-
-	it("rejects an empty solution type list", () => {
-		expect(
-			isClientProfileComplete(
-				completeProfile({ interested_solution_types: [] }),
-			),
-		).toBe(false);
+		expect(isClientProfileComplete(completeProfile({ project_idea: null, business_type: null, interested_solution_types: [] }))).toBe(true);
 	});
 
 	it("requires the paired text whenever 'other' is chosen", () => {

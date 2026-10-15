@@ -66,16 +66,17 @@ function requiredText(
     });
 }
 
-const requiredPhone = z
+const optionalPhone = z
   .string()
   .transform(normalizeWhitespace)
-  .pipe(
-    z
-      .string()
-      .min(7, "Phone is required.")
-      .max(20, "Phone must be 20 characters or fewer."),
-  )
+  .transform((value) => value === "" ? null : value)
   .superRefine((value, ctx) => {
+    if (value === null) return;
+
+    if (value.length > 20) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Phone must be 20 characters or fewer." });
+    }
+
     if (!phonePattern.test(value)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -94,6 +95,17 @@ const requiredPhone = z
     }
   });
 
+function optionalPlace(label: string) {
+  return z.string().transform(normalizeWhitespace)
+    .transform((value) => value === "" ? null : value)
+    .superRefine((value, ctx) => {
+      if (value === null) return;
+      if (value.length < 2 || value.length > 56 || !placeNamePattern.test(value)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Enter a valid ${label.toLowerCase()}.` });
+      }
+    });
+}
+
 const accountSchema = z.object({
   full_name: requiredText("Full name", {
     min: 2,
@@ -103,21 +115,9 @@ const accountSchema = z.object({
       "Full name can only contain letters, spaces, apostrophes, periods, and hyphens.",
   }),
   email: z.string().trim().email("Enter a valid email address."),
-  phone: requiredPhone,
-  country: requiredText("Country", {
-    min: 2,
-    max: 56,
-    pattern: placeNamePattern,
-    patternMessage:
-      "Country can only contain letters, spaces, apostrophes, periods, and hyphens.",
-  }),
-  city: requiredText("City", {
-    min: 2,
-    max: 56,
-    pattern: placeNamePattern,
-    patternMessage:
-      "City can only contain letters, spaces, apostrophes, periods, and hyphens.",
-  }),
+  phone: optionalPhone,
+  country: optionalPlace("Country"),
+  city: optionalPlace("City"),
   password: passwordSchema,
 });
 

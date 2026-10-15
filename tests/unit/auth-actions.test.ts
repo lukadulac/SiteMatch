@@ -323,6 +323,23 @@ describe("registerAction", () => {
 		expect(state.fieldErrors).toHaveProperty("password");
 	});
 
+	it("accepts registration without optional contact and profile details", async () => {
+		arrangeSupabase({
+			signUp: { data: { user: { id: "user-1" }, session: null } },
+		});
+
+		const state = await registerAction(initialAuthActionState, registerForm({
+			phone: "",
+			country: "",
+			city: "",
+			business_type: "",
+			project_idea: "",
+			interested_solution_types: [],
+		}));
+
+		expect(state.formSuccess).toMatch(/confirm your email/i);
+	});
+
 	it("blocks a rate-limited signup before creating an account", async () => {
 		vi.mocked(recordAuthRateLimitAttempt).mockResolvedValue(BLOCKED);
 		const stub = arrangeSupabase();

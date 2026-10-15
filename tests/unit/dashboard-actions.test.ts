@@ -97,15 +97,14 @@ describe("updateClientProfileAction", () => {
 		expect(state.formError).toMatch(/signed in/i);
 	});
 
-	it("requires contact details that the signup form also demands", async () => {
+	it("allows optional contact details to be cleared", async () => {
 		const state = await updateClientProfileAction(
 			EMPTY_STATE,
 			clientProfileForm({ phone: "", country: "", city: "" }),
 		);
 
-		expect(state.fieldErrors).toHaveProperty("phone");
-		expect(state.fieldErrors).toHaveProperty("country");
-		expect(state.fieldErrors).toHaveProperty("city");
+		expect(state.fieldErrors).toEqual({});
+		expect(state.formSuccess).toBeTruthy();
 	});
 
 	it("rejects a phone number with too few digits", async () => {
@@ -197,20 +196,20 @@ describe("updateProviderProfileAction", () => {
 		expect(state.formError).toMatch(/signed in/i);
 	});
 
-	it("applies the provider-type tax id rule", async () => {
+	it("accepts an agency without a tax ID and a global identifier", async () => {
 		const missing = await updateProviderProfileAction(
 			EMPTY_STATE,
 			providerProfileForm({ provider_type: "agency" }),
 		);
 
-		expect(missing.fieldErrors).toHaveProperty("tax_id");
+		expect(missing.fieldErrors).toEqual({});
 
-		const forbidden = await updateProviderProfileAction(
+		const withId = await updateProviderProfileAction(
 			EMPTY_STATE,
-			providerProfileForm({ tax_id: "12345678" }),
+			providerProfileForm({ tax_id: "GB123456789" }),
 		);
 
-		expect(forbidden.fieldErrors).toHaveProperty("tax_id");
+		expect(withId.fieldErrors).toEqual({});
 	});
 
 	it("writes the contact details and the provider profile", async () => {

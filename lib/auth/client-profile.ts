@@ -86,33 +86,22 @@ export const clientSolutionTypeLabels: Record<
 export const clientBusinessTypeSchema = z.enum(clientBusinessTypes);
 export const clientSolutionTypeSchema = z.enum(clientSolutionTypes);
 
-const pibPattern = /^[0-9]{8,12}$/;
-
 export const clientProfileInputSchema = z
   .object({
     business_name: requiredText(2, 100, "Business name is required."),
-    business_tax_id: z
-      .string()
-      .trim()
-      .transform((value) => (value === "" ? null : value))
-      .nullable()
-      .optional()
-      .refine((value) => value == null || pibPattern.test(value), {
-        message: "PIB must contain 8 to 12 digits.",
-      }),
-    business_type: clientBusinessTypeSchema,
+    business_tax_id: optionalText(60),
+    business_type: z.preprocess(
+      (value) => value === "" ? null : value,
+      clientBusinessTypeSchema.nullable().optional(),
+    ),
     business_type_text: optionalText(80),
-    project_idea: requiredText(
-      20,
-      2000,
-      "Project idea must be at least 20 characters long.",
+    project_idea: optionalText(2000).refine(
+      (value) => value == null || value.length >= 20,
+      { message: "Project idea must be at least 20 characters long." },
     ),
     interested_solution_types: z
       .array(clientSolutionTypeSchema)
-      .max(8)
-      .refine((value) => value.length > 0, {
-        message: "Choose at least one digital solution type.",
-      }),
+      .max(8),
     interested_solution_other_text: optionalText(120),
   })
   .superRefine((value, ctx) => {

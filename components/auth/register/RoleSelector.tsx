@@ -2,32 +2,32 @@ import Image from "next/image";
 import type { RegisterRole } from "@/components/auth/register/RegisterForm";
 
 type RoleSelectorProps = {
-	selectedRole: RegisterRole;
+	selectedRole: RegisterRole | null;
 	onRoleChange: (role: RegisterRole) => void;
+	error?: string;
 };
 
 export default function RoleSelector({
 	selectedRole,
 	onRoleChange,
+	error,
 }: RoleSelectorProps) {
 	const isClientSelected = selectedRole === "client";
 	const isProviderSelected = selectedRole === "provider";
 
 	return (
-		<fieldset>
-			<legend className="mb-4 block text-sm font-medium">I want to:</legend>
+		<fieldset aria-invalid={Boolean(error)} aria-describedby={error ? "role-error" : undefined}>
+			<legend className="mb-4 block text-sm font-medium">I want to: <span className="text-xs font-semibold text-red-700">Required</span></legend>
 
 			<div className="grid gap-4 md:grid-cols-2">
-				<button
-					type="button"
-					aria-pressed={isClientSelected}
-					onClick={() => onRoleChange("client")}
+				<label
 					className={`relative rounded-xl border-2 p-6 text-left transition-all md:mb-4 ${
 						isClientSelected
 							? "border-pink-500 bg-foreground/5"
 							: "border-gray-400 hover:border-muted-foreground/50"
 					}`}
 				>
+					<input type="radio" name="role" value="client" checked={isClientSelected} onChange={() => onRoleChange("client")} className="sr-only peer" required />
 					<div className="mb-3 flex items-start justify-between">
 						<div
 							className={`rounded-lg p-3 ${
@@ -68,18 +68,16 @@ export default function RoleSelector({
 					<p className="text-sm text-muted">
 						(If you are a client with an idea, select this field)
 					</p>
-				</button>
+				</label>
 
-				<button
-					type="button"
-					aria-pressed={isProviderSelected}
-					onClick={() => onRoleChange("provider")}
+				<label
 					className={`relative mb-4 rounded-xl border-2 p-6 text-left transition-all ${
 						isProviderSelected
 							? "border-pink-500 bg-foreground/5"
 							: "border-gray-400 hover:border-muted-foreground/50"
 					}`}
 				>
+					<input type="radio" name="role" value="provider" checked={isProviderSelected} onChange={() => onRoleChange("provider")} className="sr-only peer" required />
 					<div className="mb-3 flex items-start justify-between">
 						<div
 							className={`rounded-lg p-3 ${
@@ -120,8 +118,9 @@ export default function RoleSelector({
 					<p className="text-sm text-muted">
 						(If you&apos;re a provider, select this field)
 					</p>
-				</button>
+				</label>
 			</div>
+			{error ? <p id="role-error" className="text-sm font-medium text-red-700">{error}</p> : null}
 		</fieldset>
 	);
 }

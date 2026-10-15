@@ -10,6 +10,7 @@ import {
 	type RegisterFieldErrors,
 	type RegisterFormFields,
 } from "@/components/auth/register/RegisterForm";
+import { FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 
 type ClientFieldsProps = {
 	errors?: RegisterFieldErrors;
@@ -49,12 +50,14 @@ export default function ClientFields({
 			<hr className="border-gray-400 mx-auto my-2" />
 			<div className="flex flex-col gap-2 md:flex-row md:gap-4">
 				<div className="flex flex-col gap-2 my-2 w-full md:max-w-[50%]">
-					<label htmlFor="business_name">Business name</label>
+					<FieldLabel htmlFor="business_name" required>Business or personal name</FieldLabel>
 					<input
 						id="business_name"
 						name="business_name"
 						type="text"
-						className="border w-full rounded-2xl p-2.5  placeholder:pl-2"
+						className={fieldClass(fieldError(errors, "business_name"))}
+						required
+						aria-invalid={Boolean(getError(errors, "business_name"))}
 						placeholder="Your Company Inc."
 						defaultValue={getRegisterFieldValue(fields, "business_name")}
 					/>
@@ -64,12 +67,12 @@ export default function ClientFields({
 				</div>
 
 				<div className="flex flex-col gap-2 my-2 w-full md:max-w-[50%]">
-					<label htmlFor="business_tax_id">Business tax ID</label>
+					<FieldLabel htmlFor="business_tax_id">Business registration ID</FieldLabel>
 					<input
 						id="business_tax_id"
 						name="business_tax_id"
 						type="text"
-						className="border w-full rounded-2xl p-2.5  placeholder:pl-2"
+						className={fieldClass(fieldError(errors, "business_tax_id"))}
 						placeholder="123456"
 						defaultValue={getRegisterFieldValue(fields, "business_tax_id")}
 					/>
@@ -80,16 +83,16 @@ export default function ClientFields({
 			</div>
 
 			<div className="flex flex-col gap-2 my-2 w-full md:max-w[50%]">
-				<label htmlFor="business_type">Business type</label>
+				<FieldLabel htmlFor="business_type">Business type</FieldLabel>
 				<select
 						id="business_type"
 						name="business_type"
 						value={businessType}
 						onChange={(event) => setBusinessType(event.target.value)}
-					className="border w-full rounded-2xl p-2.5  placeholder:pl-2"
+					className={fieldClass(fieldError(errors, "business_type"))}
 				>
-					<option value="" disabled>
-						Select a business type
+					<option value="">
+						Not specified
 					</option>
 					{clientBusinessTypes.map((type) => (
 						<option key={type} value={type}>
@@ -104,13 +107,14 @@ export default function ClientFields({
 
 			{businessType === "other" ? (
 				<div className="flex flex-col gap-2 my-2 w-full">
-					<label htmlFor="business_type_text">Other business type</label>
+					<FieldLabel htmlFor="business_type_text" required>Other business type</FieldLabel>
 					<input
 						id="business_type_text"
 						name="business_type_text"
 						type="text"
-						className="border w-full rounded-2xl p-2.5  placeholder:pl-2"
-						placeholder="Tell us your bussiness type"
+						className={fieldClass(fieldError(errors, "business_type_text"))}
+						required
+						placeholder="Describe your business type"
 						defaultValue={getRegisterFieldValue(fields, "business_type_text")}
 					/>
 					{getError(errors, "business_type_text") ? (
@@ -120,12 +124,12 @@ export default function ClientFields({
 			) : null}
 
 			<div className="flex flex-col gap-2 my-2 w-full md:max-w[50%]">
-				<label htmlFor="project_idea">Project idea</label>
+				<FieldLabel htmlFor="project_idea">Project idea</FieldLabel>
 				<textarea
 					id="project_idea"
 					name="project_idea"
 					rows={5}
-					className="border w-full rounded-2xl p-2.5  placeholder:pl-2"
+					className={fieldClass(fieldError(errors, "project_idea"))}
 					placeholder="Tell us about your project and what you're looking to build..."
 					defaultValue={getRegisterFieldValue(fields, "project_idea")}
 				/>
@@ -135,7 +139,7 @@ export default function ClientFields({
 			</div>
 
 			<fieldset className="mt-4">
-				<h3 className="font-semibold">Interested solution types</h3>
+				<legend className="flex w-full justify-between gap-2 font-semibold">Interested solution types <span className="text-xs font-normal text-secondary">Optional</span></legend>
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 mt-2">
 					{clientSolutionTypes.map((type) => (
 						<label
@@ -162,14 +166,13 @@ export default function ClientFields({
 
 			{selectedSolutions.includes("other") ? (
 				<div className="flex flex-col gap-2 my-2">
-					<label htmlFor="interested_solution_other_text">
-						Other solution type
-					</label>
+					<FieldLabel htmlFor="interested_solution_other_text" required>Other solution type</FieldLabel>
 					<input
 						id="interested_solution_other_text"
 						name="interested_solution_other_text"
 						type="text"
-						className="border border-gray-500 w-full rounded-xl p-3"
+						className={fieldClass(fieldError(errors, "interested_solution_other_text"))}
+						required
 						placeholder="Tell us your other interested solution type"
 						defaultValue={getRegisterFieldValue(
 							fields,

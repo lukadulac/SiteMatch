@@ -16,18 +16,6 @@ function optionalText(max: number) {
 		});
 }
 
-const requiredUrl = z
-	.string()
-	.trim()
-	.refine((value) => {
-		try {
-			const parsed = new URL(value);
-			return parsed.protocol === "http:" || parsed.protocol === "https:";
-		} catch {
-			return false;
-		}
-	}, "Enter a valid URL.");
-
 const optionalUrl = z
 	.string()
 	.trim()
@@ -110,25 +98,16 @@ export const providerServiceCategoryLabels: Record<
 export const providerTypeSchema = z.enum(providerTypes);
 export const providerServiceCategorySchema = z.enum(providerServiceCategories);
 
-const pibPattern = /^[0-9]{8,12}$/;
-
 export const providerProfileInputSchema = z
 	.object({
 		provider_type: providerTypeSchema,
-		tax_id: z
-			.string()
-			.trim()
-			.transform((value) => (value === "" ? null : value))
-			.nullable()
-			.optional()
-			.refine((value) => value == null || pibPattern.test(value), {
-				message: "PIB must contain 8 to 12 digits.",
-			}),
-		years_of_experience: z.coerce
-			.number()
-			.int("Years of experience must be a whole number.")
-			.min(0, "Years of experience cannot be negative."),
-		portfolio_url: requiredUrl,
+		tax_id: optionalText(60),
+		years_of_experience: z.preprocess(
+			(value) => value === "" || value == null ? null : value,
+			z.coerce.number().int("Years of experience must be a whole number.")
+				.min(0, "Years of experience cannot be negative.").nullable(),
+		),
+		portfolio_url: optionalUrl,
 		social_link: optionalUrl,
 		service_categories: z
 			.array(providerServiceCategorySchema)
@@ -140,32 +119,6 @@ export const providerProfileInputSchema = z
 		about: optionalText(3000),
 	})
 	.superRefine((value, ctx) => {
-		if (
-			(value.provider_type === "agency" ||
-				value.provider_type === "company" ||
-				value.provider_type === "studio") &&
-			!value.tax_id
-		) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["tax_id"],
-				message: "PIB is required for agencies, companies, and studios.",
-			});
-		}
-
-		if (
-			value.provider_type !== "agency" &&
-			value.provider_type !== "company" &&
-			value.provider_type !== "studio" &&
-			value.tax_id
-		) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["tax_id"],
-				message: "PIB is only allowed for agencies, companies, and studios.",
-			});
-		}
-
 		if (
 			value.service_categories.includes("other") &&
 			!value.service_category_other_text
