@@ -6,7 +6,7 @@ Depends on: schema-baseline. Shared rules: [SPEC.md](../SPEC.md).
 
 The production schema lets signed-in users do things the app never intended. The worst is that any signed-in user can make themselves an admin, and `is_admin()` then opens every admin policy on every table. This module closes those holes without changing what the app legitimately does, and sets up pgTAP so every later policy and RPC is tested against the real database.
 
-Ship it in the same PR as `schema-baseline`, so production gets the fix as soon as possible.
+It lands on `feat/daddy-is-here` right after `schema-baseline`. A person can merge the branch at the security checkpoint so production gets the fix without waiting for later modules.
 
 ## Findings (from the production dump, 2026-10-16)
 

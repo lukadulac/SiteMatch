@@ -21,7 +21,7 @@ Shared doc (the version the team reads and comments on): https://claude.ai/code/
 - **Account deletion anonymises, then deletes the login.** The `profiles.id` → `auth.users` cascade is dropped so the anonymised profile and the other side's history survive.
 - **Matching v1 scores on read.** Pure, unit-tested `scoreMatch` in `lib/matching/score.ts`; the `matches` table waits.
 - **Password reset gets its own callback** (`app/auth/recovery/route.ts`); `app/auth/confirm/route.ts` keeps rejecting all but signup tokens.
-- **One branch per module**, started from the previous module's branch; PRs merged in build order.
+- **One branch for everything.** Every task lands on `feat/daddy-is-here`, one commit per task, in build order. A person pushes it and opens the PR; after merge they run each merged module's production steps in build order.
 - Out of scope: payments, avatar/portfolio uploads, inviting a suggested provider, client-confirmed completion, renaming `/oglasi` routes.
 
 ## Task List
@@ -34,7 +34,7 @@ Shared doc (the version the team reads and comments on): https://claude.ai/code/
 - [ ] Task S4: Secure the accept RPC, guard brief status, drop duplicate policies — `security-hardening`
 
 ### Checkpoint: Security hardening
-- [ ] Every finding has a passing pgTAP test; branch ready for a person to push, open the PR and, after merge, run the production steps
+- [ ] Every finding has a passing pgTAP test. A person can push and merge the branch here so production gets the fix without waiting for later modules; work continues on the same branch either way
 
 - [ ] Task 2: CI workflow on pull requests — `ci`
 - [ ] Task 3: Forgot-password request page — `password-reset`

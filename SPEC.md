@@ -43,7 +43,7 @@ Module ids are stable; never rename one.
 | Account deletion | Anonymise app data, then delete the auth user with the service-role key (server only) | account |
 | "Enterprise" nav item | Removed | polish |
 | Landing page design | No Figma; follows the existing UI | polish |
-| Branching | One branch per module, started from the previous module's branch; PRs merged in build order | all |
+| Branching | Every task on one branch, `feat/daddy-is-here`, one commit per task in build order; no per-module branches. A person pushes it and opens the PR. | all |
 | Where work happens | Only on this machine: code, the local Supabase stack, Docker. Nothing is pushed, deployed or sent to an outside service. Production steps are done by a person after merge to `main`. | all |
 | RLS and RPC tests | pgTAP tests run by `supabase test db` (no new npm dependency) | security-hardening onward |
 
@@ -76,7 +76,7 @@ Local DB stop:  npx supabase stop
 Local mail:     http://127.0.0.1:54324           # Mailpit, catches auth emails
 ```
 
-Production only, by a person, after the module is merged to `main`: `npx supabase migration repair …` (once, for the baseline) and `npx supabase db push`. Each module spec lists its post-merge steps; the build workflow never runs them.
+Production only, by a person, after the branch is merged to `main`: `npx supabase migration repair …` (once, for the baseline) and `npx supabase db push`. Each module spec lists its post-merge steps; the build workflow never runs them.
 
 Local setup that keeps work on this machine: `.env.local` points the app at the local stack (`.env` points at production), and Next.js and Supabase CLI telemetry are disabled (`npx next telemetry disable`, `npx supabase telemetry disable`).
 
@@ -208,7 +208,7 @@ Conventions:
 - Every module's success criteria in `spec/` are met and checked off in `tasks/todo.md`.
 - CI is required on `main` and green.
 - A fresh local database built from migrations passes `npx supabase test db` and the full hire flow for both flows.
-- After each merge, the module's production steps are done and production matches the migrations.
+- After merge, every merged module's production steps are done in build order and production matches the migrations.
 - No known critical security issue is open.
 
 ## Open Questions

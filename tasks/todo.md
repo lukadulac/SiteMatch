@@ -118,7 +118,7 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 ## Checkpoint: Security hardening
 - [ ] Every finding in `spec/security-hardening.md` has a passing pgTAP test
-- [ ] Ready for a person to push and open the PR for schema-baseline + security-hardening; after merge, they run its production steps
+- [ ] A person can push `feat/daddy-is-here` and merge it here so production gets the fix early, then run the schema-baseline and security-hardening production steps; work continues on the same branch either way
 
 ## Task 2: CI workflow on pull requests
 
