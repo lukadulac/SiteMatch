@@ -17,7 +17,7 @@ Tasks 13–15 in `tasks/todo.md`.
 - **Email through Resend** (`resend` npm package, pre-approved). The dispatcher is server-only code using a service-role Supabase client (`lib/supabase/admin.ts`, `import "server-only"`), because it reads other users' notifications. It runs right after the action that created the notification, and a scheduled sweep (Vercel Cron calling a route protected by `CRON_SECRET`) sends anything left unsent, as often as the Vercel plan allows.
 - Each email sets `emailed_at`; a failed send leaves it null for the sweep to retry.
 - **Opt-out:** `profiles.email_notifications` (default on), editable on the profile page. The in-app notifications always appear.
-- Without `RESEND_API_KEY` (local development), the dispatcher logs the email instead of sending it.
+- Without `RESEND_API_KEY` (local development), the dispatcher logs the email instead of sending it. No real key is ever set on this machine; tests mock the Resend client.
 - Resend also becomes Supabase Auth's SMTP in production, lifting the built-in mailer's limits for confirmation and reset emails.
 - New environment variables, approved by this spec: `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `EMAIL_FROM`. None are `NEXT_PUBLIC_`.
 

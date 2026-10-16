@@ -34,7 +34,7 @@ Shared doc (the version the team reads and comments on): https://claude.ai/code/
 - [ ] Task S4: Secure the accept RPC, guard brief status, drop duplicate policies — `security-hardening`
 
 ### Checkpoint: Security hardening
-- [ ] Every finding has a passing pgTAP test; PR for schema-baseline + security-hardening opened, merged, production steps done
+- [ ] Every finding has a passing pgTAP test; branch ready for a person to push, open the PR and, after merge, run the production steps
 
 - [ ] Task 2: CI workflow on pull requests — `ci`
 - [ ] Task 3: Forgot-password request page — `password-reset`

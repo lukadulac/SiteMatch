@@ -44,7 +44,7 @@ Module ids are stable; never rename one.
 | "Enterprise" nav item | Removed | polish |
 | Landing page design | No Figma; follows the existing UI | polish |
 | Branching | One branch per module, started from the previous module's branch; PRs merged in build order | all |
-| Database work | Local only; production changes only after merge to `main` | all |
+| Where work happens | Only on this machine: code, the local Supabase stack, Docker. Nothing is pushed, deployed or sent to an outside service. Production steps are done by a person after merge to `main`. | all |
 | RLS and RPC tests | pgTAP tests run by `supabase test db` (no new npm dependency) | security-hardening onward |
 
 ## Tech Stack
@@ -76,7 +76,9 @@ Local DB stop:  npx supabase stop
 Local mail:     http://127.0.0.1:54324           # Mailpit, catches auth emails
 ```
 
-Production only, by a person, after the module is merged to `main`: `npx supabase migration repair …` (once, for the baseline) and `npx supabase db push`. Each module spec lists its post-merge steps.
+Production only, by a person, after the module is merged to `main`: `npx supabase migration repair …` (once, for the baseline) and `npx supabase db push`. Each module spec lists its post-merge steps; the build workflow never runs them.
+
+Local setup that keeps work on this machine: `.env.local` points the app at the local stack (`.env` points at production), and Next.js and Supabase CLI telemetry are disabled (`npx next telemetry disable`, `npx supabase telemetry disable`).
 
 ## Project Structure
 
@@ -185,7 +187,7 @@ Conventions:
 - Change the schema only through a new migration, then regenerate `types/supabase.ts` and add pgTAP tests.
 - Validate user input with zod at the action boundary; enforce permissions in RLS or RPCs, not only in the UI.
 - Write `security definer` functions with `set search_path = ''`, an `auth.uid()` check, and `revoke … from public` + `grant execute … to authenticated`.
-- Work against the local Supabase stack.
+- Work against the local Supabase stack, with the app on `.env.local`.
 
 **Ask first**
 - Adding an npm dependency (`resend` is pre-approved for `notifications`).
@@ -195,12 +197,11 @@ Conventions:
 - Deleting or rewriting user data in a migration (backfills that only add rows are fine).
 
 **Never**
-- Run anything against the production Supabase project (`db push`, `migration repair`, SQL, dumps) before the change is merged to `main`.
+- Send anything off this machine: no `git push` or PRs, no deploys, no command against the remote Supabase project (`db push`, `migration repair`, SQL, dumps, `migration list` on the linked project), no real calls to outside services (email is logged locally, never sent), no publishing docs. Downloading packages and Docker images is fine.
 - Edit a migration that has been merged; add a new one instead.
 - Commit secrets or `.env*` files; expose the service-role key to the browser (no `NEXT_PUBLIC_` prefix, server-only modules).
 - Disable RLS on a table, or grant a table to `anon` without a policy that needs it.
 - Skip, delete or weaken a failing test without approval.
-- Push branches or open PRs unless asked.
 
 ## Success Criteria
 

@@ -2,7 +2,7 @@
 
 Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Plan and risks: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact/50b6acec-3076-48e1-999b-dfb79f508577
 
-**Definition of done (every task):** `npm run lint`, `npx tsc --noEmit` (`npm run typecheck` after Task 2), `npm test`, `npx supabase test db` (after S1) and `npm run build` pass; new `lib/` and action logic has Vitest tests on `tests/helpers/supabase-stub.ts`; schema changes are a new migration plus regenerated `types/supabase.ts` plus pgTAP tests for new policies and RPCs, including denied cases; all database work on the local stack only; acceptance criteria checked in the browser as client and provider. Next.js 16: read the matching guide in `node_modules/next/dist/docs/` first (AGENTS.md).
+**Definition of done (every task):** `npm run lint`, `npx tsc --noEmit` (`npm run typecheck` after Task 2), `npm test`, `npx supabase test db` (after S1) and `npm run build` pass; new `lib/` and action logic has Vitest tests on `tests/helpers/supabase-stub.ts`; schema changes are a new migration plus regenerated `types/supabase.ts` plus pgTAP tests for new policies and RPCs, including denied cases; everything stays on this machine (no push, no remote Supabase, no outside services; the app runs on `.env.local`); acceptance criteria checked in the browser as client and provider. Next.js 16: read the matching guide in `node_modules/next/dist/docs/` first (AGENTS.md).
 
 ---
 
@@ -118,7 +118,7 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 ## Checkpoint: Security hardening
 - [ ] Every finding in `spec/security-hardening.md` has a passing pgTAP test
-- [ ] Open the PR for schema-baseline + security-hardening; after merge, run its production steps
+- [ ] Ready for a person to push and open the PR for schema-baseline + security-hardening; after merge, they run its production steps
 
 ## Task 2: CI workflow on pull requests
 
@@ -132,7 +132,7 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 - [ ] Branch protection on `main` requires both jobs (repository admin)
 
 **Verification:**
-- [ ] Manual check: open a draft PR and see it pass
+- [ ] Local check: run both jobs' steps in order; they pass, and fail on a broken test or migration (a person checks the first GitHub run after pushing)
 
 **Dependencies:** None
 
