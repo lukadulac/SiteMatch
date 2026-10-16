@@ -272,9 +272,165 @@ async function profilePrivacy() {
 	});
 }
 
+async function projectFlow() {
+	const client = await signUp("flow-client", "client");
+	const provider = await signUp("flow-provider", "provider");
+	const rival = await signUp("flow-rival", "provider");
+
+	for (const [user, role] of [[client, "client"], [provider, "provider"], [rival, "provider"]]) {
+		const { error } = await provisionProfile(user, role);
+
+		if (error) {
+			throw new Error(`provisioning ${role}: ${error.message}`);
+		}
+	}
+
+	const { data: project, error: projectError } = await client.client
+		.from("projects")
+		.insert({
+			client_id: client.id,
+			title: "Flow brief",
+			slug: `flow-brief-${runId}`,
+			description: "A brief for the hire flow.",
+			status: "published",
+		})
+		.select("id")
+		.single();
+
+	if (projectError) {
+		throw new Error(`posting the brief: ${projectError.message}`);
+	}
+
+	const apply = async (user, coverMessage) => {
+		const { data, error } = await user.client
+			.from("applications")
+			.insert({ project_id: project.id, provider_id: user.id, cover_message: coverMessage, proposed_price: 1000 })
+			.select("id")
+			.single();
+
+		if (error) {
+			throw new Error(`applying: ${error.message}`);
+		}
+
+		return data.id;
+	};
+	const applicationId = await apply(provider, "Pick me");
+	const rivalApplicationId = await apply(rival, "Pick me instead");
+	const statusOf = async (id) => (await admin.from("applications").select("status").eq("id", id).single()).data.status;
+
+	await check("a provider cannot create an application that is already accepted", async () => {
+		const forger = await signUp("flow-forger", "provider");
+
+		await provisionProfile(forger, "provider");
+
+		const { error } = await forger.client.from("applications").insert({
+			project_id: project.id,
+			provider_id: forger.id,
+			cover_message: "Already accepted",
+			status: "accepted",
+		});
+
+		expectDenied(error, "forged accepted application");
+	});
+
+	await check("a client reviews an application: viewed, then shortlisted", async () => {
+		for (const status of ["viewed", "shortlisted"]) {
+			const { error } = await client.client.from("applications").update({ status }).eq("id", applicationId);
+
+			expect(!error, `${status}: ${error?.message}`);
+		}
+
+		expect((await statusOf(applicationId)) === "shortlisted", "the status was not saved");
+	});
+
+	await check("a client cannot accept, rewrite or reassign an application with a plain update", async () => {
+		const accept = await client.client.from("applications").update({ status: "accepted" }).eq("id", applicationId);
+		const rewrite = await client.client.from("applications").update({ cover_message: "Rewritten" }).eq("id", applicationId);
+		const reassign = await client.client.from("applications").update({ provider_id: rival.id }).eq("id", applicationId);
+
+		expectDenied(accept.error, "direct accept");
+		expectDenied(rewrite.error, "cover message rewrite");
+		expectDenied(reassign.error, "provider swap");
+	});
+
+	let conversationId;
+
+	await check("a client accepts an application: brief assigned, rival rejected, conversation opened", async () => {
+		const { data, error } = await client.client.rpc("accept_project_application", {
+			target_application_id: applicationId,
+		});
+
+		expect(!error, error?.message);
+		expect(data?.[0]?.application_status === "accepted", "the application was not accepted");
+
+		conversationId = data[0].conversation_id;
+
+		expect(conversationId, "no conversation was opened");
+		expect((await statusOf(rivalApplicationId)) === "rejected", "the rival application was not rejected");
+
+		const { data: assigned } = await client.client.from("projects").select("status").eq("id", project.id).single();
+
+		expect(assigned.status === "assigned", "the brief was not assigned");
+	});
+
+	await check("an outsider cannot accept an application", async () => {
+		const { error } = await rival.client.rpc("accept_project_application", { target_application_id: applicationId });
+
+		expect(error?.message === "Application not found.", `unexpected result: ${error?.message}`);
+	});
+
+	await check("participants message each other and read the conversation with names", async () => {
+		const { error } = await provider.client
+			.from("messages")
+			.insert({ conversation_id: conversationId, sender_id: provider.id, message_text: "Hello client" });
+
+		expect(!error, error?.message);
+
+		const { data, error: readError } = await client.client
+			.from("conversations")
+			.select("id, client:profiles!conversations_client_id_fkey(id, full_name, country, city), provider:profiles!conversations_provider_id_fkey(id, full_name, country, city)")
+			.eq("id", conversationId)
+			.single();
+
+		expect(!readError, readError?.message);
+		expect(data.provider.full_name === "Smoke user" && data.client.id === client.id, "the profile embeds came back empty");
+	});
+
+	await check("the recipient marks a message read, and nobody rewrites it", async () => {
+		const { data: marked, error } = await client.client
+			.from("messages")
+			.update({ is_read: true })
+			.eq("conversation_id", conversationId)
+			.neq("sender_id", client.id)
+			.eq("is_read", false)
+			.select("id");
+
+		expect(!error && marked.length === 1, `mark read: ${error?.message ?? marked.length} rows`);
+
+		const forged = await provider.client
+			.from("messages")
+			.insert({ conversation_id: conversationId, sender_id: provider.id, message_text: "Spoofed", is_read: true });
+		const rewrite = await client.client.from("messages").update({ message_text: "Rewritten" }).eq("conversation_id", conversationId);
+		const resend = await provider.client.from("messages").update({ sender_id: client.id }).eq("conversation_id", conversationId);
+
+		expectDenied(forged.error, "pre-read message insert");
+		expectDenied(rewrite.error, "message rewrite");
+		expectDenied(resend.error, "sender change");
+	});
+
+	await check("a participant bumps the conversation but cannot change who is in it", async () => {
+		const bump = await client.client.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+		const hijack = await client.client.from("conversations").update({ provider_id: rival.id }).eq("id", conversationId);
+
+		expect(!bump.error, bump.error?.message);
+		expectDenied(hijack.error, "conversation provider change");
+	});
+}
+
 try {
 	await securityHardening();
 	await profilePrivacy();
+	await projectFlow();
 } finally {
 	for (const id of createdUserIds) {
 		await admin.auth.admin.deleteUser(id);

@@ -84,18 +84,20 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** Participants may set `messages.is_read` on messages they received and bump `conversations.updated_at`, nothing else. A client may set an application's `status` to `viewed` or `shortlisted` only; accept, reject and withdraw stay in their RPCs. Column-level grants plus policy or trigger checks.
 
+**Status:** Done on `feat/daddy-is-here`. Column grants limit UPDATE to `messages.is_read`, `conversations.updated_at` and `applications.status`; the update policies were replaced (the old admin branches are gone). `accept_project_application` became `security definer` here instead of in S4: it ran as the caller and needed the client's old unrestricted update right, so S3's acceptance criterion (accept still works) forced it forward. It now authorizes before locking and only links a conversation that belongs to the application. Fresh-context review folded in: INSERT had the same holes (a provider could insert an application already `accepted`; a sender could insert a pre-read message with a forged `created_at`), so applications must be created `pending` and `messages`/`conversations` inserts are column-limited. Carried forward to S4: the insert policy "Conversations are insertable for valid service requests" lets a user pre-empt an application's conversation (`service_request_id is null` with any `application_id`); drop it when the duplicate insert policies are consolidated.
+
 **Acceptance criteria:**
-- [ ] Nobody can change a message's text or sender, or a conversation's participants or links (pgTAP)
-- [ ] A client cannot change an application's content or provider, or set statuses other than `viewed` / `shortlisted` directly (pgTAP)
-- [ ] Reading messages, sending, marking read, shortlisting, accept, reject and withdraw still work
+- [x] Nobody can change a message's text or sender, or a conversation's participants or links (pgTAP)
+- [x] A client cannot change an application's content or provider, or set statuses other than `viewed` / `shortlisted` directly (pgTAP)
+- [x] Reading messages, sending, marking read, shortlisting, accept, reject and withdraw still work
 
 **Verification:**
-- [ ] Tests pass: `npx supabase test db` and `npm test`
-- [ ] Manual check: a conversation and an application round trip
+- [x] Tests pass: `npx supabase test db` and `npm test`
+- [ ] Manual check: a conversation and an application round trip (not done: no browser here; the smoke test runs the same round trip through the API)
 
 **Dependencies:** Task S1
 
-**Files likely touched:** migration (new), `supabase/tests/database/messaging.test.sql` (new), `supabase/tests/database/applications.test.sql` (new)
+**Files likely touched:** `supabase/migrations/<date>_narrow_message_conversation_application_updates.sql` (new), `supabase/tests/database/messaging.test.sql` (new), `supabase/tests/database/applications.test.sql` (new), `scripts/smoke-local.mjs`
 
 **Estimated scope:** Medium
 
@@ -104,6 +106,8 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 **Module:** `security-hardening` ([spec](../spec/security-hardening.md))
 
 **Description:** Recreate `accept_project_application` as `security definer` with `set search_path = ''` (behaviour unchanged). A trigger stops callers acting as `authenticated` from setting a brief's status to `assigned` or `completed` directly (RPCs run as the function owner and still can). Drop the overlapping duplicate policy sets so each table has one coherent set with the same intended access.
+
+**Note:** `accept_project_application` was already made `security definer` with `set search_path = ''` in Task S3 (see there), with its pgTAP and smoke coverage; this task keeps that criterion as a regression check.
 
 **Acceptance criteria:**
 - [ ] Accept still assigns the brief, rejects the rest and opens the conversation (pgTAP and smoke test)

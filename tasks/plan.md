@@ -30,7 +30,7 @@ Shared doc (the version the team reads and comments on): https://claude.ai/code/
 - [x] Task 1: Baseline the live Supabase schema into migrations — `schema-baseline` (after merge: `migration repair` on production)
 - [x] Task S1: Lock profile roles, with a pgTAP test harness — `security-hardening`
 - [x] Task S2: Hide other users' contact and tax details — `security-hardening`
-- [ ] Task S3: Narrow message, conversation and application updates — `security-hardening`
+- [x] Task S3: Narrow message, conversation and application updates — `security-hardening`
 - [ ] Task S4: Secure the accept RPC, guard brief status, drop duplicate policies — `security-hardening`
 
 ### Checkpoint: Security hardening
