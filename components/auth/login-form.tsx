@@ -7,7 +7,7 @@ import {
 	type AuthActionState,
 } from "@/app/(auth)/action-state";
 import { loginAction } from "@/app/(auth)/actions";
-import { getRegistrationHref, getVerificationHref } from "@/lib/auth/email-verification";
+import { getForgotPasswordHref, getRegistrationHref, getVerificationHref } from "@/lib/auth/email-verification";
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
 
 function fieldError(state: AuthActionState, name: string): string | undefined {
@@ -61,6 +61,9 @@ export function LoginForm({ next }: LoginFormProps) {
 						{fieldError(state, "password") ? (
 							<p>{fieldError(state, "password")}</p>
 						) : null}
+						<Link href={getForgotPasswordHref(next)} className="self-end text-sm font-semibold text-black underline underline-offset-4">
+							Forgot password?
+						</Link>
 					</div>
 				</div>
 			</section>

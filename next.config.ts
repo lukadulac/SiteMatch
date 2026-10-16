@@ -67,6 +67,24 @@ const nextConfig: NextConfig = {
 					},
 				],
 			},
+			{
+				source: "/forgot-password",
+				headers: [
+					{
+						key: "Cache-Control",
+						value: "no-store, max-age=0",
+					},
+				],
+			},
+			{
+				source: "/reset-password",
+				headers: [
+					{
+						key: "Cache-Control",
+						value: "no-store, max-age=0",
+					},
+				],
+			},
 		];
 	},
 };

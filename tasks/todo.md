@@ -158,14 +158,16 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** "Forgot password?" link on the login form and a `/forgot-password` page whose action validates the email, checks the rate limit and calls `supabase.auth.resetPasswordForEmail` with a `redirectTo` from `getAuthSiteOrigin()` pointing at `/auth/recovery`.
 
+**Status:** Done on `feat/daddy-is-here`. The request page, action and the "Forgot password?" link are in; the recovery email's link goes to `/auth/recovery` (Task 4). Checked against the local stack over HTTP: known and unknown addresses get the same response and only the known one gets an email in Mailpit. The `no-store` header is covered by a config test; dev mode overrides cache headers, so the served header is checked on a production build in Task 5's end-to-end run.
+
 **Acceptance criteria:**
-- [ ] Known, unknown and throttled emails get the same "check your inbox" response
-- [ ] Repeat requests throttled server-side, sharing the `register_ip` budget like resend (no DB change)
-- [ ] `/forgot-password` sends `Cache-Control: no-store`
+- [x] Known, unknown and throttled emails get the same "check your inbox" response
+- [x] Repeat requests throttled server-side, sharing the `register_ip` budget like resend (no DB change)
+- [x] `/forgot-password` sends `Cache-Control: no-store`
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run tests/unit/password-reset-actions.test.ts`
-- [ ] Manual check: request a reset for a controlled test address
+- [x] Tests pass: `npx vitest run tests/unit/password-reset-actions.test.ts`
+- [x] Manual check: request a reset for a controlled test address (local stack, Mailpit)
 
 **Dependencies:** None
 

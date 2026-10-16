@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getRegistrationHref, getVerificationHref, getVerificationReturnPath } from "@/lib/auth/email-verification";
-import { getAuthSiteOrigin, getEmailConfirmationUrl } from "@/lib/auth/site-url";
+import { getForgotPasswordHref, getRegistrationHref, getVerificationHref, getVerificationReturnPath } from "@/lib/auth/email-verification";
+import { getAuthSiteOrigin, getEmailConfirmationUrl, getPasswordRecoveryUrl } from "@/lib/auth/site-url";
 
 afterEach(() => vi.unstubAllEnvs());
 
 describe("verification return paths", () => {
   it("preserves local destinations and rejects external URLs and auth loops", () => {
     expect(getVerificationReturnPath("/jobs/123?tab=details#brief")).toBe("/jobs/123?tab=details#brief");
-    for (const value of ["//evil.com", "https://evil.com", "/auth/confirm", "/auth/confirm?next=/jobs", "/verify-email", "/register", "/%61uth/confirm", "/x%2f..%2fauth%2fconfirm", "/login", null]) {
+    for (const value of ["//evil.com", "https://evil.com", "/auth/confirm", "/auth/confirm?next=/jobs", "/verify-email", "/register", "/%61uth/confirm", "/x%2f..%2fauth%2fconfirm", "/login", "/forgot-password", "/reset-password", null]) {
       expect(getVerificationReturnPath(value), String(value)).toBeNull();
     }
   });
@@ -16,6 +16,8 @@ describe("verification return paths", () => {
     expect(getVerificationHref("/jobs/123")).toBe("/verify-email?next=%2Fjobs%2F123");
     expect(getRegistrationHref("/jobs/123")).toBe("/register?next=%2Fjobs%2F123");
     expect(getVerificationHref("//evil.com")).toBe("/verify-email");
+    expect(getForgotPasswordHref("/jobs/123")).toBe("/forgot-password?next=%2Fjobs%2F123");
+    expect(getForgotPasswordHref("//evil.com")).toBe("/forgot-password");
   });
 });
 
@@ -24,6 +26,12 @@ describe("email confirmation origin", () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://staging.example.com");
     expect(getEmailConfirmationUrl("/jobs/123")).toBe("https://staging.example.com/auth/confirm?next=%2Fjobs%2F123");
     expect(getEmailConfirmationUrl("https://evil.com")).toBe("https://staging.example.com/auth/confirm?next=");
+  });
+
+  it("builds the password recovery callback URL the same way", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://staging.example.com");
+    expect(getPasswordRecoveryUrl("/jobs/123")).toBe("https://staging.example.com/auth/recovery?next=%2Fjobs%2F123");
+    expect(getPasswordRecoveryUrl("/auth/confirm")).toBe("https://staging.example.com/auth/recovery?next=");
   });
 
   it("uses the Vercel deployment URL when no explicit origin exists", () => {
