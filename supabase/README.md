@@ -10,9 +10,11 @@ against the production database until the change is merged into `main`.
 `20260901000000_baseline_schema.sql` recreates the schema production had before
 migrations were tracked, so it only ever runs on fresh databases. After it
 merges, production is marked as already having it, together with the five
-migrations that were applied there through the SQL editor:
+migrations that were applied there through the SQL editor. The repo stays
+unlinked during development, so link it first:
 
 ```
+npx supabase link --project-ref fnbpwevsubtcdnrfjjak
 npx supabase migration repair --status applied 20260901000000 20260902114500 20260910100000 20260915120000 20260925100000 20260930110000
 ```
 

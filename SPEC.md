@@ -76,9 +76,9 @@ Local DB stop:  npx supabase stop
 Local mail:     http://127.0.0.1:54324           # Mailpit, catches auth emails
 ```
 
-Production only, by a person, after the branch is merged to `main`: `npx supabase migration repair …` (once, for the baseline) and `npx supabase db push`. Each module spec lists its post-merge steps; the build workflow never runs them.
+Production only, by a person, after the branch is merged to `main`: `npx supabase link --project-ref fnbpwevsubtcdnrfjjak` (the repo stays unlinked during development), then `npx supabase migration repair …` (once, for the baseline) and `npx supabase db push`. Each module spec lists its post-merge steps; the build workflow never runs them.
 
-Local setup that keeps work on this machine: `.env.local` points the app at the local stack (`.env` points at production), and Next.js and Supabase CLI telemetry are disabled (`npx next telemetry disable`, `npx supabase telemetry disable`).
+Local setup that keeps work on this machine: `.env.local` points the app at the local stack (`.env` points at production), Next.js and Supabase CLI telemetry are disabled (`npx next telemetry disable`, `npx supabase telemetry disable`), and the Supabase project is unlinked (`npx supabase unlink`), so a command without `--local` fails instead of reaching production.
 
 ## Project Structure
 

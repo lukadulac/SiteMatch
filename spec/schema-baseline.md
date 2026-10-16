@@ -27,9 +27,10 @@ Task 1 in `tasks/todo.md`.
 
 ## Production Steps After Merge
 
-Mark the baseline and the five SQL-editor migrations as applied, so `db push` never replays them:
+Mark the baseline and the five SQL-editor migrations as applied, so `db push` never replays them. Link the project first (the repo stays unlinked during development):
 
 ```
+npx supabase link --project-ref fnbpwevsubtcdnrfjjak
 npx supabase migration repair --status applied 20260901000000 20260902114500 20260910100000 20260915120000 20260925100000 20260930110000
 ```
 
