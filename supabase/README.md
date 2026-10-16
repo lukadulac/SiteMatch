@@ -35,6 +35,29 @@ Requires Docker. The CLI is a dev dependency, so use `npx supabase`.
 After changing the schema, regenerate types with
 `npx supabase gen types typescript --local > types/supabase.ts`.
 
+## Database tests
+
+`supabase/tests/database/*.test.sql` are [pgTAP](https://pgtap.org) tests for RLS
+policies, triggers and RPCs. `npx supabase test db` runs them against the local
+database (it pulls the `pg_prove` image the first time). Each file runs in a
+transaction that rolls back, creates its own users in `auth.users`, and
+impersonates them with the `tests.act_as(user_id)` helper it defines (a role
+switch to `authenticated` plus `request.jwt.claims`, like a PostgREST request).
+Test the denied cases as well as the allowed ones.
+
+`npm run smoke` drives the same rules through the real Auth and REST API of the
+local stack, as a client would. It creates throwaway users, deletes them again
+and refuses to run against anything but a local stack.
+
+## Production steps: security hardening
+
+After the baseline repair, `npx supabase db push` applies the security
+migrations. Then check that nobody already holds an unexpected admin role:
+
+```sql
+select id, email, role, updated_at from public.profiles where role = 'admin';
+```
+
 # Email verification setup
 
 The application requires Supabase **Confirm email** to remain enabled. Supabase

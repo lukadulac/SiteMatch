@@ -38,18 +38,20 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** Set up `supabase/tests/database/` with pgTAP tests run by `npx supabase test db`, impersonating users with `set local role authenticated` plus `request.jwt.claims`. Add a migration with a `before insert or update` trigger on `profiles`: callers who aren't admins (or the service role) can't insert `role = 'admin'` or `is_active = false`, and can't change `role` or `is_active`. An upsert that repeats the same role still works.
 
+**Status:** Done on `feat/daddy-is-here`. Also added `scripts/smoke-local.mjs` (`npm run smoke`), the local smoke test later tasks extend. Fresh-context review folded in; carried forward: `is_admin()` must become `security definer` with `set search_path = ''` when Task S2 replaces the `using (true)` profiles policy (S1's guard already calls it only when a privileged column changes, so profile edits don't recurse), and Task 21 makes `is_admin()` require `is_active` and stops admins changing their own role or status.
+
 **Acceptance criteria:**
-- [ ] A user cannot insert their own profile as admin or change their own `role` / `is_active` (pgTAP, denied cases)
-- [ ] An admin can change both on any profile; provisioning and profile-form updates still succeed
-- [ ] The local smoke test reports that a client can no longer make themselves admin
+- [x] A user cannot insert their own profile as admin or change their own `role` / `is_active` (pgTAP, denied cases)
+- [x] An admin can change both on any profile; provisioning and profile-form updates still succeed
+- [x] The local smoke test reports that a client can no longer make themselves admin
 
 **Verification:**
-- [ ] Tests pass: `npx supabase test db` and `npm test`
-- [ ] Build succeeds: `npm run build`
+- [x] Tests pass: `npx supabase test db` and `npm test`
+- [x] Build succeeds: `npm run build`
 
 **Dependencies:** Task 1
 
-**Files likely touched:** `supabase/migrations/<date>_lock_profile_roles.sql` (new), `supabase/tests/database/profiles.test.sql` (new), `supabase/README.md`
+**Files likely touched:** `supabase/migrations/<date>_lock_profile_roles.sql` (new), `supabase/tests/database/profiles.test.sql` (new), `supabase/README.md`, `scripts/smoke-local.mjs` (new), `package.json`
 
 **Estimated scope:** Small
 
