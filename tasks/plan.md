@@ -20,7 +20,7 @@ Task details with acceptance criteria: `tasks/todo.md`. Keep both in sync with t
 ## Task List
 
 ### Phase 1: Foundation
-- [ ] Task 1: Baseline the live Supabase schema into migrations
+- [x] Task 1: Baseline the live Supabase schema into migrations (after merge: `migration repair` on production)
 - [ ] Task 2: CI workflow on pull requests
 - [ ] Task 3: Forgot-password request page
 - [ ] Task 4: Password recovery callback

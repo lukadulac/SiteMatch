@@ -12,15 +12,17 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 **Description:** The code calls six functions no migration defines (`accept/reject/withdraw_project_application` at `lib/projects/service.ts:946`; `auth_rate_limit_check/record_attempt/reset` in `lib/auth/rate-limit.ts`), and the base tables and RLS are missing too (the hiring migration was deleted in `fd67ae2`). Set up the Supabase CLI (`supabase init`, `supabase link`), dump the live schema into a baseline migration dated before `20260902114500`, and mark it applied remotely with `supabase migration repair`.
 
+**Status:** Done on `feat/daddy-is-here`. After merge to `main`: run the `migration repair` command in `supabase/README.md` against production (nothing touches production before merge).
+
 **Acceptance criteria:**
-- [ ] `supabase db reset` on a fresh local stack applies every migration without errors
-- [ ] Every `.rpc("…")` name used in `lib/` is defined in `supabase/migrations/`
-- [ ] `types/supabase.ts` regenerated with `supabase gen types`; diff reviewed
+- [x] `supabase db reset` on a fresh local stack applies every migration without errors
+- [x] Every `.rpc("…")` name used in `lib/` is defined in `supabase/migrations/` (guarded by `tests/unit/migrations-define-rpcs.test.ts`)
+- [x] `types/supabase.ts` regenerated with `supabase gen types`; diff reviewed
 
 **Verification:**
-- [ ] Tests pass: `npm test`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: locally register, confirm, log in, post a brief, apply, accept
+- [x] Tests pass: `npm test`
+- [x] Build succeeds: `npm run build`
+- [ ] Manual check: locally register, confirm, log in, post a brief, apply, accept (an API smoke test passed post/apply/accept, both service flows and all 11 RPCs locally; the browser register → confirm path is still to do)
 
 **Dependencies:** None
 

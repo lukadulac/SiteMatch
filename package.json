@@ -27,6 +27,7 @@
     "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "supabase": "^2.121.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"

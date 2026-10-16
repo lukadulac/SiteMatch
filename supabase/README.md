@@ -1,3 +1,38 @@
+# Database and migrations
+
+`supabase/migrations/` is the source of truth for the schema. Change it only by
+adding a migration (`npx supabase migration new <name>`); don't edit production
+through the SQL editor, or the migrations stop matching it.
+
+Develop and test schema changes against the local database only. Nothing runs
+against the production database until the change is merged into `main`.
+
+`20260901000000_baseline_schema.sql` recreates the schema production had before
+migrations were tracked, so it only ever runs on fresh databases. After it
+merges, production is marked as already having it, together with the five
+migrations that were applied there through the SQL editor:
+
+```
+npx supabase migration repair --status applied 20260901000000 20260902114500 20260910100000 20260915120000 20260925100000 20260930110000
+```
+
+## Local database
+
+Requires Docker. The CLI is a dev dependency, so use `npx supabase`.
+
+1. `npx supabase start` builds a local database from every migration plus
+   `seed.sql` (taxonomy reference data) and prints its URL and keys.
+2. Point the app at it in `.env.local` (it overrides `.env`):
+   `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`,
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key from npx supabase status>`,
+   `NEXT_PUBLIC_SITE_URL=http://localhost:3000`.
+3. Confirmation emails land in Mailpit at http://127.0.0.1:54324.
+4. `npx supabase db reset` rebuilds from scratch; run it after pulling new
+   migrations.
+
+After changing the schema, regenerate types with
+`npx supabase gen types typescript --local > types/supabase.ts`.
+
 # Email verification setup
 
 The application requires Supabase **Confirm email** to remain enabled. Supabase
