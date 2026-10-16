@@ -35,6 +35,16 @@ Requires Docker. The CLI is a dev dependency, so use `npx supabase`.
 After changing the schema, regenerate types with
 `npx supabase gen types typescript --local > types/supabase.ts`.
 
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request and every push to `main`, with no
+secrets. Job `checks`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`,
+`npm run build` (with placeholder public Supabase variables). Job `database`:
+`npx supabase start` builds a database from `supabase/migrations` and `seed.sql` on the
+runner's Docker, then `npx supabase test db`. To reproduce the database job locally on a
+fresh stack: `npx supabase stop --no-backup`, then the same two commands. Branch protection
+that requires both jobs is a GitHub setting a repository admin turns on after the first run.
+
 ## Reading profiles
 
 Signed-in users can read other users' `profiles` rows, but only these columns:

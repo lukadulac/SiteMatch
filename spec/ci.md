@@ -22,10 +22,10 @@ Nothing leaves this machine, so the workflow is verified locally by running each
 
 ## Success Criteria
 
-- [ ] Every job's steps pass when run locally in the same order, and fail locally on a broken test or migration.
+- [x] Every job's steps pass when run locally in the same order, and fail locally on a broken test or migration.
 - [ ] Every PR shows the CI workflow with both jobs (checked by a person after pushing).
-- [ ] A deliberately failing test turns `checks` red; a deliberately broken migration turns `database` red.
-- [ ] CI needs no repository secrets.
+- [x] A deliberately failing test turns `checks` red; a deliberately broken migration turns `database` red (verified locally).
+- [x] CI needs no repository secrets.
 - [ ] Branch protection on `main` requires both jobs (a GitHub setting; a repository admin turns it on).
 
 ## Production Steps After Merge

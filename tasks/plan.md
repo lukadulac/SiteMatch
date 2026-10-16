@@ -36,7 +36,7 @@ Shared doc (the version the team reads and comments on): https://claude.ai/code/
 ### Checkpoint: Security hardening
 - [x] Every finding has a passing pgTAP test. A person can push and merge the branch here so production gets the fix without waiting for later modules; work continues on the same branch either way
 
-- [ ] Task 2: CI workflow on pull requests — `ci`
+- [x] Task 2: CI workflow on pull requests — `ci` (GitHub run and branch protection are a person's)
 - [ ] Task 3: Forgot-password request page — `password-reset`
 - [ ] Task 4: Password recovery callback — `password-reset`
 - [ ] Task 5: Reset-password page — `password-reset`

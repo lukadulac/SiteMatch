@@ -136,13 +136,15 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** GitHub Actions workflow "CI" on PRs and pushes to `main` with two jobs. **checks:** `npm ci`, lint, typecheck, `vitest run`, `next build` with placeholder public Supabase env vars. **database:** Supabase CLI on the runner's Docker starts a database from the migrations and runs `npx supabase test db`. Add a `typecheck` script. No repository secrets.
 
+**Status:** Done locally on `feat/daddy-is-here`; the GitHub side is for a person (see the unchecked boxes). Verified by running each job's commands in order, including `supabase stop --no-backup` then the workflow's exact `supabase start -x ...` on a fresh volume (all ten migrations applied, 158 pgTAP tests passed).
+
 **Acceptance criteria:**
-- [ ] Every PR shows the "CI" workflow with both jobs
-- [ ] A deliberately failing test turns `checks` red; a deliberately broken migration turns `database` red
+- [ ] Every PR shows the "CI" workflow with both jobs (a person checks after pushing)
+- [x] A deliberately failing test turns `checks` red; a deliberately broken migration turns `database` red (both run locally: `npm test` and `supabase db reset` exit 1)
 - [ ] Branch protection on `main` requires both jobs (repository admin)
 
 **Verification:**
-- [ ] Local check: run both jobs' steps in order; they pass, and fail on a broken test or migration (a person checks the first GitHub run after pushing)
+- [x] Local check: run both jobs' steps in order; they pass, and fail on a broken test or migration (a person checks the first GitHub run after pushing)
 
 **Dependencies:** None
 
