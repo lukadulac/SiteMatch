@@ -35,6 +35,22 @@ Requires Docker. The CLI is a dev dependency, so use `npx supabase`.
 After changing the schema, regenerate types with
 `npx supabase gen types typescript --local > types/supabase.ts`.
 
+## Reading profiles
+
+Signed-in users can read other users' `profiles` rows, but only these columns:
+`id, role, full_name, avatar_url, country, city, is_active, created_at,
+updated_at`. `email` and `phone` are not readable by anyone signed in, their own
+rows included, so a query that selects them (or `*`) fails with a permission
+error. A user's own email and phone come from `get_own_contact_details()`
+(`lib/auth/own-contact.ts`). A column added to `profiles` stays unreadable until
+the grant in a migration includes it. `tests/unit/profile-columns.test.ts` fails
+if app code selects an unreadable column. Writes are not narrowed: a user still
+inserts and updates their own email and phone, but provisioning uses
+`ON CONFLICT DO NOTHING`, because `DO UPDATE SET email = excluded.email` would
+have to read the column.
+
+`client_profiles` (tax ID, project idea) is readable by its owner and admins only.
+
 ## Database tests
 
 `supabase/tests/database/*.test.sql` are [pgTAP](https://pgtap.org) tests for RLS
@@ -52,10 +68,25 @@ and refuses to run against anything but a local stack.
 ## Production steps: security hardening
 
 After the baseline repair, `npx supabase db push` applies the security
-migrations. Then check that nobody already holds an unexpected admin role:
+migrations. Order matters for one of them: the contact-details migration
+(`hide_contact_and_tax_details`) revokes `profiles.email` and `phone`, which the
+previous app version selects, so **deploy the app first, then run `db push`**
+(the new app only needs the migration for the two profile pages, which show an
+error until it lands). `profiles.email` now always follows the login's email
+(`sync_profile_email`), so a profile write cannot probe for registered
+addresses or redirect mail.
+
+Then check that nobody already holds an unexpected admin role:
 
 ```sql
 select id, email, role, updated_at from public.profiles where role = 'admin';
+```
+
+And that the GraphQL API (if enabled on the project) honours the column grants.
+Signed in as a normal user, this must fail or omit the contact columns:
+
+```graphql
+{ profilesCollection { edges { node { fullName email phone } } } }
 ```
 
 # Email verification setup

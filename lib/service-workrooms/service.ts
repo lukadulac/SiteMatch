@@ -59,11 +59,11 @@ export type ServiceWorkroomDetail = ServiceWorkroomRow & {
 	> | null;
 	client: Pick<
 		Database["public"]["Tables"]["profiles"]["Row"],
-		"id" | "full_name" | "email" | "phone" | "city" | "country"
+		"id" | "full_name" | "city" | "country"
 	> | null;
 	provider: Pick<
 		Database["public"]["Tables"]["profiles"]["Row"],
-		"id" | "full_name" | "email" | "phone" | "city" | "country"
+		"id" | "full_name" | "city" | "country"
 	> | null;
 };
 
@@ -95,7 +95,7 @@ const workroomSummarySelect =
 	"id, service_request_id, service_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, status, price_type, starting_price), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at), client:profiles!service_workrooms_client_id_fkey(id, full_name, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, city, country)";
 
 const workroomDetailSelect =
-	"id, service_request_id, service_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, description, status, price_type, starting_price, delivery_estimate, service_type_text, category_text, created_at, published_at), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at, updated_at), client:profiles!service_workrooms_client_id_fkey(id, full_name, email, phone, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, email, phone, city, country)";
+	"id, service_request_id, service_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, description, status, price_type, starting_price, delivery_estimate, service_type_text, category_text, created_at, published_at), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at, updated_at), client:profiles!service_workrooms_client_id_fkey(id, full_name, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, city, country)";
 
 function normalizeTotalPages(totalCount: number, pageSize: number) {
 	return totalCount === 0 ? 0 : Math.ceil(totalCount / pageSize);

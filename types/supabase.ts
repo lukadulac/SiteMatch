@@ -1308,6 +1308,13 @@ export type Database = {
           workroom_status: Database["public"]["Enums"]["service_workroom_status"];
         }[];
       };
+      get_own_contact_details: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          email: string;
+          phone: string;
+        }[];
+      };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_conversation_participant: { Args: { target_conversation_id: string }; Returns: boolean };
       owns_project: { Args: { target_project_id: string }; Returns: boolean };

@@ -171,7 +171,7 @@ export default async function ClientDashboardPage({
     await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, phone, country, city")
+        .select("full_name, country, city")
         .eq("id", user.id)
         .single(),
       supabase

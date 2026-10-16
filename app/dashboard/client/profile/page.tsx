@@ -4,6 +4,7 @@ import {
   DashboardShell,
 } from "@/components/dashboard/DashboardShell";
 import { ClientProfileForm } from "@/components/dashboard/client-profile-form";
+import { getOwnContactDetails } from "@/lib/auth/own-contact";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
@@ -32,13 +33,20 @@ export default async function ClientProfilePage() {
     redirect(getDashboardPath(provisioned.role));
   }
 
-  const [profileResult, clientProfileResult, projectsResult, conversationsResult] =
+  const [
+    profileResult,
+    contactResult,
+    clientProfileResult,
+    projectsResult,
+    conversationsResult,
+  ] =
     await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, phone, country, city")
+        .select("full_name, country, city")
         .eq("id", user.id)
         .single(),
+      getOwnContactDetails(supabase),
       supabase
         .from("client_profiles")
         .select(
@@ -54,6 +62,10 @@ export default async function ClientProfilePage() {
     throw new Error(profileResult.error?.message ?? "Profile could not be loaded.");
   }
 
+  if ("error" in contactResult) {
+    throw new Error(contactResult.error);
+  }
+
   if (clientProfileResult.error) {
     throw new Error(clientProfileResult.error.message);
   }
@@ -66,7 +78,7 @@ export default async function ClientProfilePage() {
     throw new Error(conversationsResult.error);
   }
 
-  const profile = profileResult.data;
+  const profile = { ...profileResult.data, phone: contactResult.data.phone };
   const clientProfile = clientProfileResult.data;
   const projects = projectsResult.data ?? [];
   const unreadConversations = (conversationsResult.data ?? []).filter(

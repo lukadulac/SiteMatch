@@ -27,6 +27,8 @@ export type RecordedCall = {
 	table: string;
 	operation: string;
 	payload?: unknown;
+	/** Second argument of insert/update/upsert, e.g. `{ onConflict, ignoreDuplicates }`. */
+	options?: unknown;
 	filters: Array<{ method: string; args: unknown[] }>;
 };
 
@@ -110,6 +112,7 @@ export function createSupabaseStub(
 	function createBuilder(table: string) {
 		let operation: string | null = null;
 		let payload: unknown;
+		let options: unknown;
 		const filters: Array<{ method: string; args: unknown[] }> = [];
 
 		function resolve() {
@@ -121,6 +124,7 @@ export function createSupabaseStub(
 				table,
 				operation: operation ?? "select",
 				payload,
+				options,
 				filters: [...filters],
 			});
 
@@ -152,6 +156,7 @@ export function createSupabaseStub(
 
 					if (verb !== "select" && verb !== "delete") {
 						payload = args[0];
+						options = args[1];
 					}
 				}
 

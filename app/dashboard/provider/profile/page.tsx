@@ -4,6 +4,7 @@ import {
   DashboardShell,
 } from "@/components/dashboard/DashboardShell";
 import { ProviderProfileForm } from "@/components/dashboard/provider-profile-form";
+import { getOwnContactDetails } from "@/lib/auth/own-contact";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
@@ -48,13 +49,20 @@ export default async function ProviderProfilePage() {
     redirect(getDashboardPath(provisioned.role));
   }
 
-  const [profileResult, providerProfileResult, conversationsResult, applicationsResult] =
+  const [
+    profileResult,
+    contactResult,
+    providerProfileResult,
+    conversationsResult,
+    applicationsResult,
+  ] =
     await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, phone, country, city")
+        .select("full_name, country, city")
         .eq("id", user.id)
         .single(),
+      getOwnContactDetails(supabase),
       supabase
         .from("provider_profiles")
         .select(
@@ -68,6 +76,10 @@ export default async function ProviderProfilePage() {
 
   if (profileResult.error || !profileResult.data) {
     throw new Error(profileResult.error?.message ?? "Profile could not be loaded.");
+  }
+
+  if ("error" in contactResult) {
+    throw new Error(contactResult.error);
   }
 
   if (providerProfileResult.error || !providerProfileResult.data) {
@@ -84,7 +96,7 @@ export default async function ProviderProfilePage() {
     throw new Error(applicationsResult.error.message);
   }
 
-  const profile = profileResult.data;
+  const profile = { ...profileResult.data, phone: contactResult.data.phone };
   const providerProfile = providerProfileResult.data;
   const conversations = conversationsResult.data ?? [];
   const applications = applicationsResult.data ?? [];

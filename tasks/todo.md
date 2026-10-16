@@ -38,7 +38,7 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** Set up `supabase/tests/database/` with pgTAP tests run by `npx supabase test db`, impersonating users with `set local role authenticated` plus `request.jwt.claims`. Add a migration with a `before insert or update` trigger on `profiles`: callers who aren't admins (or the service role) can't insert `role = 'admin'` or `is_active = false`, and can't change `role` or `is_active`. An upsert that repeats the same role still works.
 
-**Status:** Done on `feat/daddy-is-here`. Also added `scripts/smoke-local.mjs` (`npm run smoke`), the local smoke test later tasks extend. Fresh-context review folded in; carried forward: `is_admin()` must become `security definer` with `set search_path = ''` when Task S2 replaces the `using (true)` profiles policy (S1's guard already calls it only when a privileged column changes, so profile edits don't recurse), and Task 21 makes `is_admin()` require `is_active` and stops admins changing their own role or status.
+**Status:** Done on `feat/daddy-is-here`. Also added `scripts/smoke-local.mjs` (`npm run smoke`), the local smoke test later tasks extend. Fresh-context review folded in; carried forward: any later task that narrows the rows the `profiles` select policy returns must first make `is_admin()` `security definer` with `set search_path = ''` (otherwise its own read of `profiles` recurses; S1's guard already calls it only when a privileged column changes), and Task 21 makes `is_admin()` require `is_active` and stops admins changing their own role or status.
 
 **Acceptance criteria:**
 - [x] A user cannot insert their own profile as admin or change their own `role` / `is_active` (pgTAP, denied cases)
@@ -61,18 +61,20 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** Replace the `using (true)` select policies on `profiles` and `client_profiles` so a signed-in user can read other users' names, city and country but not `email`, `phone` or `business_tax_id`. Use column-level grants; the own-profile pages that read `phone` (client and provider dashboard and profile pages) switch to a way of reading their own contact details that the grants allow. Messaging, workrooms, applications and Find Talent keep working.
 
+**Status:** Done on `feat/daddy-is-here`. Column grants on `profiles`, `get_own_contact_details()` for a user's own email and phone, `client_profiles` readable by owner and admins only. Behaviour changes to know about: the client's applicant list on `/oglasi/[id]` no longer shows the provider's email and phone (they message through the conversation), and `select *` or `email`/`phone` on `profiles` now fails for every signed-in user. The provisioning upsert is now `ON CONFLICT DO NOTHING` (`ignoreDuplicates`): `DO UPDATE SET email = excluded.email` would have to read the column. Fresh-context review folded in: `profiles.email` now always follows the login's email (trigger `sync_profile_email`), because a writable email plus its unique index let any user test whether an address is registered (carried forward: Task 22 must refresh `profiles.email` after a confirmed email change); `anon` gets the same column grants as `authenticated`. Production order: deploy the app first, then `db push` (see `supabase/README.md`). Noticed, not changed: `provider_profiles.tax_id` (a public business registry number) is still readable by every signed-in user, and the baseline grants every table `ALL` (including `TRUNCATE` and `TRIGGER`) to `anon` and `authenticated`, which RLS does not cover; worth a grants-hygiene follow-up.
+
 **Acceptance criteria:**
-- [ ] Another user's `email`, `phone` and `business_tax_id` are not readable (pgTAP)
-- [ ] A user still reads and edits their own contact details
-- [ ] Every page that shows another user's name still renders (Vitest plus the smoke test)
+- [x] Another user's `email`, `phone` and `business_tax_id` are not readable (pgTAP)
+- [x] A user still reads and edits their own contact details
+- [x] Every page that shows another user's name still renders (Vitest plus the smoke test; browser check left to a person, see the final summary)
 
 **Verification:**
-- [ ] Tests pass: `npx supabase test db` and `npm test`
-- [ ] Manual check: dashboards, profile pages, a conversation and a workroom as client and provider
+- [x] Tests pass: `npx supabase test db` and `npm test`
+- [ ] Manual check: dashboards, profile pages, a conversation and a workroom as client and provider (not done: no browser here; the smoke test covers the same reads through the API)
 
 **Dependencies:** Task S1
 
-**Files likely touched:** migration (new), `supabase/tests/database/profiles.test.sql`, the four own-profile pages under `app/dashboard/`, `lib/auth/` (own-contact read), tests
+**Files likely touched:** `supabase/migrations/<date>_hide_contact_and_tax_details.sql` (new), `supabase/tests/database/profile-privacy.test.sql` (new), the two own-profile pages and two dashboard pages under `app/dashboard/`, `lib/auth/own-contact.ts` (new), `lib/auth/provision.ts`, `app/oglasi/[id]/page.tsx`, the four services that embedded `profiles`, `tests/unit/own-contact.test.ts` and `tests/unit/profile-columns.test.ts` (new), `tests/helpers/supabase-stub.ts`, `scripts/smoke-local.mjs`, `types/supabase.ts`
 
 **Estimated scope:** Medium
 

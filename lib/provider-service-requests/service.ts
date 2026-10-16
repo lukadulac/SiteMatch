@@ -83,11 +83,11 @@ export type ServiceRequestDetail = ProviderServiceRequestRow & {
 	> | null;
 	client: Pick<
 		Database["public"]["Tables"]["profiles"]["Row"],
-		"id" | "full_name" | "email" | "phone" | "city" | "country"
+		"id" | "full_name" | "city" | "country"
 	> | null;
 	provider: Pick<
 		Database["public"]["Tables"]["profiles"]["Row"],
-		"id" | "full_name" | "email" | "phone" | "city" | "country"
+		"id" | "full_name" | "city" | "country"
 	> | null;
 };
 
@@ -122,7 +122,7 @@ const serviceRequestListSelect =
 	"id, service_id, client_id, provider_id, status, message, created_at, updated_at, service:provider_service_listings!provider_service_requests_service_id_fkey(id, title, status, price_type, starting_price)";
 
 const serviceRequestDetailSelect =
-	"id, service_id, client_id, provider_id, status, message, created_at, updated_at, service:provider_service_listings!provider_service_requests_service_id_fkey(id, title, description, status, price_type, starting_price, delivery_estimate, service_type_text, category_text, created_at, published_at), client:profiles!provider_service_requests_client_id_fkey(id, full_name, email, phone, city, country), provider:profiles!provider_service_requests_provider_id_fkey(id, full_name, email, phone, city, country)";
+	"id, service_id, client_id, provider_id, status, message, created_at, updated_at, service:provider_service_listings!provider_service_requests_service_id_fkey(id, title, description, status, price_type, starting_price, delivery_estimate, service_type_text, category_text, created_at, published_at), client:profiles!provider_service_requests_client_id_fkey(id, full_name, city, country), provider:profiles!provider_service_requests_provider_id_fkey(id, full_name, city, country)";
 
 async function getUserRole(
 	supabase: SupabaseClient<Database>,

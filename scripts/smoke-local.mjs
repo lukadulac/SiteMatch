@@ -84,11 +84,12 @@ async function signUp(label, role) {
 	return { id: data.user.id, email, client };
 }
 
-// Same write as lib/auth/provision.ts.
-function provisionProfile(user, role) {
-	return user.client
-		.from("profiles")
-		.upsert({ id: user.id, role, full_name: "Smoke user", email: user.email }, { onConflict: "id" });
+// Same write as lib/auth/provision.ts: a plain insert that leaves an existing row alone.
+function provisionProfile(user, role, details = {}) {
+	return user.client.from("profiles").upsert(
+		{ id: user.id, role, full_name: "Smoke user", email: user.email, ...details },
+		{ onConflict: "id", ignoreDuplicates: true },
+	);
 }
 
 async function profileOf(id) {
@@ -137,8 +138,143 @@ async function securityHardening() {
 	});
 }
 
+async function profilePrivacy() {
+	const client = await signUp("privacy-client", "client");
+	const provider = await signUp("privacy-provider", "provider");
+	const outsider = await signUp("privacy-outsider", "client");
+
+	for (const [user, role, phone, city] of [
+		[client, "client", "+381 60 111", "Belgrade"],
+		[provider, "provider", "+351 91 333", "Lisbon"],
+		[outsider, "client", "+381 60 999", "Nis"],
+	]) {
+		const { error } = await provisionProfile(user, role, { phone, city, country: "Serbia" });
+
+		if (error) {
+			throw new Error(`provisioning ${role}: ${error.message}`);
+		}
+	}
+
+	await admin.from("client_profiles").insert({
+		user_id: client.id,
+		business_name: "Smoke Ltd",
+		business_tax_id: "100000001",
+		project_idea: "A shop",
+	});
+
+	await check("provisioning stored the new user's email and phone", async () => {
+		const { data } = await admin.from("profiles").select("email, phone").eq("id", provider.id).single();
+
+		expect(data.email === provider.email && data.phone === "+351 91 333", "contact details missing");
+	});
+
+	await check("another user's name and location are readable", async () => {
+		const { data, error } = await client.client
+			.from("profiles")
+			.select("id, full_name, country, city")
+			.eq("id", provider.id)
+			.single();
+
+		expect(!error, error?.message);
+		expect(data.city === "Lisbon", "city was not returned");
+	});
+
+	await check("another user's email is not readable", async () => {
+		const { error } = await client.client.from("profiles").select("email").eq("id", provider.id);
+
+		expectDenied(error, "email read");
+	});
+
+	await check("another user's phone is not readable", async () => {
+		const { error } = await client.client.from("profiles").select("phone").eq("id", provider.id);
+
+		expectDenied(error, "phone read");
+	});
+
+	await check("select * on profiles is not allowed", async () => {
+		const { error } = await client.client.from("profiles").select("*").eq("id", provider.id);
+
+		expectDenied(error, "select *");
+	});
+
+	await check("a user reads their own email and phone through get_own_contact_details()", async () => {
+		const { data, error } = await client.client.rpc("get_own_contact_details");
+
+		expect(!error, error?.message);
+		expect(data?.[0]?.email === client.email && data[0].phone === "+381 60 111", "wrong contact details");
+	});
+
+	await check("a user still edits their own phone", async () => {
+		const { error } = await provider.client.from("profiles").update({ phone: "+351 91 444" }).eq("id", provider.id);
+
+		expect(!error, error?.message);
+
+		const { data } = await provider.client.rpc("get_own_contact_details");
+
+		expect(data?.[0]?.phone === "+351 91 444", "the new phone was not returned");
+	});
+
+	await check("setting your email to a registered address neither errors nor changes it", async () => {
+		const { error } = await client.client.from("profiles").update({ email: provider.email }).eq("id", client.id);
+
+		expect(!error, `the write was rejected (${error?.code}), which reveals the address is registered`);
+		expect((await admin.from("profiles").select("email").eq("id", client.id).single()).data.email === client.email, "the email changed");
+	});
+
+	await check("a signed-out visitor reads no profile rows and no contact columns", async () => {
+		const visitor = createClient(stack.url, stack.anonKey, noSession);
+		const { data, error } = await visitor.from("profiles").select("id, full_name");
+		const { error: emailError } = await visitor.from("profiles").select("email");
+
+		expect(!error && data.length === 0, `signed-out read returned ${error?.message ?? data.length} rows`);
+		expectDenied(emailError, "anonymous email read");
+	});
+
+	await check("a client's tax ID is hidden from other users and visible to the owner", async () => {
+		const { data: asProvider } = await provider.client.from("client_profiles").select("business_tax_id");
+		const { data: asOutsider } = await outsider.client.from("client_profiles").select("business_tax_id");
+		const { data: asOwner } = await client.client.from("client_profiles").select("business_tax_id");
+
+		expect(asProvider.length === 0 && asOutsider.length === 0, "another user read a client profile");
+		expect(asOwner[0]?.business_tax_id === "100000001", "the owner could not read their tax ID");
+	});
+
+	await check("an application lists its provider's name and location for the client", async () => {
+		const { data: project, error: projectError } = await client.client
+			.from("projects")
+			.insert({
+				client_id: client.id,
+				title: "Smoke brief",
+				slug: `smoke-brief-${runId}`,
+				description: "A brief used by the smoke test.",
+				status: "published",
+			})
+			.select("id")
+			.single();
+
+		expect(!projectError, projectError?.message);
+
+		const { error: applyError } = await provider.client.from("applications").insert({
+			project_id: project.id,
+			provider_id: provider.id,
+			cover_message: "I can do this.",
+		});
+
+		expect(!applyError, applyError?.message);
+
+		const { data, error } = await client.client
+			.from("applications")
+			.select("id, status, provider:profiles!applications_provider_id_fkey(id, full_name, country, city)")
+			.eq("project_id", project.id);
+
+		expect(!error, error?.message);
+		expect(data[0]?.provider?.city === "Lisbon", "the provider embed came back empty");
+	});
+}
+
 try {
 	await securityHardening();
+	await profilePrivacy();
 } finally {
 	for (const id of createdUserIds) {
 		await admin.auth.admin.deleteUser(id);
