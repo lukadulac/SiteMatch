@@ -109,23 +109,25 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Note:** `accept_project_application` was already made `security definer` with `set search_path = ''` in Task S3 (see there), with its pgTAP and smoke coverage; this task keeps that criterion as a regression check.
 
+**Status:** Done on `feat/daddy-is-here`. The brief-status trigger rejects `assigned`/`completed` from anyone but the service role and owner-run RPCs (an admin session is not exempt: overrides use the service role). Every overlapping pair was a strict superset or merged to the same effective access; a before/after access matrix (6 callers x 8 tables of reads, 7 callers x 19 writes) differed in exactly three cells, all the conversation-squatting loophole now closed (a conversation needs a real application or a real service request). What remains per command is intentional and pinned by a pgTAP test: `projects`/`provider_service_listings` SELECT (public listing + owner view) and `applications` UPDATE (client review + provider withdrawal). Fresh-context review folded in: the guard also blocks leaving `assigned`/`completed` and deleting such a brief (an owner could otherwise undo a hire or cascade it away), messaging now requires the conversation to match its application, and `scripts/access-matrix.sql` is kept as the before/after tool. Production: conversations planted through the old hole are not deleted by a migration; a detection query is in `supabase/README.md`. Carried forward: Task 6's `cancel_project` should add `cancelled` to the status guard so a plain update cannot skip rejecting pending applications. Known limits: an admin or any client with a second provider account can still hire through the real flow (it cannot tell a sock puppet from a provider), and `INSERT ... ON CONFLICT` on an assigned brief is rejected (the app never upserts briefs).
+
 **Acceptance criteria:**
-- [ ] Accept still assigns the brief, rejects the rest and opens the conversation (pgTAP and smoke test)
-- [ ] A client cannot set `assigned` or `completed` directly; `published` ↔ `in_discussion` still works
-- [ ] Each table has one policy set; the full Vitest suite, pgTAP suite and smoke test pass
+- [x] Accept still assigns the brief, rejects the rest and opens the conversation (pgTAP and smoke test)
+- [x] A client cannot set `assigned` or `completed` directly; `published` ↔ `in_discussion` still works
+- [x] Each table has one policy set; the full Vitest suite, pgTAP suite and smoke test pass
 
 **Verification:**
-- [ ] Tests pass: `npx supabase test db` and `npm test`
-- [ ] Build succeeds: `npm run build`
+- [x] Tests pass: `npx supabase test db` and `npm test`
+- [x] Build succeeds: `npm run build`
 
 **Dependencies:** Tasks S2, S3
 
-**Files likely touched:** migration (new), `supabase/tests/database/projects.test.sql` (new), `types/supabase.ts`
+**Files likely touched:** `supabase/migrations/<date>_project_status_guard_and_policy_cleanup.sql` (new), `supabase/tests/database/projects.test.sql` (new), `supabase/tests/database/messaging.test.sql`, `scripts/smoke-local.mjs`, `scripts/access-matrix.sql` (new), `supabase/README.md`
 
 **Estimated scope:** Medium
 
 ## Checkpoint: Security hardening
-- [ ] Every finding in `spec/security-hardening.md` has a passing pgTAP test
+- [x] Every finding in `spec/security-hardening.md` has a passing pgTAP test
 - [ ] A person can push `feat/daddy-is-here` and merge it here so production gets the fix early, then run the schema-baseline and security-hardening production steps; work continues on the same branch either way
 
 ## Task 2: CI workflow on pull requests

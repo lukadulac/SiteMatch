@@ -41,7 +41,7 @@ $function$;
 
 grant execute on function tests.rows_affected(text) to authenticated, anon;
 
-select plan(25);
+select plan(26);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000c001', 'client@example.test'),
@@ -59,6 +59,13 @@ insert into public.projects (id, client_id, title, slug, description, status) va
 
 insert into public.applications (id, project_id, provider_id, cover_message, status) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000b001', 'Hello', 'shortlisted');
+
+insert into public.applications (id, project_id, provider_id, cover_message, status) values
+  ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-00000000b001', 'Hello again', 'pending');
+
+-- A conversation planted through the old insert hole: it names an open application but the wrong client.
+insert into public.conversations (id, project_id, client_id, provider_id, application_id) values
+  ('00000000-0000-0000-0000-0000000000c9', '00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-00000000c001', '00000000-0000-0000-0000-00000000b001', '00000000-0000-0000-0000-0000000000a2');
 
 insert into public.conversations (id, project_id, client_id, provider_id, application_id, updated_at) values
   ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-00000000c001', '00000000-0000-0000-0000-00000000b001', '00000000-0000-0000-0000-0000000000a1', '2020-01-01 00:00:00+00');
@@ -127,6 +134,14 @@ select is(
   (select count(*) from public.messages),
   3::bigint,
   'a participant still reads every message in their conversation'
+);
+
+select throws_ok(
+  $$insert into public.messages (conversation_id, sender_id, message_text)
+    values ('00000000-0000-0000-0000-0000000000c9', '00000000-0000-0000-0000-00000000c001', 'Through a planted conversation')$$,
+  '42501',
+  null,
+  'nobody can message through a conversation that does not match its application'
 );
 
 -- Inserts only set the columns the app sets: no pre-read messages, no forged timestamps.

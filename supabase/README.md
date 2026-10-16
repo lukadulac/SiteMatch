@@ -51,6 +51,25 @@ have to read the column.
 
 `client_profiles` (tax ID, project idea) is readable by its owner and admins only.
 
+## Writing policies, guards and RPCs
+
+- **One policy per command and role.** Permissive policies OR together, so a second,
+  looser policy silently wins. `supabase/tests/database/projects.test.sql` fails if a table
+  has two policies for the same command and role, apart from the audience splits listed
+  there (public listing + owner view; client review + provider withdrawal). `scripts/access-matrix.sql`
+  prints who can read and write what for each kind of caller; run it before and after a change
+  and diff the output (see the header of the file).
+- **Guard triggers** (`trg_profiles_zz_guard_privileged_columns`, `trg_projects_zz_guard_status`)
+  let `postgres`, `service_role` and `supabase_admin` through, and nobody else, admins
+  included. So every `security definer` RPC that must change a guarded column (role,
+  is_active, a brief's status) has to be owned by `postgres`, which is what `supabase db`
+  migrations do, and must never copy such a value from its caller. The `zz` in the trigger
+  name keeps the guard firing last, because BEFORE triggers run in name order; a new BEFORE
+  trigger on those tables must sort before it.
+- **Writes are limited by column grants** on `messages`, `conversations`, `applications` and
+  `profiles` (see the migrations). A column added to one of those tables is not writable by
+  users until a migration grants it.
+
 ## Database tests
 
 `supabase/tests/database/*.test.sql` are [pgTAP](https://pgtap.org) tests for RLS
@@ -80,6 +99,21 @@ Then check that nobody already holds an unexpected admin role:
 
 ```sql
 select id, email, role, updated_at from public.profiles where role = 'admin';
+```
+
+Conversations could be planted through an insert policy that is now closed (the
+`project_status_guard_and_policy_cleanup` migration stops new ones and makes messaging
+require a conversation that matches its application). Look for any that already exist,
+before and after `db push`; they are not deleted by a migration, so a person decides:
+
+```sql
+select c.* from public.conversations c
+where c.service_request_id is null
+  and not exists (
+    select 1 from public.applications a join public.projects p on p.id = a.project_id
+    where a.id = c.application_id and a.project_id = c.project_id
+      and a.provider_id = c.provider_id and p.client_id = c.client_id
+  );
 ```
 
 And that the GraphQL API (if enabled on the project) honours the column grants.

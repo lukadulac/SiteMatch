@@ -31,10 +31,10 @@ Shared doc (the version the team reads and comments on): https://claude.ai/code/
 - [x] Task S1: Lock profile roles, with a pgTAP test harness — `security-hardening`
 - [x] Task S2: Hide other users' contact and tax details — `security-hardening`
 - [x] Task S3: Narrow message, conversation and application updates — `security-hardening`
-- [ ] Task S4: Secure the accept RPC, guard brief status, drop duplicate policies — `security-hardening`
+- [x] Task S4: Secure the accept RPC, guard brief status, drop duplicate policies — `security-hardening`
 
 ### Checkpoint: Security hardening
-- [ ] Every finding has a passing pgTAP test. A person can push and merge the branch here so production gets the fix without waiting for later modules; work continues on the same branch either way
+- [x] Every finding has a passing pgTAP test. A person can push and merge the branch here so production gets the fix without waiting for later modules; work continues on the same branch either way
 
 - [ ] Task 2: CI workflow on pull requests — `ci`
 - [ ] Task 3: Forgot-password request page — `password-reset`

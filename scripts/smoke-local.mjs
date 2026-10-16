@@ -333,6 +333,37 @@ async function projectFlow() {
 		expectDenied(error, "forged accepted application");
 	});
 
+	await check("a client cannot assign or complete their own brief with a plain update", async () => {
+		const assign = await client.client.from("projects").update({ status: "assigned" }).eq("id", project.id);
+		const complete = await client.client.from("projects").update({ status: "completed" }).eq("id", project.id);
+
+		expectDenied(assign.error, "assigning a brief");
+		expectDenied(complete.error, "completing a brief");
+	});
+
+	await check("a client still moves a brief between published and in_discussion", async () => {
+		for (const status of ["in_discussion", "published"]) {
+			const { error } = await client.client.from("projects").update({ status }).eq("id", project.id);
+
+			expect(!error, `${status}: ${error?.message}`);
+		}
+	});
+
+	await check("a stranger cannot squat the conversation of someone else's application", async () => {
+		const stranger = await signUp("flow-stranger", "provider");
+
+		await provisionProfile(stranger, "provider");
+
+		const { error } = await stranger.client.from("conversations").insert({
+			project_id: project.id,
+			client_id: client.id,
+			provider_id: stranger.id,
+			application_id: applicationId,
+		});
+
+		expectDenied(error, "conversation squatting");
+	});
+
 	await check("a client reviews an application: viewed, then shortlisted", async () => {
 		for (const status of ["viewed", "shortlisted"]) {
 			const { error } = await client.client.from("applications").update({ status }).eq("id", applicationId);
@@ -371,6 +402,15 @@ async function projectFlow() {
 		const { data: assigned } = await client.client.from("projects").select("status").eq("id", project.id).single();
 
 		expect(assigned.status === "assigned", "the brief was not assigned");
+	});
+
+	await check("a client cannot undo a hire by reopening or deleting the assigned brief", async () => {
+		const reopen = await client.client.from("projects").update({ status: "published" }).eq("id", project.id);
+		const remove = await client.client.from("projects").delete().eq("id", project.id);
+
+		expectDenied(reopen.error, "reopening an assigned brief");
+		expectDenied(remove.error, "deleting an assigned brief");
+		expect((await statusOf(applicationId)) === "accepted", "the accepted application changed");
 	});
 
 	await check("an outsider cannot accept an application", async () => {

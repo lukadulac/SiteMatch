@@ -39,16 +39,16 @@ Reading other users' names, city and country is legitimate (messaging, workrooms
 
 Each item is a pgTAP test on the local database, including the denied case:
 
-- [ ] A user cannot insert their own profile with `role = 'admin'`, and cannot change `role` or `is_active` on their own profile. An admin can change both on any profile.
-- [ ] Provisioning and profile-form updates still succeed.
-- [ ] A signed-in user cannot read another user's `email` or `phone`, or another client's `business_tax_id`; they can still read their own, and other users' names, city and country.
-- [ ] A participant can mark messages they received as read, but cannot change any message's text or sender.
-- [ ] A participant can bump a conversation's `updated_at`, but cannot change who is in it or what it links to.
-- [ ] A client cannot change an application's content or provider; direct status changes are limited to `viewed` and `shortlisted`. Accept, reject and withdraw still work through their RPCs.
-- [ ] `accept_project_application` is `security definer` with `set search_path = ''`, with behaviour unchanged.
-- [ ] A client cannot set a brief's status to `assigned` or `completed` directly.
-- [ ] Each affected table has one coherent policy set; the overlapping duplicates are dropped.
-- [ ] Existing Vitest suite and the local hire-flow smoke test still pass.
+- [x] A user cannot insert their own profile with `role = 'admin'`, and cannot change `role` or `is_active` on their own profile. An admin can change both on any profile.
+- [x] Provisioning and profile-form updates still succeed.
+- [x] A signed-in user cannot read another user's `email` or `phone`, or another client's `business_tax_id`; they can still read their own, and other users' names, city and country.
+- [x] A participant can mark messages they received as read, but cannot change any message's text or sender.
+- [x] A participant can bump a conversation's `updated_at`, but cannot change who is in it or what it links to.
+- [x] A client cannot change an application's content or provider; direct status changes are limited to `viewed` and `shortlisted`. Accept, reject and withdraw still work through their RPCs.
+- [x] `accept_project_application` is `security definer` with `set search_path = ''`, with behaviour unchanged.
+- [x] A client cannot set a brief's status to `assigned` or `completed` directly.
+- [x] Each affected table has one coherent policy set; the overlapping duplicates are dropped.
+- [x] Existing Vitest suite and the local hire-flow smoke test still pass (`npm run smoke`).
 
 ## Decisions
 
@@ -57,7 +57,7 @@ Each item is a pgTAP test on the local database, including the denied case:
 
 ## Production Steps After Merge
 
-After the `schema-baseline` repair: `npx supabase db push`. Then check that nobody already has an unexpected `admin` role:
+After the `schema-baseline` repair: deploy the app first, then `npx supabase db push` (the contact-details migration revokes `profiles.email` and `phone`, which the previous app version selects; see `supabase/README.md`). Then check for conversations planted through the old insert policy (the detection query is in `supabase/README.md`), and that nobody already has an unexpected `admin` role:
 
 ```sql
 select id, email, role, updated_at from public.profiles where role = 'admin';
