@@ -1,14 +1,16 @@
 # SiteMatch Roadmap: Tasks
 
-Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact/50b6acec-3076-48e1-999b-dfb79f508577
+Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Plan and risks: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact/50b6acec-3076-48e1-999b-dfb79f508577
 
-**Definition of done (every task):** `npm run lint`, `npx tsc --noEmit` (`npm run typecheck` after Task 2), `npm test` and `npm run build` pass; new `lib/` and action logic has Vitest tests on `tests/helpers/supabase-stub.ts`; schema changes are a new migration plus regenerated `types/supabase.ts`; acceptance criteria checked in the browser as client and provider. Next.js 16: read the matching guide in `node_modules/next/dist/docs/` first (AGENTS.md).
+**Definition of done (every task):** `npm run lint`, `npx tsc --noEmit` (`npm run typecheck` after Task 2), `npm test`, `npx supabase test db` (after S1) and `npm run build` pass; new `lib/` and action logic has Vitest tests on `tests/helpers/supabase-stub.ts`; schema changes are a new migration plus regenerated `types/supabase.ts` plus pgTAP tests for new policies and RPCs, including denied cases; all database work on the local stack only; acceptance criteria checked in the browser as client and provider. Next.js 16: read the matching guide in `node_modules/next/dist/docs/` first (AGENTS.md).
 
 ---
 
 ## Phase 1: Foundation
 
 ## Task 1: Baseline the live Supabase schema into migrations
+
+**Module:** `schema-baseline` ([spec](../spec/schema-baseline.md))
 
 **Description:** The code calls six functions no migration defines (`accept/reject/withdraw_project_application` at `lib/projects/service.ts:946`; `auth_rate_limit_check/record_attempt/reset` in `lib/auth/rate-limit.ts`), and the base tables and RLS are missing too (the hiring migration was deleted in `fd67ae2`). Set up the Supabase CLI (`supabase init`, `supabase link`), dump the live schema into a baseline migration dated before `20260902114500`, and mark it applied remotely with `supabase migration repair`.
 
@@ -30,14 +32,104 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 **Estimated scope:** Medium
 
-## Task 2: CI workflow on pull requests
+## Task S1: Lock profile roles, with a pgTAP test harness
 
-**Description:** GitHub Actions on PRs and pushes to `main`: `npm ci`, lint, typecheck, `vitest run`, `next build` with placeholder public Supabase env vars. Add a `typecheck` script.
+**Module:** `security-hardening` ([spec](../spec/security-hardening.md))
+
+**Description:** Set up `supabase/tests/database/` with pgTAP tests run by `npx supabase test db`, impersonating users with `set local role authenticated` plus `request.jwt.claims`. Add a migration with a `before insert or update` trigger on `profiles`: callers who aren't admins (or the service role) can't insert `role = 'admin'` or `is_active = false`, and can't change `role` or `is_active`. An upsert that repeats the same role still works.
 
 **Acceptance criteria:**
-- [ ] Every PR shows one "CI" check running all four steps
-- [ ] A deliberately failing test turns the check red
-- [ ] Branch protection on `main` requires the check
+- [ ] A user cannot insert their own profile as admin or change their own `role` / `is_active` (pgTAP, denied cases)
+- [ ] An admin can change both on any profile; provisioning and profile-form updates still succeed
+- [ ] The local smoke test reports that a client can no longer make themselves admin
+
+**Verification:**
+- [ ] Tests pass: `npx supabase test db` and `npm test`
+- [ ] Build succeeds: `npm run build`
+
+**Dependencies:** Task 1
+
+**Files likely touched:** `supabase/migrations/<date>_lock_profile_roles.sql` (new), `supabase/tests/database/profiles.test.sql` (new), `supabase/README.md`
+
+**Estimated scope:** Small
+
+## Task S2: Hide other users' contact and tax details
+
+**Module:** `security-hardening` ([spec](../spec/security-hardening.md))
+
+**Description:** Replace the `using (true)` select policies on `profiles` and `client_profiles` so a signed-in user can read other users' names, city and country but not `email`, `phone` or `business_tax_id`. Use column-level grants; the own-profile pages that read `phone` (client and provider dashboard and profile pages) switch to a way of reading their own contact details that the grants allow. Messaging, workrooms, applications and Find Talent keep working.
+
+**Acceptance criteria:**
+- [ ] Another user's `email`, `phone` and `business_tax_id` are not readable (pgTAP)
+- [ ] A user still reads and edits their own contact details
+- [ ] Every page that shows another user's name still renders (Vitest plus the smoke test)
+
+**Verification:**
+- [ ] Tests pass: `npx supabase test db` and `npm test`
+- [ ] Manual check: dashboards, profile pages, a conversation and a workroom as client and provider
+
+**Dependencies:** Task S1
+
+**Files likely touched:** migration (new), `supabase/tests/database/profiles.test.sql`, the four own-profile pages under `app/dashboard/`, `lib/auth/` (own-contact read), tests
+
+**Estimated scope:** Medium
+
+## Task S3: Narrow message, conversation and application updates
+
+**Module:** `security-hardening` ([spec](../spec/security-hardening.md))
+
+**Description:** Participants may set `messages.is_read` on messages they received and bump `conversations.updated_at`, nothing else. A client may set an application's `status` to `viewed` or `shortlisted` only; accept, reject and withdraw stay in their RPCs. Column-level grants plus policy or trigger checks.
+
+**Acceptance criteria:**
+- [ ] Nobody can change a message's text or sender, or a conversation's participants or links (pgTAP)
+- [ ] A client cannot change an application's content or provider, or set statuses other than `viewed` / `shortlisted` directly (pgTAP)
+- [ ] Reading messages, sending, marking read, shortlisting, accept, reject and withdraw still work
+
+**Verification:**
+- [ ] Tests pass: `npx supabase test db` and `npm test`
+- [ ] Manual check: a conversation and an application round trip
+
+**Dependencies:** Task S1
+
+**Files likely touched:** migration (new), `supabase/tests/database/messaging.test.sql` (new), `supabase/tests/database/applications.test.sql` (new)
+
+**Estimated scope:** Medium
+
+## Task S4: Secure the accept RPC, guard brief status, drop duplicate policies
+
+**Module:** `security-hardening` ([spec](../spec/security-hardening.md))
+
+**Description:** Recreate `accept_project_application` as `security definer` with `set search_path = ''` (behaviour unchanged). A trigger stops callers acting as `authenticated` from setting a brief's status to `assigned` or `completed` directly (RPCs run as the function owner and still can). Drop the overlapping duplicate policy sets so each table has one coherent set with the same intended access.
+
+**Acceptance criteria:**
+- [ ] Accept still assigns the brief, rejects the rest and opens the conversation (pgTAP and smoke test)
+- [ ] A client cannot set `assigned` or `completed` directly; `published` ↔ `in_discussion` still works
+- [ ] Each table has one policy set; the full Vitest suite, pgTAP suite and smoke test pass
+
+**Verification:**
+- [ ] Tests pass: `npx supabase test db` and `npm test`
+- [ ] Build succeeds: `npm run build`
+
+**Dependencies:** Tasks S2, S3
+
+**Files likely touched:** migration (new), `supabase/tests/database/projects.test.sql` (new), `types/supabase.ts`
+
+**Estimated scope:** Medium
+
+## Checkpoint: Security hardening
+- [ ] Every finding in `spec/security-hardening.md` has a passing pgTAP test
+- [ ] Open the PR for schema-baseline + security-hardening; after merge, run its production steps
+
+## Task 2: CI workflow on pull requests
+
+**Module:** `ci` ([spec](../spec/ci.md))
+
+**Description:** GitHub Actions workflow "CI" on PRs and pushes to `main` with two jobs. **checks:** `npm ci`, lint, typecheck, `vitest run`, `next build` with placeholder public Supabase env vars. **database:** Supabase CLI on the runner's Docker starts a database from the migrations and runs `npx supabase test db`. Add a `typecheck` script. No repository secrets.
+
+**Acceptance criteria:**
+- [ ] Every PR shows the "CI" workflow with both jobs
+- [ ] A deliberately failing test turns `checks` red; a deliberately broken migration turns `database` red
+- [ ] Branch protection on `main` requires both jobs (repository admin)
 
 **Verification:**
 - [ ] Manual check: open a draft PR and see it pass
@@ -49,6 +141,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 **Estimated scope:** Small
 
 ## Task 3: Forgot-password request page
+
+**Module:** `password-reset` ([spec](../spec/password-reset.md))
 
 **Description:** "Forgot password?" link on the login form and a `/forgot-password` page whose action validates the email, checks the rate limit and calls `supabase.auth.resetPasswordForEmail` with a `redirectTo` from `getAuthSiteOrigin()` pointing at `/auth/recovery`.
 
@@ -69,6 +163,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 4: Password recovery callback
 
+**Module:** `password-reset` ([spec](../spec/password-reset.md))
+
 **Description:** `app/auth/recovery/route.ts` accepts only `type=recovery` with a `token_hash`, calls `verifyOtp({ type: "recovery" })`, keeps the session, sets a short-lived httpOnly marker cookie and redirects to `/reset-password`. Mirror the hardening in `app/auth/confirm/route.ts`. Add `supabase/templates/recovery.html` (appends `&token_hash={{ .TokenHash }}&type=recovery` to `{{ .RedirectTo }}`) and document it.
 
 **Acceptance criteria:**
@@ -81,11 +177,13 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 **Dependencies:** Task 3
 
-**Files likely touched:** `app/auth/recovery/route.ts` (new), `supabase/templates/recovery.html` (new), `supabase/README.md`
+**Files likely touched:** `app/auth/recovery/route.ts` (new), `supabase/templates/recovery.html` (new), `supabase/config.toml` (local recovery template), `supabase/README.md`
 
 **Estimated scope:** Small
 
 ## Task 5: Reset-password page
+
+**Module:** `password-reset` ([spec](../spec/password-reset.md))
 
 **Description:** `/reset-password` shows new/confirm password fields only with the recovery marker cookie, else redirects to `/forgot-password`. Action calls `supabase.auth.updateUser({ password })`, signs out every session, redirects to `/login?reset=1`. Move the inline 8-character rule from `app/(auth)/actions.ts` into `lib/auth/password.ts`.
 
@@ -116,6 +214,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 6: Client can cancel a project brief
 
+**Module:** `hiring-loop` ([spec](../spec/hiring-loop.md))
+
 **Description:** `cancel_project(target_project_id)` RPC moves `draft` / `published` / `in_discussion` to `cancelled` and rejects pending applications in one transaction. "Cancel brief" button with confirm on `/oglasi/[id]`.
 
 **Acceptance criteria:**
@@ -133,6 +233,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 **Estimated scope:** Medium
 
 ## Task 7: Workrooms for accepted project applications
+
+**Module:** `hiring-loop` ([spec](../spec/hiring-loop.md))
 
 **Description:** Extend `service_workrooms`: `service_request_id` / `service_id` nullable, add `application_id` / `project_id`, check exactly one source, unique index on `application_id`. `accept_project_application` creates the workroom; backfill for projects already `assigned`.
 
@@ -153,6 +255,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 8: Completing a project workroom completes the project
 
+**Module:** `hiring-loop` ([spec](../spec/hiring-loop.md))
+
 **Description:** Project workrooms in the existing lists and detail page (project title and brief link). `complete_service_workroom` also sets `projects.status = 'completed'` when `project_id` is set. Link to the workroom from the assigned brief and the provider's applications page.
 
 **Acceptance criteria:**
@@ -170,9 +274,30 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 **Estimated scope:** Medium
 
+## Task 26: Test coverage for provider services
+
+**Module:** `reviews` ([spec](../spec/reviews.md))
+
+**Description:** `lib/provider-services/service.ts` is at 6.7% statements; `app/dashboard/provider/services/actions.ts` and `app/find-talent/[id]/actions.ts` have no tests. Cover them before Task 10 changes them.
+
+**Acceptance criteria:**
+- [ ] `lib/provider-services/` reaches ≥ 70% statement coverage
+- [ ] Both action files tested for success, validation error and unauthorised paths
+
+**Verification:**
+- [ ] Tests pass: `npm run test:coverage`
+
+**Dependencies:** None
+
+**Files likely touched:** `tests/unit/provider-services-service.test.ts` (new), `tests/unit/provider-services-actions.test.ts` (new)
+
+**Estimated scope:** Small
+
 ## Task 9: Client reviews a completed workroom
 
-**Description:** `reviews` table (one per workroom; `client_id`, `provider_id`, `rating` 1–5, `comment` ≤ 1,000 chars). `submit_workroom_review` security-definer RPC checks caller is the workroom's client and it is completed, inserts, recomputes `average_rating` / `total_reviews`. Review form on the completed workroom page.
+**Module:** `reviews` ([spec](../spec/reviews.md))
+
+**Description:** `reviews` table (one per workroom; `client_id`, `provider_id`, `reviewer_first_name`, `rating` 1–5, `comment` ≤ 1,000 chars), publicly readable like published listings. `submit_workroom_review` security-definer RPC checks caller is the workroom's client and it is completed, copies the client's first name onto the review, inserts, recomputes `average_rating` / `total_reviews`. Review form on the completed workroom page.
 
 **Acceptance criteria:**
 - [ ] Only the workroom's client can review, once, after completion
@@ -182,7 +307,7 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 **Verification:**
 - [ ] Tests pass: `npx vitest run tests/unit/reviews.test.ts tests/unit/workroom-actions.test.ts`
 
-**Dependencies:** Task 1 (project workrooms join after Task 8)
+**Dependencies:** Task 8
 
 **Files likely touched:** `supabase/migrations/<date>_reviews.sql` (new), `lib/reviews/schemas.ts` (new), `lib/reviews/service.ts` (new), `app/dashboard/workroom-actions.ts`, `components/workrooms/workroom-ui.tsx`
 
@@ -190,7 +315,9 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 10: Ratings on Find Talent
 
-**Description:** Star rating and count on `/find-talent` cards and `/find-talent/[id]` (with three latest reviews). "Top rated" sort in `find-talent-query.ts`. Add tests for every touched function in `lib/provider-services/service.ts` (6.7% coverage today).
+**Module:** `reviews` ([spec](../spec/reviews.md))
+
+**Description:** Star rating and count on `/find-talent` cards and `/find-talent/[id]` (with three latest reviews). "Top rated" sort in `find-talent-query.ts`. Works signed out.
 
 **Acceptance criteria:**
 - [ ] Cards and detail show rating and count; no reviews shows "New"
@@ -200,7 +327,7 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 **Verification:**
 - [ ] Tests pass: `npx vitest run tests/unit/find-talent-query.test.ts tests/unit/provider-service-detail.test.ts`
 
-**Dependencies:** Task 9
+**Dependencies:** Tasks 9, 26
 
 **Files likely touched:** `lib/provider-services/service.ts`, `lib/provider-services/find-talent-query.ts`, `app/find-talent/page.tsx`, `app/find-talent/[id]/page.tsx`
 
@@ -216,6 +343,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 ## Phase 3: Matching signals and notifications
 
 ## Task 11: Provider profile captures service types, business domains and languages
+
+**Module:** `provider-taxonomy` ([spec](../spec/provider-taxonomy.md))
 
 **Description:** Multi-selects for service types and business domains, plus languages with one primary, on the provider profile form, using the queries behind `getProjectFormMeta`. One `set_provider_taxonomy` RPC replaces rows in `provider_service_types`, `provider_business_domains`, `provider_languages` atomically.
 
@@ -235,6 +364,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 12: Provider profile captures goal focuses and capability strengths
 
+**Module:** `provider-taxonomy` ([spec](../spec/provider-taxonomy.md))
+
 **Description:** Extend the form and RPC with `provider_goal_focuses` and `provider_feature_capabilities` (basic / strong / expert), mirroring what clients pick on briefs.
 
 **Acceptance criteria:**
@@ -252,6 +383,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 **Estimated scope:** Medium
 
 ## Task 13: Notification outbox with header badges
+
+**Module:** `notifications` ([spec](../spec/notifications.md))
 
 **Description:** `notifications` table (`user_id`, `type`, `entity_type`, `entity_id`, `title`, `read_at`, `emailed_at`, `created_at`; owner-only). Rows written inside `request_provider_service` and by a trigger on `applications` insert. Header bell with unread count plus unread messages.
 
@@ -272,6 +405,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 14: Notification inbox with the remaining events
 
+**Module:** `notifications` ([spec](../spec/notifications.md))
+
 **Description:** `/dashboard/notifications` (list, mark one/all read, link to item). Events: application accepted/rejected, service request accepted/rejected, workroom completed, review received.
 
 **Acceptance criteria:**
@@ -290,7 +425,9 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 15: Email delivery for notifications
 
-**Description:** Email each notification not yet emailed, set `emailed_at`. Database Webhook → Edge Function, or cron → protected route. Per-user opt-out. Same provider becomes Auth SMTP.
+**Module:** `notifications` ([spec](../spec/notifications.md))
+
+**Description:** Email each notification not yet emailed through Resend (`resend` package, pre-approved) and set `emailed_at`. A server-only dispatcher using a service-role client (`lib/supabase/admin.ts`, `import "server-only"`) runs right after the action that created the notification; a Vercel Cron route protected by `CRON_SECRET` sweeps anything left unsent. Without `RESEND_API_KEY` it logs instead of sending. Per-user opt-out via `profiles.email_notifications`. Resend becomes Supabase Auth SMTP in production (post-merge step). New env vars: `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `EMAIL_FROM`.
 
 **Acceptance criteria:**
 - [ ] One email within a minute; retries never duplicate
@@ -301,9 +438,9 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 - [ ] Tests pass: dispatcher unit test
 - [ ] Manual check: controlled inbox
 
-**Dependencies:** Task 13; email provider decision
+**Dependencies:** Task 14
 
-**Files likely touched:** `supabase/functions/notify-email/index.ts` (new) or `app/api/notifications/dispatch/route.ts` (new), opt-out migration, profile forms, `supabase/README.md`
+**Files likely touched:** `lib/notifications/email.ts` (new), `lib/supabase/admin.ts` (new), `app/api/cron/notifications/route.ts` (new), `vercel.json`, opt-out migration, profile forms, `supabase/README.md`
 
 **Estimated scope:** Medium
 
@@ -317,6 +454,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 ## Phase 4: Matching
 
 ## Task 16: Match scoring function
+
+**Module:** `matching` ([spec](../spec/matching.md))
 
 **Description:** Pure `scoreMatch(brief, provider)` in `lib/matching/score.ts` → 0–100 plus per-signal breakdown (service type, features × strength, goals, domain, language, budget fit, provider type, scope). Weights in one commented constant.
 
@@ -336,6 +475,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 17: Recommended briefs for providers
 
+**Module:** `matching` ([spec](../spec/matching.md))
+
 **Description:** Provider dashboard scores open briefs and shows the top five with reasons. `/jobs/[id]` "How you match this brief" shows the signed-in provider's real breakdown.
 
 **Acceptance criteria:**
@@ -353,6 +494,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 **Estimated scope:** Medium
 
 ## Task 18: Suggested providers for clients
+
+**Module:** `matching` ([spec](../spec/matching.md))
 
 **Description:** On `/oglasi/[id]`, top five available providers sharing at least one service type, scored with `scoreMatch`, linking to Find Talent.
 
@@ -376,28 +519,11 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ---
 
-## Phase 5: Polish (parallel, any time)
-
-## Task 19: Landing page with working nav links
-
-**Description:** Replace "Home Page" in `app/page.tsx` with headline, two CTAs, three-step "How it works", recent services. Header "How It Works" → `/#how-it-works`; "Enterprise" removed or linked to contact.
-
-**Acceptance criteria:**
-- [ ] No header link (desktop or mobile) points at `/` except the logo
-- [ ] CTAs fit the role (client / provider / guest)
-- [ ] Works at 375 px and desktop
-
-**Verification:**
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: both widths
-
-**Dependencies:** None
-
-**Files likely touched:** `app/page.tsx`, `components/home/*` (new), `components/header/Header.tsx`
-
-**Estimated scope:** Medium
+## Phase 5: Admin, account and polish
 
 ## Task 20: Admin can verify providers
+
+**Module:** `admin` ([spec](../spec/admin.md))
 
 **Description:** Admin page lists providers (unverified first) with a toggle for `provider_profiles.is_verified`; verified badge on Find Talent.
 
@@ -409,13 +535,15 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 **Verification:**
 - [ ] Tests pass: `npx vitest run tests/unit/admin-actions.test.ts`
 
-**Dependencies:** Task 1
+**Dependencies:** Tasks S1–S4
 
 **Files likely touched:** `app/dashboard/admin/page.tsx`, `app/dashboard/admin/actions.ts` (new), `lib/admin/service.ts` (new), `app/find-talent/page.tsx`, `app/find-talent/[id]/page.tsx`
 
 **Estimated scope:** Medium
 
 ## Task 21: Admin can deactivate users
+
+**Module:** `admin` ([spec](../spec/admin.md))
 
 **Description:** Toggle `profiles.is_active` from an admin user list. Nothing reads it today: login and `proxy.ts` must refuse inactive users; their listings leave public pages.
 
@@ -435,6 +563,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 22: Account settings for password and email
 
+**Module:** `account` ([spec](../spec/account.md))
+
 **Description:** Account section on both profile pages: change password (requires current; reuses `lib/auth/password.ts`), change email (confirmation to new address).
 
 **Acceptance criteria:**
@@ -453,23 +583,48 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 23: Account deletion
 
-**Description:** Delete from settings after retyping the email. Security-definer RPC anonymises the profile, unpublishes services, cancels open briefs; messages and reviews stay as "Deleted user". Removing the `auth.users` row needs a service-role key (open question).
+**Module:** `account` ([spec](../spec/account.md))
+
+**Description:** Delete from settings after retyping the email and a recent sign-in. A security-definer RPC anonymises the profile ("Deleted user", unique placeholder email, phone and city cleared), unpublishes services, cancels open briefs (`cancel_project`) and withdraws pending applications; messages and reviews stay as "Deleted user". The server action then deletes the auth user with the service-role client from Task 15 and signs out. The migration drops the `profiles.id` → `auth.users` foreign key (`on delete cascade`) so the anonymised profile, and everything that cascades from it, outlives the login.
 
 **Acceptance criteria:**
-- [ ] User cannot log in afterwards; no personal data on any public page
-- [ ] Counterparties' workrooms and conversations still open, anonymised
-- [ ] Requires retyping the email
+- [ ] User cannot log in afterwards, the email can register again, and no personal data shows on any public page
+- [ ] Counterparties' workrooms, conversations and reviews still open, anonymised (pgTAP proves deletion leaves other users' rows intact)
+- [ ] Requires retyping the email; nobody can delete another user (pgTAP)
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run tests/unit/account-deletion.test.ts`
+- [ ] Tests pass: `npx vitest run tests/unit/account-deletion.test.ts` and `npx supabase test db`
 
-**Dependencies:** Tasks 1, 22
+**Dependencies:** Tasks 6, 15, 22
 
-**Files likely touched:** migration (new), `app/dashboard/account-actions.ts`, `components/dashboard/account-settings-form.tsx`
+**Files likely touched:** migration (new), `supabase/tests/database/account-deletion.test.sql` (new), `app/dashboard/account-actions.ts`, `components/dashboard/account-settings-form.tsx`
+
+**Estimated scope:** Medium
+
+## Task 19: Landing page with working nav links
+
+**Module:** `polish` ([spec](../spec/polish.md))
+
+**Description:** Replace "Home Page" in `app/page.tsx` with headline, two CTAs, three-step "How it works", recent services. Header "How It Works" → `/#how-it-works`; "Enterprise" removed. No Figma: follow the existing UI style.
+
+**Acceptance criteria:**
+- [ ] No header link (desktop or mobile) points at `/` except the logo
+- [ ] CTAs fit the role (client / provider / guest)
+- [ ] Works at 375 px and desktop
+
+**Verification:**
+- [ ] Build succeeds: `npm run build`
+- [ ] Manual check: both widths
+
+**Dependencies:** None
+
+**Files likely touched:** `app/page.tsx`, `components/home/*` (new), `components/header/Header.tsx`
 
 **Estimated scope:** Medium
 
 ## Task 24: Route boundaries and page metadata
+
+**Module:** `polish` ([spec](../spec/polish.md))
 
 **Description:** Add `app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx`, a dashboard `loading.tsx`, and `generateMetadata` on `/find-talent/[id]` and `/jobs/[id]`. Check Next.js 16 docs for each convention.
 
@@ -490,6 +645,8 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 
 ## Task 25: Paginate /jobs
 
+**Module:** `polish` ([spec](../spec/polish.md))
+
 **Description:** `getPublicPublishedProjects` has no limit. Add page parsing and `.range()` like `lib/provider-services/find-talent-query.ts`.
 
 **Acceptance criteria:**
@@ -502,23 +659,6 @@ Plan and decisions: `tasks/plan.md`. Shared doc: https://claude.ai/code/artifact
 **Dependencies:** None
 
 **Files likely touched:** `lib/projects/service.ts`, `app/jobs/page.tsx`
-
-**Estimated scope:** Small
-
-## Task 26: Test coverage for provider services
-
-**Description:** `lib/provider-services/service.ts` is at 6.7% statements; `app/dashboard/provider/services/actions.ts` and `app/find-talent/[id]/actions.ts` have no tests. Ideally before Task 10.
-
-**Acceptance criteria:**
-- [ ] `lib/provider-services/` reaches ≥ 70% statement coverage
-- [ ] Both action files tested for success, validation error and unauthorised paths
-
-**Verification:**
-- [ ] Tests pass: `npm run test:coverage`
-
-**Dependencies:** None
-
-**Files likely touched:** `tests/unit/provider-services-service.test.ts` (new), `tests/unit/provider-services-actions.test.ts` (new)
 
 **Estimated scope:** Small
 

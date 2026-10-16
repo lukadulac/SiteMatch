@@ -1,71 +1,86 @@
 # Implementation Plan: SiteMatch Roadmap
 
-Shared doc (the version the team reads and comments on): https://claude.ai/code/artifact/50b6acec-3076-48e1-999b-dfb79f508577
-Task details with acceptance criteria: `tasks/todo.md`. Keep both in sync with the doc.
+Spec: `SPEC.md` (shared rules, capability map, decisions) and `spec/<module-id>.md` per module.
+Task details with acceptance criteria: `tasks/todo.md` (each task names its module).
+Shared doc (the version the team reads and comments on): https://claude.ai/code/artifact/50b6acec-3076-48e1-999b-dfb79f508577. It predates the spec; `SPEC.md` wins where they differ.
 
 ## Overview
 
-26 tasks in five phases take SiteMatch from two hiring flows that stop at "accepted" to a marketplace that finishes hires, collects reviews and matches clients with providers. Phase 1 (schema baseline, CI, password reset) goes first because every later task depends on a reproducible database and a safe login.
+30 tasks across 12 modules take SiteMatch from two hiring flows that stop at "accepted", on a database with known security holes, to a marketplace that is safe, finishes hires, collects reviews, notifies people and matches clients with providers. Phase 1 goes first: a reproducible database (done), the security fixes, CI and password reset.
 
 ## Architecture Decisions
 
-- **Project hires reuse workrooms.** Extend `service_workrooms` with nullable `application_id` / `project_id` (check: exactly one source) instead of a second table: one list page, one detail page, one completion RPC, one place for reviews.
-- **Reviews key on the workroom.** One review per completed workroom, client to provider, via a security-definer RPC that recomputes `provider_profiles.average_rating` / `total_reviews` (columns exist, never written today). No editing in v1.
-- **Notifications use an outbox.** A `notifications` table written in the database when each event happens; the in-app bell reads it; a separate dispatcher emails rows not yet emailed.
-- **Matching v1 scores on read.** Pure, unit-tested `scoreMatch` in `lib/matching/score.ts`. The unused `matches` table waits until scale or status tracking needs it (writing it needs a service-role key or SQL scoring).
-- **Password reset gets its own callback** (`app/auth/recovery/route.ts`) instead of loosening `app/auth/confirm/route.ts`, which deliberately rejects all but signup tokens.
-- **Migrations only, after Task 1.** No more schema changes through the Supabase SQL editor.
-- Out of scope: payments, avatar/portfolio uploads, inviting a suggested provider, renaming `/oglasi` routes.
+- **Migrations only, local first.** The schema changes only through migrations, developed and tested on the local stack. Production gets them after merge to `main` (`migration repair` once for the baseline, then `db push`).
+- **Database tests in pgTAP.** RLS policies and RPCs are tested with `npx supabase test db`, including denied cases; CI runs them on a fresh database.
+- **Security fixes keep app behaviour.** Column-level grants and triggers narrow what users can write to exactly what the app does today (see `spec/security-hardening.md`).
+- **Project hires reuse workrooms.** Extend `service_workrooms` with nullable `application_id` / `project_id` (check: exactly one source) instead of a second table.
+- **The provider completes a hire.** Completing a project workroom completes the project; no client confirmation in v1.
+- **Reviews key on the workroom.** One review per completed workroom, client to provider, via a security-definer RPC that recomputes `average_rating` / `total_reviews`. Public, with the reviewer's first name copied onto the review.
+- **Notifications use an outbox.** A `notifications` table written in the same transaction as each event; the in-app bell reads it; a server-only dispatcher emails through Resend right after the action, and a Vercel Cron sweep retries. Resend also becomes Auth SMTP.
+- **One service-role client, server only.** `lib/supabase/admin.ts` (from Task 15) for the email dispatcher and account deletion; never `NEXT_PUBLIC_`.
+- **Account deletion anonymises, then deletes the login.** The `profiles.id` → `auth.users` cascade is dropped so the anonymised profile and the other side's history survive.
+- **Matching v1 scores on read.** Pure, unit-tested `scoreMatch` in `lib/matching/score.ts`; the `matches` table waits.
+- **Password reset gets its own callback** (`app/auth/recovery/route.ts`); `app/auth/confirm/route.ts` keeps rejecting all but signup tokens.
+- **One branch per module**, started from the previous module's branch; PRs merged in build order.
+- Out of scope: payments, avatar/portfolio uploads, inviting a suggested provider, client-confirmed completion, renaming `/oglasi` routes.
 
 ## Task List
 
 ### Phase 1: Foundation
-- [x] Task 1: Baseline the live Supabase schema into migrations (after merge: `migration repair` on production)
-- [ ] Task 2: CI workflow on pull requests
-- [ ] Task 3: Forgot-password request page
-- [ ] Task 4: Password recovery callback
-- [ ] Task 5: Reset-password page
+- [x] Task 1: Baseline the live Supabase schema into migrations — `schema-baseline` (after merge: `migration repair` on production)
+- [ ] Task S1: Lock profile roles, with a pgTAP test harness — `security-hardening`
+- [ ] Task S2: Hide other users' contact and tax details — `security-hardening`
+- [ ] Task S3: Narrow message, conversation and application updates — `security-hardening`
+- [ ] Task S4: Secure the accept RPC, guard brief status, drop duplicate policies — `security-hardening`
+
+### Checkpoint: Security hardening
+- [ ] Every finding has a passing pgTAP test; PR for schema-baseline + security-hardening opened, merged, production steps done
+
+- [ ] Task 2: CI workflow on pull requests — `ci`
+- [ ] Task 3: Forgot-password request page — `password-reset`
+- [ ] Task 4: Password recovery callback — `password-reset`
+- [ ] Task 5: Reset-password page — `password-reset`
 
 ### Checkpoint: Foundation
 - [ ] CI green on `main` and required; fresh local DB from migrations runs the full hire flow; reset works on staging; team review
 
 ### Phase 2: Close the hiring loop
-- [ ] Task 6: Client can cancel a project brief
-- [ ] Task 7: Workrooms for accepted project applications
-- [ ] Task 8: Completing a project workroom completes the project
-- [ ] Task 9: Client reviews a completed workroom
-- [ ] Task 10: Ratings on Find Talent
+- [ ] Task 6: Client can cancel a project brief — `hiring-loop`
+- [ ] Task 7: Workrooms for accepted project applications — `hiring-loop`
+- [ ] Task 8: Completing a project workroom completes the project — `hiring-loop`
+- [ ] Task 26: Test coverage for provider services — `reviews`
+- [ ] Task 9: Client reviews a completed workroom — `reviews`
+- [ ] Task 10: Ratings on Find Talent — `reviews`
 
 ### Checkpoint: Hiring loop
 - [ ] Hire → workroom → complete → review → rating visible, for both flows; team review
 
 ### Phase 3: Matching signals and notifications
-- [ ] Task 11: Provider profile captures service types, business domains and languages
-- [ ] Task 12: Provider profile captures goal focuses and capability strengths
-- [ ] Task 13: Notification outbox with header badges
-- [ ] Task 14: Notification inbox with the remaining events
-- [ ] Task 15: Email delivery for notifications
+- [ ] Task 11: Provider profile captures service types, business domains and languages — `provider-taxonomy`
+- [ ] Task 12: Provider profile captures goal focuses and capability strengths — `provider-taxonomy`
+- [ ] Task 13: Notification outbox with header badges — `notifications`
+- [ ] Task 14: Notification inbox with the remaining events — `notifications`
+- [ ] Task 15: Email delivery for notifications — `notifications`
 
 ### Checkpoint: Signals and notifications
-- [ ] 10+ provider profiles with taxonomy; every event notifies; team review
+- [ ] 10+ provider profiles with taxonomy; every event notifies and emails; team review
 
 ### Phase 4: Matching
-- [ ] Task 16: Match scoring function
-- [ ] Task 17: Recommended briefs for providers
-- [ ] Task 18: Suggested providers for clients
+- [ ] Task 16: Match scoring function — `matching`
+- [ ] Task 17: Recommended briefs for providers — `matching`
+- [ ] Task 18: Suggested providers for clients — `matching`
 
 ### Checkpoint: Matching
 - [ ] Spot-check 10 pairs; tune weights; decide on persisting to `matches`
 
-### Phase 5: Polish (parallel, any time)
-- [ ] Task 19: Landing page with working nav links
-- [ ] Task 20: Admin can verify providers
-- [ ] Task 21: Admin can deactivate users
-- [ ] Task 22: Account settings for password and email
-- [ ] Task 23: Account deletion
-- [ ] Task 24: Route boundaries and page metadata
-- [ ] Task 25: Paginate /jobs
-- [ ] Task 26: Test coverage for provider services
+### Phase 5: Admin, account and polish
+- [ ] Task 20: Admin can verify providers — `admin`
+- [ ] Task 21: Admin can deactivate users — `admin`
+- [ ] Task 22: Account settings for password and email — `account`
+- [ ] Task 23: Account deletion — `account`
+- [ ] Task 19: Landing page with working nav links — `polish`
+- [ ] Task 24: Route boundaries and page metadata — `polish`
+- [ ] Task 25: Paginate /jobs — `polish`
 
 ### Checkpoint: Complete
 - [ ] All acceptance criteria met, CI green, pre-launch review (`/agent-skills:ship`)
@@ -74,20 +89,17 @@ Task details with acceptance criteria: `tasks/todo.md`. Keep both in sync with t
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Baseline migration replays against production because `migration repair` was skipped | High | Dump read-only; repair remote history before any `db push`; prove on a local stack first |
-| RLS on taxonomy, provider and `matches` tables unknown until the baseline exists | High | Task 1 gates Tasks 6–18; review every policy in the baseline PR |
+| Baseline migration replays against production because `migration repair` was skipped | High | Repair runs right after merge, before any `db push`; the command is in `supabase/README.md` |
+| Security fixes break a legitimate write the app makes | High | Criteria list every legitimate write; pgTAP covers allowed and denied cases; the smoke test runs both flows |
+| Someone already holds `admin` in production through the escalation | High | Post-merge step checks every `admin` profile |
 | Extending `service_workrooms` breaks the service-request flow | Medium | Keep columns and RPC signatures; existing workroom tests pass unchanged |
-| Few providers fill in the taxonomy, so matches are empty | Medium | Ship 11–12 early, dashboard nudge, require one service type for completion |
+| Dropping the `profiles` → `auth.users` cascade leaves orphaned profiles | Medium | Only deletion creates them, always anonymised; pgTAP proves other users' data is intact |
+| Service-role key leaks to the browser | High | Server-only module, no `NEXT_PUBLIC_`, a test fails if a client component imports it |
+| Few providers fill in the taxonomy, so matches are empty | Medium | Ship 11–12 early, completion requires a service type, empty states explain why |
 | Scoring on read slows as data grows | Medium | Filter candidates in SQL first; move to `matches` past a few hundred open briefs |
-| Supabase built-in mailer limits block reset and notification emails | Medium | Pick a provider in Task 15; use it as Auth SMTP before launch |
+| Vercel plan limits cron frequency | Low | Emails go out inline; the cron only retries failures |
 | Email scanners consume one-time recovery links | Low | Requesting a new link from `/forgot-password` is the recovery path |
 
 ## Open Questions
 
-- Who has Supabase project access for the baseline dump, and were the five existing migrations applied via CLI or SQL editor? (Task 1)
-- Is provider-marked completion enough, or should the client confirm? (Tasks 8, 9)
-- Email provider for notifications and Auth SMTP: Resend, Postmark or SES? (Task 15)
-- Account deletion: hard-delete the auth user (needs service-role key) or anonymise only? (Task 23)
-- "Enterprise" nav item: remove or link to a contact page? (Task 19)
-- Is there a Figma design for the landing page (`redesign/implementing-figma-new-UI` branch)? (Task 19)
-- Should clients be able to invite a suggested provider? Not in this plan; would follow Task 18.
+None blocking; decisions are recorded in `SPEC.md`. Deferred: client-confirmed completion, inviting a suggested provider, persisting matches.
