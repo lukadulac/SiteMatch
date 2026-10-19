@@ -2,13 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { deleteProviderServiceListingAction } from "@/app/dashboard/provider/services/actions";
 import { DashboardPanel, DashboardShell } from "@/components/dashboard/DashboardShell";
+import { ActionSubmitButton } from "@/components/dashboard/ActionSubmitButton";
+import { DashboardListPagination, DashboardStatusFilters, DASHBOARD_LIST_PAGE_SIZE, dashboardListHref, parseDashboardPage, parseDashboardStatus } from "@/components/dashboard/DashboardListControls";
 import {
 	ServiceRequestCard,
 	ServiceRequestNotice,
 } from "@/components/service-requests/service-request-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
-import { getUserConversations } from "@/lib/messaging/service";
+import { getUnreadConversationCount } from "@/lib/messaging/service";
 import { getProviderServiceRequestPreview } from "@/lib/provider-service-requests/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -68,6 +70,8 @@ export default async function ProviderServicesPage({
 	searchParams?: Promise<{
 		serviceError?: string | string[];
 		serviceStatus?: string | string[];
+		status?: string | string[];
+		page?: string | string[];
 	}>;
 }) {
 	const params = await searchParams;
@@ -75,6 +79,8 @@ export default async function ProviderServicesPage({
 		typeof params?.serviceError === "string" ? params.serviceError : null;
 	const serviceStatus =
 		typeof params?.serviceStatus === "string" ? params.serviceStatus : null;
+	const status = parseDashboardStatus(params?.status, ["all", "draft", "published", "paused"] as const);
+	const page = parseDashboardPage(params?.page);
 	const supabase = await createSupabaseServerClient();
 	const {
 		data: { user },
@@ -96,47 +102,56 @@ export default async function ProviderServicesPage({
 	}
 
 	const [
-		conversationsResult,
+		unreadCountResult,
 		applicationsResult,
-		servicesResult,
+		servicesCountResult,
 		serviceRequestsResult,
 	] =
 		await Promise.all([
-			getUserConversations(supabase, user.id),
+			getUnreadConversationCount(supabase, user.id),
 			supabase
 				.from("applications")
-				.select("id")
+				.select("id", { count: "exact", head: true })
 				.eq("provider_id", user.id),
-			supabase
-				.from("provider_service_listings")
-				.select(
-					"id, title, description, status, price_type, starting_price, delivery_estimate, service_type_text, category_text, created_at",
-				)
-				.eq("provider_id", user.id)
-				.order("created_at", { ascending: false }),
+			(() => {
+				let query = supabase
+					.from("provider_service_listings")
+					.select("id", { count: "exact", head: true })
+					.eq("provider_id", user.id);
+				if (status !== "all") query = query.eq("status", status);
+				return query;
+			})(),
 			getProviderServiceRequestPreview(supabase, user.id),
 		]);
 
-	if (conversationsResult.error) {
-		throw new Error(conversationsResult.error);
+	if (unreadCountResult.error) {
+		throw new Error(unreadCountResult.error);
 	}
 
 	if (applicationsResult.error) {
 		throw new Error(applicationsResult.error.message);
 	}
 
-	if (servicesResult.error) {
-		throw new Error(servicesResult.error.message);
+	if (servicesCountResult.error) {
+		throw new Error(servicesCountResult.error.message);
 	}
 
 	if (serviceRequestsResult.error) {
 		throw new Error(serviceRequestsResult.error);
 	}
 
-	const unreadConversations =
-		conversationsResult.data?.filter((conversation) => conversation.unread_count > 0) ??
-		[];
-	const applications = applicationsResult.data ?? [];
+	const unreadConversationCount = unreadCountResult.data ?? 0;
+	const applicationCount = applicationsResult.count ?? 0;
+	const totalCount = servicesCountResult.count ?? 0;
+	const totalPages = Math.ceil(totalCount / DASHBOARD_LIST_PAGE_SIZE);
+	if (page > Math.max(1, totalPages)) redirect(dashboardListHref("/dashboard/provider/services", status, Math.max(1, totalPages)));
+	let servicesQuery = supabase
+		.from("provider_service_listings")
+		.select("id, title, description, status, price_type, starting_price, delivery_estimate, service_type_text, category_text, created_at")
+		.eq("provider_id", user.id);
+	if (status !== "all") servicesQuery = servicesQuery.eq("status", status);
+	const servicesResult = await servicesQuery.order("created_at", { ascending: false }).order("id", { ascending: false }).range((page - 1) * DASHBOARD_LIST_PAGE_SIZE, page * DASHBOARD_LIST_PAGE_SIZE - 1);
+	if (servicesResult.error) throw new Error(servicesResult.error.message);
 	const services = servicesResult.data ?? [];
 	const serviceRequests = serviceRequestsResult.data ?? [];
 
@@ -151,12 +166,12 @@ export default async function ProviderServicesPage({
 				{
 					href: "/dashboard/provider/applications",
 					label: "Applications",
-					count: applications.length,
+					count: applicationCount,
 				},
 				{
 					href: "/dashboard/provider/services",
 					label: "Services",
-					count: services.length,
+					count: totalCount,
 					active: true,
 				},
 				{
@@ -167,7 +182,7 @@ export default async function ProviderServicesPage({
 				{
 					href: "/dashboard/messages",
 					label: "Messages",
-					count: unreadConversations.length,
+					count: unreadConversationCount,
 				},
 				{ href: "/dashboard/provider/profile", label: "Profile" },
 			]}
@@ -212,6 +227,10 @@ export default async function ProviderServicesPage({
 			</DashboardPanel>
 
 			<DashboardPanel title="My Services">
+				<div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+					<p className="text-sm text-secondary">{totalCount} service{totalCount === 1 ? "" : "s"}</p>
+					<DashboardStatusFilters basePath="/dashboard/provider/services" status={status} options={[{ value: "all", label: "All" }, { value: "draft", label: "Draft" }, { value: "published", label: "Published" }, { value: "paused", label: "Paused" }]} />
+				</div>
 				{services.length ? (
 					<div className="space-y-4">
 						{services.map((service) => (
@@ -248,12 +267,12 @@ export default async function ProviderServicesPage({
 												service.id,
 											)}
 										>
-											<button
-												type="submit"
-												className="rounded-2xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
-											>
-												Delete
-											</button>
+											<ActionSubmitButton
+												label="Delete"
+												pendingLabel="Deleting..."
+												confirmMessage="Delete this service listing? Listings with client requests cannot be deleted."
+												className="rounded-lg border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+											/>
 										</form>
 									</div>
 								</div>
@@ -285,12 +304,11 @@ export default async function ProviderServicesPage({
 					</div>
 				) : (
 					<div className="rounded-3xl border border-dashed border-line-strong bg-panel-soft p-8 text-center">
-						<h2 className="text-2xl font-semibold text-black">
-							No services posted yet
+						<h2 className="text-lg font-semibold text-black">
+							{status === "all" ? "No services posted yet" : `No ${status} services`}
 						</h2>
 						<p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-secondary">
-							Post your first service so clients can understand what you offer
-							before the public Find Talent page goes live.
+							{status === "all" ? "Post your first service so clients can understand what you offer." : "Try another status filter or create a new service."}
 						</p>
 						<Link
 							href="/dashboard/provider/services/post"
@@ -300,6 +318,7 @@ export default async function ProviderServicesPage({
 						</Link>
 					</div>
 				)}
+				<DashboardListPagination basePath="/dashboard/provider/services" status={status} page={page} totalPages={totalPages} />
 			</DashboardPanel>
 		</DashboardShell>
 	);

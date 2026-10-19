@@ -4,10 +4,23 @@ import {
 	FIND_TALENT_DEFAULT_PAGE_SIZE,
 	FIND_TALENT_MAX_PAGE_SIZE,
 	getDefaultFindTalentQuery,
+	getFindTalentHref,
 	parseFindTalentQuery,
 } from "@/lib/provider-services/find-talent-query";
 
 describe("parseFindTalentQuery", () => {
+	it("keeps active filters when linking to another results page", () => {
+		const parsed = parseFindTalentQuery({
+			q: "web design",
+			category: "design",
+			minPrice: "0",
+			sort: "price_asc",
+		});
+		expect(parsed.data).toBeDefined();
+		const href = getFindTalentHref(parsed.data!, 2);
+		expect(href).toBe("/find-talent?q=web+design&category=design&minPrice=0&sort=price_asc&page=2");
+		expect(getFindTalentHref(parsed.data!, 1)).not.toContain("page=");
+	});
 	it("returns default pagination and sorting for an empty query", () => {
 		const result = parseFindTalentQuery({});
 

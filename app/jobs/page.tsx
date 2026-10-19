@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
 import { getPublicPublishedProjects } from "@/lib/projects/service";
+import { getJobsPageHref, JOBS_PAGE_SIZE, parseJobsPage } from "@/lib/projects/jobs-pagination";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { headerTheme } from "@/theme/header-theme";
 
@@ -11,6 +13,7 @@ type JobsPageProps = {
     budget?: string;
     scope?: string;
     sort?: string;
+    page?: string | string[];
   }>;
 };
 
@@ -179,10 +182,14 @@ export default async function ProviderOpportunitiesPage({
     data: { user },
   } = await supabase.auth.getUser();
   const query = await searchParams;
-  const q = getSearchParam(query.q);
-  const budget = getSearchParam(query.budget);
-  const scope = getSearchParam(query.scope);
-  const sort = getSearchParam(query.sort) || "newest";
+  const q = getSearchParam(query.q).trim().slice(0, 120);
+  const rawBudget = getSearchParam(query.budget);
+  const budget = rawBudget === "fixed" || rawBudget === "range" || rawBudget === "negotiable" ? rawBudget : "";
+  const rawScope = getSearchParam(query.scope);
+  const scope = rawScope === "small" || rawScope === "medium" || rawScope === "large" ? rawScope : "";
+  const rawSort = getSearchParam(query.sort);
+  const sort = rawSort === "oldest" || rawSort === "budget_high" || rawSort === "budget_low" ? rawSort : "newest";
+  const requestedPage = parseJobsPage(query.page);
 
   let role: UserRole | null = null;
 
@@ -193,23 +200,24 @@ export default async function ProviderOpportunitiesPage({
 
   const projectsResult = await getPublicPublishedProjects(supabase, {
     q,
-    budget:
-      budget === "fixed" || budget === "range" || budget === "negotiable"
-        ? budget
-        : "",
-    scope:
-      scope === "small" || scope === "medium" || scope === "large" ? scope : "",
-    sort:
-      sort === "oldest" || sort === "budget_high" || sort === "budget_low"
-        ? sort
-        : "newest",
+    budget,
+    scope,
+    sort,
   });
 
   if (projectsResult.error) {
     throw new Error(projectsResult.error);
   }
 
-  const projects = projectsResult.data ?? [];
+  const allProjects = projectsResult.data ?? [];
+  const totalCount = allProjects.length;
+  const totalPages = Math.ceil(totalCount / JOBS_PAGE_SIZE);
+  const filters = { q, budget, scope, sort };
+  const lastPage = Math.max(1, totalPages);
+  if (requestedPage > lastPage) {
+    redirect(getJobsPageHref(filters, lastPage));
+  }
+  const projects = allProjects.slice((requestedPage - 1) * JOBS_PAGE_SIZE, requestedPage * JOBS_PAGE_SIZE);
   const providerApplicationsByProjectId = new Map<string, { id: string }>();
 
   if (user && role === "provider" && projects.length > 0) {
@@ -381,7 +389,7 @@ export default async function ProviderOpportunitiesPage({
         <div>
           <h2 className="text-xl font-semibold text-black">Open Project Briefs</h2>
           <p className="mt-1 text-sm text-secondary">
-            {projects.length} result{projects.length === 1 ? "" : "s"} available
+            {totalCount} result{totalCount === 1 ? "" : "s"} available
           </p>
         </div>
         <p className="text-sm font-semibold text-secondary">
@@ -409,7 +417,7 @@ export default async function ProviderOpportunitiesPage({
             return (
               <article
                 key={project.id}
-                className="flex min-w-0 flex-col rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)] sm:p-6"
+                className="flex min-w-0 flex-col rounded-lg border border-line bg-white p-5 sm:p-6"
               >
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   {providerApplication ? (
@@ -504,6 +512,19 @@ export default async function ProviderOpportunitiesPage({
           </div>
         )}
       </div>
+      {totalPages > 1 ? (
+        <nav aria-label="Project results pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+          <p className="text-sm text-secondary">Page {requestedPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            {requestedPage > 1 ? (
+              <Link href={getJobsPageHref(filters, requestedPage - 1)} aria-label="Go to previous project page" className="inline-flex min-h-10 items-center rounded-lg border border-line px-4 text-sm font-semibold text-black hover:bg-zinc-50">Previous</Link>
+            ) : <span aria-disabled="true" className="inline-flex min-h-10 items-center rounded-lg border border-line px-4 text-sm text-secondary/60">Previous</span>}
+            {requestedPage < totalPages ? (
+              <Link href={getJobsPageHref(filters, requestedPage + 1)} aria-label="Go to next project page" className="inline-flex min-h-10 items-center rounded-lg border border-line px-4 text-sm font-semibold text-black hover:bg-zinc-50">Next</Link>
+            ) : <span aria-disabled="true" className="inline-flex min-h-10 items-center rounded-lg border border-line px-4 text-sm text-secondary/60">Next</span>}
+          </div>
+        </nav>
+      ) : null}
     </section>
   );
 }

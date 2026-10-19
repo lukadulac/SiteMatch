@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
 	getDefaultFindTalentQuery,
+	getFindTalentHref,
 	parseFindTalentQuery,
 	type RawFindTalentQuery,
 } from "@/lib/provider-services/find-talent-query";
@@ -29,6 +31,10 @@ function getServiceExcerpt(description: string) {
 	return `${trimmedDescription.slice(0, 150).trimEnd()}...`;
 }
 
+function readableFilter(value: string) {
+	return value.replaceAll(/[-_]/g, " ");
+}
+
 export default async function FindTalentPage({
 	searchParams,
 }: FindTalentPageProps) {
@@ -53,6 +59,12 @@ export default async function FindTalentPage({
 	}
 
 	const services = servicesResult.data?.services ?? [];
+	const totalCount = servicesResult.data?.totalCount ?? 0;
+	const totalPages = servicesResult.data?.totalPages ?? 0;
+	const lastPage = Math.max(1, totalPages);
+	if (filters.page > lastPage) {
+		redirect(getFindTalentHref(filters, lastPage));
+	}
 	const preservedFilterInputs = [
 		["category", filters.categorySlug],
 		["serviceType", filters.serviceTypeSlug],
@@ -66,9 +78,14 @@ export default async function FindTalentPage({
 		return value !== undefined && value !== "";
 	});
 	const activeFilters = [
-		q ? `Search: ${q}` : null,
-		price ? priceTypeLabel(price) : null,
-	].filter((filter): filter is string => Boolean(filter));
+		q ? { label: `Search: ${q}`, href: getFindTalentHref({ ...filters, q: undefined }, 1) } : null,
+		filters.categorySlug ? { label: `Category: ${readableFilter(filters.categorySlug)}`, href: getFindTalentHref({ ...filters, categorySlug: undefined }, 1) } : null,
+		filters.serviceTypeSlug ? { label: `Service: ${readableFilter(filters.serviceTypeSlug)}`, href: getFindTalentHref({ ...filters, serviceTypeSlug: undefined }, 1) } : null,
+		price ? { label: priceTypeLabel(price), href: getFindTalentHref({ ...filters, priceType: undefined }, 1) } : null,
+		filters.minPrice !== undefined ? { label: `Min $${filters.minPrice}`, href: getFindTalentHref({ ...filters, minPrice: undefined }, 1) } : null,
+		filters.maxPrice !== undefined ? { label: `Max $${filters.maxPrice}`, href: getFindTalentHref({ ...filters, maxPrice: undefined }, 1) } : null,
+		filters.deliveryBucket ? { label: `Delivery: ${readableFilter(filters.deliveryBucket)}`, href: getFindTalentHref({ ...filters, deliveryBucket: undefined }, 1) } : null,
+	].filter((filter): filter is { label: string; href: string } => Boolean(filter));
 
 	return (
 		<section className="space-y-7 py-4 sm:py-8">
@@ -88,9 +105,7 @@ export default async function FindTalentPage({
 							Find services from freelance providers
 						</h1>
 						<p className="mt-3 max-w-3xl text-sm leading-6 text-secondary sm:text-base">
-							Browse published service offers from providers. Service request
-							and messaging actions will be added after the marketplace listing
-							flow is stable.
+							Explore published services, compare providers, and send a request when you find the right fit.
 						</p>
 					</div>
 				</div>
@@ -168,12 +183,14 @@ export default async function FindTalentPage({
 								Active
 							</span>
 							{activeFilters.map((filter) => (
-								<span
-									key={filter}
-									className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-black"
+								<Link
+									key={filter.label}
+									href={filter.href}
+									aria-label={`Remove ${filter.label} filter`}
+									className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-black hover:bg-zinc-200"
 								>
-									{filter}
-								</span>
+									{filter.label} <span aria-hidden="true">×</span>
+								</Link>
 							))}
 							<Link
 								href="/find-talent"
@@ -192,7 +209,7 @@ export default async function FindTalentPage({
 						Published Services
 					</h2>
 					<p className="mt-1 text-sm text-secondary">
-						{services.length} result{services.length === 1 ? "" : "s"} available
+						{totalCount} result{totalCount === 1 ? "" : "s"} available
 					</p>
 				</div>
 				<p className="text-sm font-semibold text-secondary">
@@ -217,7 +234,7 @@ export default async function FindTalentPage({
 						return (
 							<article
 								key={service.id}
-								className="flex min-w-0 flex-col rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)] sm:p-6"
+								className="flex min-w-0 flex-col rounded-lg border border-line bg-white p-5 sm:p-6"
 							>
 								<div className="flex min-w-0 flex-wrap items-center gap-2">
 									<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -232,7 +249,7 @@ export default async function FindTalentPage({
 									{service.title}
 								</h3>
 
-								<p className="mt-5 line-clamp-3 break-all text-lg leading-7 text-black sm:wrap-break-word sm:text-xl sm:leading-8">
+								<p className="mt-4 line-clamp-3 wrap-break-word text-sm leading-6 text-secondary">
 									{getServiceExcerpt(service.description)}
 								</p>
 
@@ -302,6 +319,20 @@ export default async function FindTalentPage({
 					</div>
 				)}
 			</div>
+
+			{totalPages > 1 ? (
+				<nav aria-label="Service results pagination" className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
+					<p className="text-sm text-secondary">Page {filters.page} of {totalPages}</p>
+					<div className="flex items-center gap-2">
+						{filters.page > 1 ? (
+							<Link href={getFindTalentHref(filters, filters.page - 1)} aria-label="Go to previous service page" className="inline-flex min-h-10 items-center rounded-lg border border-line px-4 text-sm font-semibold text-black hover:bg-zinc-50">Previous</Link>
+						) : <span aria-disabled="true" className="inline-flex min-h-10 items-center rounded-lg border border-line px-4 text-sm text-secondary/60">Previous</span>}
+						{filters.page < totalPages ? (
+							<Link href={getFindTalentHref(filters, filters.page + 1)} aria-label="Go to next service page" className="inline-flex min-h-10 items-center rounded-lg border border-line px-4 text-sm font-semibold text-black hover:bg-zinc-50">Next</Link>
+						) : <span aria-disabled="true" className="inline-flex min-h-10 items-center rounded-lg border border-line px-4 text-sm text-secondary/60">Next</span>}
+					</div>
+				</nav>
+			) : null}
 		</section>
 	);
 }

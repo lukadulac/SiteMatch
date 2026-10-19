@@ -4,10 +4,10 @@ import {
   DashboardPanel,
   DashboardShell,
 } from "@/components/dashboard/DashboardShell";
+import { DashboardListPagination, DashboardStatusFilters, DASHBOARD_LIST_PAGE_SIZE, dashboardListHref, parseDashboardPage, parseDashboardStatus } from "@/components/dashboard/DashboardListControls";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
-import { getUserConversations } from "@/lib/messaging/service";
-import { getClientProjects } from "@/lib/projects/service";
+import { getUnreadConversationCount } from "@/lib/messaging/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function formatDateLabel(value: string | null) {
@@ -90,7 +90,10 @@ function formatBudgetLabel(
   return "Budget not set";
 }
 
-export default async function ClientProjectsPage() {
+export default async function ClientProjectsPage({ searchParams }: { searchParams: Promise<{ status?: string | string[]; page?: string | string[] }> }) {
+  const params = await searchParams;
+  const status = parseDashboardStatus(params.status, ["all", "draft", "published", "in_discussion", "assigned", "completed", "cancelled"] as const);
+  const page = parseDashboardPage(params.page);
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -111,28 +114,29 @@ export default async function ClientProjectsPage() {
     redirect(getDashboardPath(provisioned.role));
   }
 
-  const [profileResult, projectsResult, conversationsResult] = await Promise.all([
-    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
-    getClientProjects(supabase, user.id),
-    getUserConversations(supabase, user.id),
+  const [projectsCountResult, unreadCountResult] = await Promise.all([
+    (() => {
+      let query = supabase.from("projects").select("id", { count: "exact", head: true }).eq("client_id", user.id);
+      if (status !== "all") query = query.eq("status", status);
+      return query;
+    })(),
+    getUnreadConversationCount(supabase, user.id),
   ]);
 
-  if (profileResult.error || !profileResult.data) {
-    throw new Error(profileResult.error?.message ?? "Profile could not be loaded.");
-  }
+  if (projectsCountResult.error) throw new Error(projectsCountResult.error.message);
+  if (unreadCountResult.error) throw new Error(unreadCountResult.error);
+  const totalCount = projectsCountResult.count ?? 0;
+  const totalPages = Math.ceil(totalCount / DASHBOARD_LIST_PAGE_SIZE);
+  if (page > Math.max(1, totalPages)) redirect(dashboardListHref("/dashboard/client/projects", status, Math.max(1, totalPages)));
 
-  if (projectsResult.error) {
-    throw new Error(projectsResult.error);
-  }
-
-  if (conversationsResult.error) {
-    throw new Error(conversationsResult.error);
-  }
-
+  let projectsQuery = supabase.from("projects")
+    .select("id, slug, title, status, description, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, desired_start_date, updated_at, created_at")
+    .eq("client_id", user.id);
+  if (status !== "all") projectsQuery = projectsQuery.eq("status", status);
+  const projectsResult = await projectsQuery.order("updated_at", { ascending: false }).order("id", { ascending: false }).range((page - 1) * DASHBOARD_LIST_PAGE_SIZE, page * DASHBOARD_LIST_PAGE_SIZE - 1);
+  if (projectsResult.error) throw new Error(projectsResult.error.message);
   const projects = projectsResult.data ?? [];
-  const unreadConversations = (conversationsResult.data ?? []).filter(
-    (conversation) => conversation.unread_count > 0,
-  );
+  const unreadConversationCount = unreadCountResult.data ?? 0;
 
   return (
     <DashboardShell
@@ -145,18 +149,22 @@ export default async function ClientProjectsPage() {
         {
           href: "/dashboard/client/projects",
           label: "Projects",
-          count: projects.length,
+          count: totalCount,
           active: true,
         },
         {
           href: "/dashboard/messages",
           label: "Messages",
-          count: unreadConversations.length,
+          count: unreadConversationCount,
         },
         { href: "/dashboard/client/profile", label: "Profile" },
       ]}
     >
       <DashboardPanel title="All Projects">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-secondary">{totalCount} project{totalCount === 1 ? "" : "s"}</p>
+          <DashboardStatusFilters basePath="/dashboard/client/projects" status={status} options={[{ value: "all", label: "All" }, { value: "draft", label: "Draft" }, { value: "published", label: "Published" }, { value: "in_discussion", label: "In discussion" }, { value: "assigned", label: "Assigned" }, { value: "completed", label: "Completed" }, { value: "cancelled", label: "Cancelled" }]} />
+        </div>
         <div className="space-y-4">
           {projects.length > 0 ? (
             projects.map((project) => (
@@ -166,10 +174,10 @@ export default async function ClientProjectsPage() {
               >
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div className="min-w-0">
-                    <h2 className="wrap-break-word text-xl font-semibold text-black">
+                    <h3 className="wrap-break-word text-base font-semibold text-black">
                       {project.title}
-                    </h2>
-                    <p className="mt-2 line-clamp-3 wrap-break-word3 text-sm leading-6 text-secondary">
+                    </h3>
+                    <p className="mt-2 line-clamp-3 wrap-break-word text-sm leading-6 text-secondary">
                       {project.description}
                     </p>
                   </div>
@@ -209,11 +217,11 @@ export default async function ClientProjectsPage() {
             ))
           ) : (
             <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
-              You do not have projects yet. Create your first listing to start
-              receiving provider interest.
+              {status === "all" ? "You do not have projects yet. Create your first listing to start receiving provider interest." : "No projects match this status."}
             </div>
           )}
         </div>
+        <DashboardListPagination basePath="/dashboard/client/projects" status={status} page={page} totalPages={totalPages} />
       </DashboardPanel>
     </DashboardShell>
   );

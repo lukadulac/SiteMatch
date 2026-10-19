@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ActionSubmitButton } from "@/components/dashboard/ActionSubmitButton";
 import { completeWorkroomAction } from "@/app/dashboard/workroom-actions";
 import type {
 	ServiceWorkroomDetail,
@@ -146,7 +147,7 @@ export function WorkroomActions({
 	showDetailsLink?: boolean;
 }) {
 	return (
-		<div className="flex shrink-0 flex-wrap gap-2">
+		<div className="flex min-w-0 flex-wrap gap-2">
 			{showDetailsLink ? (
 				<Link
 					href={`/dashboard/workrooms/${workroom.id}`}
@@ -166,12 +167,12 @@ export function WorkroomActions({
 			{viewerRole === "provider" && workroom.status === "active" ? (
 				<form action={completeWorkroomAction.bind(null, workroom.id)}>
 					{hiddenActionFields({ context, status, page })}
-					<button
-						type="submit"
-						className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-					>
-						Mark completed
-					</button>
+					<ActionSubmitButton
+						label="Mark completed"
+						pendingLabel="Completing..."
+						confirmMessage="Mark this workroom as completed?"
+						className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+					/>
 				</form>
 			) : null}
 		</div>
@@ -194,8 +195,8 @@ export function WorkroomCard({
 	compact?: boolean;
 }) {
 	return (
-		<article className="rounded-3xl border border-line bg-white p-5">
-			<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+		<article className="rounded-lg border border-line bg-white p-5">
+			<div className={`flex flex-col gap-4 ${compact ? "" : "lg:flex-row lg:items-start lg:justify-between"}`}>
 				<div className="min-w-0">
 					<div className="flex flex-wrap items-center gap-2">
 						<h2 className="wrap-break-word text-lg font-semibold text-black">

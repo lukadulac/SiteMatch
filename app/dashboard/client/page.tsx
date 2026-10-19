@@ -9,7 +9,7 @@ import { WorkroomCard } from "@/components/workrooms/workroom-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
-import { getUserConversations } from "@/lib/messaging/service";
+import { getUnreadConversationCount, getUserConversations } from "@/lib/messaging/service";
 import { getClientServiceRequestPreview } from "@/lib/provider-service-requests/service";
 import { getClientProjects } from "@/lib/projects/service";
 import { getClientWorkroomPreview } from "@/lib/service-workrooms/service";
@@ -167,6 +167,11 @@ export default async function ClientDashboardPage({
     conversationsResult,
     serviceRequestsResult,
     workroomsResult,
+    projectCountResult,
+    activeProjectCountResult,
+    draftProjectCountResult,
+    reviewApplicationCountResult,
+    unreadConversationCountResult,
   ] =
     await Promise.all([
       supabase
@@ -181,10 +186,18 @@ export default async function ClientDashboardPage({
         )
         .eq("user_id", user.id)
         .maybeSingle(),
-      getClientProjects(supabase, user.id),
-      getUserConversations(supabase, user.id),
+      getClientProjects(supabase, user.id, {
+        limit: 5,
+        statuses: ["published", "in_discussion", "assigned"],
+      }),
+      getUserConversations(supabase, user.id, { limit: 3 }),
       getClientServiceRequestPreview(supabase, user.id),
       getClientWorkroomPreview(supabase, user.id),
+      supabase.from("projects").select("id", { count: "exact", head: true }).eq("client_id", user.id),
+      supabase.from("projects").select("id", { count: "exact", head: true }).eq("client_id", user.id).in("status", ["published", "in_discussion", "assigned"]),
+      supabase.from("projects").select("id", { count: "exact", head: true }).eq("client_id", user.id).eq("status", "draft"),
+      supabase.from("applications").select("id, project:projects!inner(client_id)", { count: "exact", head: true }).eq("project.client_id", user.id).in("status", ["pending", "viewed", "shortlisted"]),
+      getUnreadConversationCount(supabase, user.id),
     ]);
 
   if (profileResult.error || !profileResult.data) {
@@ -211,12 +224,25 @@ export default async function ClientDashboardPage({
     throw new Error(workroomsResult.error);
   }
 
+  for (const result of [projectCountResult, activeProjectCountResult, draftProjectCountResult, reviewApplicationCountResult]) {
+    if (result.error) throw new Error(result.error.message);
+  }
+
+  if (unreadConversationCountResult.error) {
+    throw new Error(unreadConversationCountResult.error);
+  }
+
   const profile = profileResult.data;
   const clientProfile = clientProfileResult.data;
   const projects = projectsResult.data ?? [];
   const conversations = conversationsResult.data ?? [];
   const serviceRequests = serviceRequestsResult.data ?? [];
   const workrooms = workroomsResult.data ?? [];
+  const projectCount = projectCountResult.count ?? 0;
+  const activeProjectCount = activeProjectCountResult.count ?? 0;
+  const draftProjectCount = draftProjectCountResult.count ?? 0;
+  const reviewApplicationCount = reviewApplicationCountResult.count ?? 0;
+  const unreadConversationCount = unreadConversationCountResult.data ?? 0;
   const projectIds = projects.map((project) => project.id);
   const applicationsResult =
     projectIds.length > 0
@@ -231,16 +257,7 @@ export default async function ClientDashboardPage({
   }
 
   const applications = applicationsResult.data ?? [];
-  const activeProjects = projects.filter((project) =>
-    ["published", "in_discussion", "assigned"].includes(project.status),
-  );
-  const draftProjects = projects.filter((project) => project.status === "draft");
-  const reviewApplications = applications.filter((application) =>
-    ["pending", "viewed", "shortlisted"].includes(application.status),
-  );
-  const unreadConversations = conversations.filter(
-    (conversation) => conversation.unread_count > 0,
-  );
+  const activeProjects = projects;
   const isComplete = isClientProfileComplete(clientProfile);
 
   return (
@@ -256,7 +273,7 @@ export default async function ClientDashboardPage({
         {
           href: "/dashboard/client/projects",
           label: "Projects",
-          count: projects.length,
+          count: projectCount,
         },
         {
           href: "/dashboard/client/service-requests",
@@ -269,7 +286,7 @@ export default async function ClientDashboardPage({
         {
           href: "/dashboard/messages",
           label: "Messages",
-          count: unreadConversations.length,
+          count: unreadConversationCount,
         },
         { href: "/dashboard/client/profile", label: "Profile" },
       ]}
@@ -285,20 +302,34 @@ export default async function ClientDashboardPage({
         </section>
       ) : null}
 
+      {reviewApplicationCount > 0 || unreadConversationCount > 0 ? (
+      <section className="rounded-lg border border-line bg-white p-5" aria-labelledby="client-attention-title">
+        <h2 id="client-attention-title" className="text-lg font-semibold text-black">Needs attention</h2>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm">
+          {reviewApplicationCount > 0 ? <Link href="/dashboard/client/projects" className="rounded-lg border border-line px-4 py-3 font-semibold text-black hover:bg-zinc-50">
+            {reviewApplicationCount} proposal{reviewApplicationCount === 1 ? "" : "s"} to review
+          </Link> : null}
+          {unreadConversationCount > 0 ? <Link href="/dashboard/messages" className="rounded-lg border border-line px-4 py-3 font-semibold text-black hover:bg-zinc-50">
+            {unreadConversationCount} unread conversation{unreadConversationCount === 1 ? "" : "s"}
+          </Link> : null}
+        </div>
+      </section>
+      ) : null}
+
       <section className="grid min-w-0 gap-4 md:grid-cols-3">
         <OverviewStat
           label="Active Projects"
-          value={String(activeProjects.length)}
-          detail={`${draftProjects.length} draft${draftProjects.length === 1 ? "" : "s"} still in progress`}
+          value={String(activeProjectCount)}
+          detail={`${draftProjectCount} draft${draftProjectCount === 1 ? "" : "s"} still in progress`}
         />
         <OverviewStat
           label="Applications to Review"
-          value={String(reviewApplications.length)}
+          value={String(reviewApplicationCount)}
           detail="Pending, viewed, or shortlisted proposals"
         />
         <OverviewStat
           label="Unread Messages"
-          value={String(unreadConversations.length)}
+          value={String(unreadConversationCount)}
           detail="Conversations needing a reply"
         />
       </section>
@@ -388,7 +419,7 @@ export default async function ClientDashboardPage({
 
           <div className="divide-y divide-line">
             {activeProjects.length > 0 ? (
-              activeProjects.slice(0, 5).map((project) => {
+              activeProjects.map((project) => {
                 const applicationCount = applications.filter(
                   (application) => application.project_id === project.id,
                 ).length;
@@ -462,7 +493,7 @@ export default async function ClientDashboardPage({
             </div>
             <div className="mt-5 space-y-4">
               {conversations.length > 0 ? (
-                conversations.slice(0, 3).map((conversation) => {
+                conversations.map((conversation) => {
                   const otherParty =
                     conversation.provider_id === user.id
                       ? conversation.client
@@ -513,7 +544,7 @@ export default async function ClientDashboardPage({
             <p className="mt-2 text-sm leading-6 text-secondary">
               {isComplete
                 ? "Your client profile is complete."
-                : "Finish your client profile before heavy testing."}
+                : "Complete your profile so providers have the context they need."}
             </p>
             <Link
               href="/dashboard/client/profile"

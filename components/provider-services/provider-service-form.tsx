@@ -145,6 +145,7 @@ function SelectWithOtherField({
 	options,
 	placeholder,
 	otherPlaceholder,
+	onChoiceChange,
 }: {
 	label: string;
 	idName: string;
@@ -153,6 +154,7 @@ function SelectWithOtherField({
 	options: MetaOption[];
 	placeholder: string;
 	otherPlaceholder: string;
+	onChoiceChange?: (choice: string) => void;
 }) {
 	const existingText = getFieldValue(state, textName);
 	const [choice, setChoice] = useState(
@@ -168,7 +170,10 @@ function SelectWithOtherField({
 				<select
 					id={`${idName}_choice`}
 					value={choice}
-					onChange={(event) => setChoice(event.target.value)}
+					onChange={(event) => {
+						setChoice(event.target.value);
+						onChoiceChange?.(event.target.value);
+					}}
 					aria-invalid={idError || textError ? "true" : "false"}
 					className={inputClasses(idError || textError)}
 				>
@@ -261,6 +266,16 @@ export function ProviderServiceForm({
 	const [priceType, setPriceType] = useState(
 		getFieldValue(state, "price_type", "starting_at"),
 	);
+	const [previewFields, setPreviewFields] = useState<Record<string, string>>(() => ({
+		title: getFieldValue(state, "title"),
+		description: getFieldValue(state, "description"),
+		service_type_id: getFieldValue(state, "service_type_id"),
+		service_type_text: getFieldValue(state, "service_type_text"),
+		category_id: getFieldValue(state, "category_id"),
+		category_text: getFieldValue(state, "category_text"),
+		starting_price: getFieldValue(state, "starting_price"),
+		delivery_estimate: getFieldValue(state, "delivery_estimate"),
+	}));
 	const secondaryIntent = listingStatus === "published" ? "published" : "draft";
 	const secondaryLabel =
 		submitMode === "edit" && listingStatus === "published"
@@ -274,32 +289,41 @@ export function ProviderServiceForm({
 	const selectedServiceType = useMemo(
 		() =>
 			serviceTypes.find(
-				(option) => option.id === getFieldValue(state, "service_type_id"),
+				(option) => option.id === previewFields.service_type_id,
 			),
-		[serviceTypes, state],
+		[serviceTypes, previewFields.service_type_id],
 	);
 	const selectedCategory = useMemo(
 		() =>
 			categories.find(
-				(option) => option.id === getFieldValue(state, "category_id"),
+				(option) => option.id === previewFields.category_id,
 			),
-		[categories, state],
+		[categories, previewFields.category_id],
 	);
-	const title = getFieldValue(state, "title");
-	const description = getFieldValue(state, "description");
-	const startingPrice = getFieldValue(state, "starting_price");
-	const deliveryEstimate = getFieldValue(state, "delivery_estimate");
-	const customServiceType = getFieldValue(state, "service_type_text");
-	const customCategory = getFieldValue(state, "category_text");
+	const title = previewFields.title;
+	const description = previewFields.description;
+	const startingPrice = previewFields.starting_price;
+	const deliveryEstimate = previewFields.delivery_estimate;
+	const customServiceType = previewFields.service_type_text;
+	const customCategory = previewFields.category_text;
 	const priceLabel =
 		priceType === "negotiable"
 			? "Negotiable"
 			: startingPrice
 				? `$${Number(startingPrice).toLocaleString()}`
-				: "$-";
+				: "Not set";
 
 	return (
-		<form action={formAction} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+		<form
+			action={formAction}
+			onInputCapture={(event) => {
+				const target = event.target as HTMLInputElement | HTMLTextAreaElement;
+				if (target.name && target.name in previewFields) {
+					setPreviewFields((current) => ({ ...current, [target.name]: target.value }));
+				}
+			}}
+			className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]"
+		>
 			<div className="space-y-7 rounded-3xl border border-line bg-white p-5 shadow-[0_20px_60px_rgba(17,17,17,0.05)] sm:p-7">
 				{state.formError ? (
 					<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
@@ -328,6 +352,7 @@ export function ProviderServiceForm({
 								options={serviceTypes}
 								placeholder="Select type..."
 								otherPlaceholder="e.g. Contract review, video editing, financial modelling"
+								onChoiceChange={(choice) => setPreviewFields((current) => ({ ...current, service_type_id: choice === "__other__" ? "" : choice, service_type_text: choice === "__other__" ? current.service_type_text : "" }))}
 							/>
 							<SelectWithOtherField
 								label="Category"
@@ -337,6 +362,7 @@ export function ProviderServiceForm({
 								options={categories}
 								placeholder="Select category..."
 								otherPlaceholder="e.g. Legal consulting"
+								onChoiceChange={(choice) => setPreviewFields((current) => ({ ...current, category_id: choice === "__other__" ? "" : choice, category_text: choice === "__other__" ? current.category_text : "" }))}
 							/>
 						</div>
 					</div>
@@ -385,7 +411,7 @@ export function ProviderServiceForm({
 											type="radio"
 											name="price_type"
 											value={value}
-											defaultChecked={priceType === value}
+											checked={priceType === value}
 											onChange={() => setPriceType(value)}
 											className="sr-only"
 										/>
@@ -440,9 +466,6 @@ export function ProviderServiceForm({
 						<span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
 							{listingStatus === "published" ? "Published" : "Draft"}
 						</span>
-					</div>
-					<div className="mb-4 flex h-28 items-center justify-center rounded-[1.1rem] bg-linear-to-br from-violet-100 via-white to-pink-100 text-3xl font-semibold text-violet-600">
-						W
 					</div>
 					<h3 className="wrap-break-word text-lg font-semibold text-black">
 						{title || "Untitled Service"}

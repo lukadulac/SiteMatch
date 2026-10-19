@@ -678,6 +678,17 @@ export async function getProviderServiceRequestPreview(
 	return { data: result.data.requests };
 }
 
+export function getProviderPendingServiceRequestPreview(
+	supabase: SupabaseClient<Database>,
+	userId: string,
+): Promise<ServiceRequestResult<ServiceRequestPage<ProviderIncomingServiceRequest>>> {
+	return getProviderServiceRequestsPageWithOptions(supabase, userId, {
+		page: 1,
+		pageSize: SERVICE_REQUEST_PREVIEW_LIMIT,
+		status: "pending",
+	});
+}
+
 export async function getServiceRequestDetailForParticipant(
 	supabase: SupabaseClient<Database>,
 	userId: string,

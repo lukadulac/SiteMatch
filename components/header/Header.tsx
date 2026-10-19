@@ -12,11 +12,13 @@ const CLOSE_ANIMATION_MS = 260;
 type HeaderProps = {
 	isAuthenticated?: boolean;
 	profileHref?: string;
+	profileLabel?: string;
 };
 
 export default function Header({
 	isAuthenticated = false,
 	profileHref = "/dashboard",
+	profileLabel = "Profile",
 }: HeaderProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isMenuMounted, setIsMenuMounted] = useState(false);
@@ -111,7 +113,7 @@ export default function Header({
 					<Image
 						src="/images/workbridge-logo.png"
 						alt="WorkBridge"
-						className="h-16 w-auto object-contain sm:h-16 lg:h-20"
+						className="h-12 w-auto object-contain sm:h-14"
 						style={{width: "auto"}}
 						width={240}
 						height={80}
@@ -139,37 +141,12 @@ export default function Header({
 								Find Work
 							</Link>
 						</li>
-						<li>
-							<Link
-								href="/"
-								className="text-[16px] font-semibold transition hover:opacity-70"
-								style={{ color: headerTheme.muted }}
-							>
-								How It Works
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/"
-								className="text-[16px] font-semibold transition hover:opacity-70"
-								style={{ color: headerTheme.muted }}
-							>
-								Enterprise
-							</Link>
-						</li>
 					</ul>
 				</nav>
 
 				<div className="hidden items-center gap-4 lg:flex">
 					{isAuthenticated ? (
 						<>
-							{/* <Link
-								href="/dashboard"
-								className="text-[16px] font-semibold transition hover:opacity-70"
-								style={{ color: headerTheme.text }}
-							>
-								Dashboard
-							</Link> */}
 							<Link
 								href={profileHref}
 								className="rounded-full px-6 py-3 text-[16px] font-semibold text-white transition hover:opacity-90"
@@ -177,7 +154,7 @@ export default function Header({
 									background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
 								}}
 							>
-								Profile
+								{profileLabel}
 							</Link>
 							<form action={logoutAction}>
 								<button
@@ -274,29 +251,9 @@ export default function Header({
 									Find Work
 								</Link>
 							</li>
-							<li>
-								<Link
-									href="/"
-									onClick={closeMenu}
-									className="block py-2 text-[16px] font-semibold"
-									style={{ color: headerTheme.muted }}
-								>
-									How It Works
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/"
-									onClick={closeMenu}
-									className="block py-2 text-[16px] font-semibold"
-									style={{ color: headerTheme.muted }}
-								>
-									Enterprise
-								</Link>
-							</li>
 							{isAuthenticated ? (
 								<>
-									<li className="pt-3">
+									{profileLabel !== "Dashboard" ? <li className="pt-3">
 										<Link
 											href="/dashboard"
 											onClick={closeMenu}
@@ -305,7 +262,7 @@ export default function Header({
 										>
 											Dashboard
 										</Link>
-									</li>
+									</li> : null}
 									<li>
 										<Link
 											href={profileHref}
@@ -315,7 +272,7 @@ export default function Header({
 												background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
 											}}
 										>
-											Profile
+											{profileLabel}
 										</Link>
 									</li>
 									<li>
