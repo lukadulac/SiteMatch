@@ -3,6 +3,20 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      account_moderation: {
+        Row: { user_id: string; status: "active" | "suspended" | "banned" | "deleted"; suspended_until: string | null; reason: string; updated_at: string; auth_deleted_at: string | null };
+        Insert: { user_id: string; status: "active" | "suspended" | "banned" | "deleted"; suspended_until?: string | null; reason: string; updated_at?: string; auth_deleted_at?: string | null };
+        Update: { status?: "active" | "suspended" | "banned" | "deleted"; suspended_until?: string | null; reason?: string; updated_at?: string; auth_deleted_at?: string | null };
+        ComputedFields: never;
+        Relationships: [{ foreignKeyName: "account_moderation_user_id_fkey"; columns: ["user_id"]; isOneToOne: true; referencedRelation: "profiles"; referencedColumns: ["id"] }];
+      };
+      moderation_events: {
+        Row: { id: string; actor_id: string; owner_id: string; target_type: string; target_id: string; action: string; reason: string; created_at: string };
+        Insert: { id?: string; actor_id: string; owner_id: string; target_type: string; target_id: string; action: string; reason: string; created_at?: string };
+        Update: { reason?: string };
+        ComputedFields: never;
+        Relationships: [];
+      };
       applications: {
         Row: {
           cover_message: string;
@@ -185,6 +199,8 @@ export type Database = {
       };
       conversations: {
         Row: {
+          source_deleted_at: string | null;
+          source_title: string | null;
           application_id: string | null;
           client_id: string;
           created_at: string;
@@ -554,6 +570,7 @@ export type Database = {
       };
       projects: {
         Row: {
+          is_hidden: boolean;
           budget_max: number | null;
           budget_min: number | null;
           budget_type: Database["public"]["Enums"]["budget_type"];
@@ -965,6 +982,7 @@ export type Database = {
       };
       provider_service_listings: {
         Row: {
+          is_hidden: boolean;
           category_id: string | null;
           category_text: string | null;
           created_at: string;
@@ -1252,6 +1270,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      is_account_enabled: { Args: { target_user_id: string }; Returns: boolean };
+      can_send_conversation_message: { Args: { target_conversation_id: string }; Returns: boolean };
+      before_user_created_moderation: { Args: { event: Json }; Returns: Json };
+      admin_moderate_listing: { Args: { target_type: string; target_id: string; decision: string; reason: string }; Returns: Json };
+      admin_moderate_user: { Args: { target_user_id: string; decision: string; reason: string; suspension_end?: string | null }; Returns: Json };
+      admin_confirm_auth_deleted: { Args: { target_user_id: string }; Returns: undefined };
+      admin_list_records: { Args: { resource: string; page_number?: number; filter_value?: string }; Returns: Json };
+      admin_overview: { Args: Record<PropertyKey, never>; Returns: Json };
       accept_project_application: {
         Args: { target_application_id: string };
         Returns: {

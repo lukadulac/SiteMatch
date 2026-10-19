@@ -213,3 +213,77 @@ References: [Supabase email templates](https://supabase.com/docs/guides/auth/aut
 [SSR email confirmation](https://supabase.com/docs/guides/getting-started/tutorials/with-nextjs),
 [PKCE limitations](https://supabase.com/docs/guides/auth/sessions/pkce-flow),
 [resend API](https://supabase.com/docs/reference/javascript/auth-resend).
+
+## Admin moderation backend
+
+Migration: `20261019100000_admin_moderation.sql`. Apply the migration before
+deploying the dependent application code. The baseline repair instructions above
+still apply to a hosted project that predates this migration history. Do not
+blindly replay baseline migrations. This feature does not create an admin user.
+
+The backend exposes `GET /api/admin/overview`, and paginated
+`GET /api/admin/{users,projects,services,audit}?page=1&filter=all` (20 rows).
+User filters: all/active/suspended/banned/deleted; listing filters:
+all/hidden/visible. Reads are authenticated, admin-only, and private/no-store.
+
+`POST /api/admin/moderation` requires a same-origin JSON request:
+
+```json
+{
+  "targetType": "service",
+  "targetId": "<uuid>",
+  "decision": "hide",
+  "reason": "The listing contains misleading information."
+}
+```
+
+Listing decisions: hide/restore/delete, for project or service. User decisions:
+suspend/ban/reactivate/delete. Suspend requires `suspendedUntil` (future ISO
+timestamp). Reasons are trimmed, 10-2000 characters, and visible to the affected
+owner through `moderation_events` RLS. Admins cannot moderate themselves or other
+admins. The SQL RPCs recheck authorization independently of HTTP handlers.
+
+Suspensions expire through the DB access predicate, without cron. Ban/deletion
+blocks access immediately, including existing JWTs at RLS and write triggers.
+Login and dashboard proxy also check this predicate. Keep Auth email confirmation
+enabled: confirmation proves control of a mailbox; no SMTP probing is used.
+
+Deleted listings detach conversations and retain their original title. Chat
+history survives and is read-only after deletion. Hidden listings do not prevent
+existing conversations from continuing. Project-only conversations remain
+read-only. Active service workrooms and assigned projects block listing deletion;
+hide the listing instead. Account deletion retains these active references for
+the remaining participant. A later admin deletion may remove the listing once
+the engagement is resolved. This backend does not introduce a force-complete action.
+
+Account deletion requires server-only `SUPABASE_SERVICE_ROLE_KEY`. The app uses it
+only for `auth.admin.deleteUser(id, true)` after the actor's session-authorized RPC
+has blocked the account and anonymized its profile. Auth deletion is a separate
+operation: on failure the response is 503 and `auth_deleted_at` stays null. Retry
+the same command; it neither repeats the audit event nor deletes Auth twice.
+`GET /api/admin/overview` reports pending Auth deletions. No background retry is
+installed. Never prefix this key with `NEXT_PUBLIC_`.
+
+A private, randomly generated HMAC key and normalized email fingerprints prevent
+re-registration of banned/deleted email addresses, including direct Auth calls
+and email-change attempts. Back up `private.moderation_secret` along with the
+blocklist: replacing the key invalidates existing fingerprints. Email aliases
+are distinct addresses; this is not a claim to identify the same person across
+different mailboxes. Fingerprints are retained until unban, or indefinitely for
+deleted accounts under the confirmed anti-re-registration rule. Messages and
+their original text are retained; personal data inside messages is not scrubbed.
+
+Optional hosted Auth Hook: Before User Created -> Postgres function
+`public.before_user_created_moderation`. It gives a controlled registration error.
+The `auth.users` trigger independently enforces the invariant even when that
+hook is not configured. Configure it manually on the intended project; deployment
+does not change remote Auth settings. See [Before User Created](https://supabase.com/docs/guides/auth/auth-hooks/before-user-created-hook)
+and [Auth soft deletion](https://supabase.com/docs/reference/javascript/auth-admin-deleteuser).
+
+Local checks: `npx supabase start`, `npx supabase test db`, `npm run test`,
+`npx tsc --noEmit`, `npm run lint`, `npx next build --webpack`.
+Browser acceptance after the admin UI is connected: hide/restore both listing
+types, delete a listing with chat, block deletion with active work, suspend/expire,
+ban/unban, delete/retry Auth deletion, attempt registration with a blocked email,
+verify owner reason visibility and outsider denial. Frontend UI for moderation
+and archived conversation labels is intentionally a separate feature.

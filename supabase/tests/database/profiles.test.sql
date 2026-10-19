@@ -49,7 +49,7 @@ $function$;
 
 grant execute on function tests.definer_set_role(uuid, public.user_role) to authenticated;
 
-select plan(19);
+select plan(20);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000c001', 'client@example.test'),
@@ -148,7 +148,7 @@ select tests.act_as('00000000-0000-0000-0000-00000000c005');
 select throws_ok(
   $$update public.profiles set is_active = true where id = '00000000-0000-0000-0000-00000000c005'$$,
   '42501',
-  'Only admins can set a profile role or active status.',
+  'Account unavailable.',
   'a deactivated user cannot reactivate themselves with an update'
 );
 
@@ -157,7 +157,7 @@ select throws_ok(
     values ('00000000-0000-0000-0000-00000000c005', 'client', 'Banned Client', 'banned-client@example.test')
     on conflict (id) do update set is_active = excluded.is_active$$,
   '42501',
-  'Only admins can set a profile role or active status.',
+  'Account unavailable.',
   'a deactivated user cannot reactivate themselves with an upsert'
 );
 
@@ -200,15 +200,20 @@ select results_eq(
 -- Admins, the service role and owner-owned security definer functions can change both columns.
 select tests.act_as('00000000-0000-0000-0000-0000000000a1');
 
-update public.profiles set role = 'provider', is_active = false
+select throws_ok(
+  $$update public.profiles set is_active = false where id = '00000000-0000-0000-0000-00000000c002'$$,
+  '42501', 'Use the moderation action.', 'admin deactivation must be audited through moderation'
+);
+update public.profiles set role = 'provider'
 where id = '00000000-0000-0000-0000-00000000c002';
+select public.admin_moderate_user('00000000-0000-0000-0000-00000000c002', 'ban', 'Account violates marketplace rules.');
 
 reset role;
 
 select results_eq(
   $$select role::text, is_active from public.profiles where id = '00000000-0000-0000-0000-00000000c002'$$,
-  $$values ('provider', false)$$,
-  'an admin can change another user''s role and active status'
+  $$values ('provider', true)$$,
+  'an admin can change another user role; moderation controls account access separately'
 );
 
 select tests.act_as_service_role();

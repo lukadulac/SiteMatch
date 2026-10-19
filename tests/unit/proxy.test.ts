@@ -21,9 +21,9 @@ const SESSION_COOKIE = "sb-access-token";
  * Wires the proxy to a stubbed Supabase client and a response that already
  * carries a refreshed auth cookie, so every redirect can be checked for it.
  */
-function arrange(user: { id: string } | null, role?: string | null) {
+function arrange(user: { id: string } | null, role?: string | null, enabled = true) {
 	const stub = createSupabaseStub(
-		role === undefined ? {} : { "profiles.select": { data: role === null ? null : { role } } },
+		role === undefined ? {} : { "profiles.select": { data: role === null ? null : { role } }, "rpc.is_account_enabled": { data: enabled } },
 		{ user: user ? stubUser(user) : null },
 	);
 
@@ -58,6 +58,11 @@ afterEach(() => {
 });
 
 describe("proxy", () => {
+	it("signs out a blocked account with an existing session", async () => {
+		const stub = arrange({ id: "blocked-provider" }, "provider", false);
+		expect(redirectPath(await proxy(request("/dashboard/provider")))).toBe("/login");
+		expect(stub.callKeys()).toContain("auth.signOut");
+	});
 	it("passes the request through when Supabase is not configured", async () => {
 		vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
 		vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");

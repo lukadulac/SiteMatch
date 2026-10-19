@@ -611,6 +611,7 @@ export async function getPublicPublishedProjects(
 			"id, slug, title, description, what_do_you_need_text, status, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, preferred_provider_type, preferred_language, scope_level, readiness_level, needs_design, needs_seo, needs_content_writing, created_at, updated_at",
 		)
 		.in("status", ["published", "in_discussion"])
+		.eq("is_hidden", false)
 		.order("created_at", { ascending: filters.sort === "oldest" });
 
 	if (error) {
@@ -687,6 +688,7 @@ export async function getPublicPublishedProjectById(
 		.select("*")
 		.eq("id", projectId)
 		.in("status", ["published", "in_discussion"])
+		.eq("is_hidden", false)
 		.maybeSingle();
 
 	if (projectError) {

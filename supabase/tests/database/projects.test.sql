@@ -210,8 +210,8 @@ select throws_ok(
 
 select throws_ok(
   $$delete from public.projects where id = '00000000-0000-0000-0000-0000000000a3'$$,
-  '42501',
-  'A brief that was assigned or completed cannot be deleted.',
+  '55000',
+  'Resolve active work before deleting this listing.',
   'a client cannot delete an assigned brief (the hire would cascade away)'
 );
 

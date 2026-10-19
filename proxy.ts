@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getDashboardPath, isAppRole } from "@/lib/auth/roles";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
+import { isAccountEnabled } from "@/lib/auth/account-access";
 import {
   applySupabaseCookies,
   createSupabaseMiddlewareClient,
@@ -38,6 +39,11 @@ export async function proxy(request: NextRequest) {
     .maybeSingle();
 
   if (!profile || !isAppRole(profile.role)) {
+    return redirectWithCookies(request, getResponse(), "/login");
+  }
+
+  if (!(await isAccountEnabled(supabase, user.id))) {
+    await supabase.auth.signOut({ scope: "local" });
     return redirectWithCookies(request, getResponse(), "/login");
   }
 

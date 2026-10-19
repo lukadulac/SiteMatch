@@ -68,6 +68,7 @@ describe("getPublicProviderServiceById", () => {
 		).toEqual([
 			{ method: "eq", args: ["id", SERVICE_ID] },
 			{ method: "eq", args: ["status", "published"] },
+			{ method: "eq", args: ["is_hidden", false] },
 		]);
 	});
 
