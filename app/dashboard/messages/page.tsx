@@ -49,7 +49,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   return (
     <DashboardShell
       title="Messages"
-      subtitle="Discuss scope, budget, timing, and project details before or after an application decision."
+      subtitle="Keep project and service conversations in one place."
       actionHref={provisioned.role === "client" ? "/oglasi" : "/jobs"}
       actionLabel={provisioned.role === "client" ? "Review Projects" : "Browse Jobs"}
       navItems={[

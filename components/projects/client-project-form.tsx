@@ -393,9 +393,7 @@ export function ClientProjectForm({
 
       {!profileComplete ? (
         <section className="rounded-4xl border border-amber-200 bg-amber-50/80 p-6 text-sm text-amber-900 shadow-[0_20px_60px_rgba(120,53,15,0.08)]">
-          Your client profile is not complete yet. You can fill the form, but the
-          backend will block publishing or saving until profile setup is finished in
-          the dashboard profile section.
+          Complete your client profile before saving or publishing this listing.
         </section>
       ) : null}
 

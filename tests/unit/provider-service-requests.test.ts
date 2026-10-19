@@ -6,6 +6,7 @@ import {
 	getClientServiceRequestPreview,
 	getClientServiceRequestsPage,
 	getProviderServiceRequestsPage,
+	getProviderPendingServiceRequestPreview,
 	getServiceRequestDetailForParticipant,
 	rejectServiceRequestForProvider,
 } from "@/lib/provider-service-requests/service";
@@ -365,6 +366,23 @@ describe("service request list queries", () => {
 			method: "range",
 			args: [0, 2],
 		});
+	});
+
+	it("loads only pending requests for the provider attention preview", async () => {
+		const stub = createSupabaseStub({
+			"provider_service_requests.select": { data: [requestRow()], count: 5 },
+			"conversations.select": { data: [conversationRow()] },
+		});
+
+		const result = await getProviderPendingServiceRequestPreview(stub.client, PROVIDER_ID);
+
+		expect(result.data?.totalCount).toBe(5);
+		expect(stub.callsFor("provider_service_requests.select")[0]?.filters).toEqual(
+			expect.arrayContaining([
+				{ method: "eq", args: ["status", "pending"] },
+				{ method: "range", args: [0, 2] },
+			]),
+		);
 	});
 });
 

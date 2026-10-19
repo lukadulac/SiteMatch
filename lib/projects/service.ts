@@ -423,6 +423,7 @@ export async function createProject(
 export async function getClientProjects(
 	supabase: SupabaseClient<Database>,
 	userId: string,
+	options: { limit?: number; statuses?: Database["public"]["Tables"]["projects"]["Row"]["status"][] } = {},
 ): Promise<ProjectResult<ClientProjectSummary[]>> {
 	const { data: profile, error: profileError } = await supabase
 		.from("profiles")
@@ -438,13 +439,23 @@ export async function getClientProjects(
 		return { error: "Only clients can view their project listings." };
 	}
 
-	const { data, error } = await supabase
+	let query = supabase
 		.from("projects")
 		.select(
 			"id, slug, title, status, description, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, desired_start_date, updated_at, created_at",
 		)
-		.eq("client_id", userId)
-		.order("updated_at", { ascending: false });
+		.eq("client_id", userId);
+
+	if (options.statuses?.length) {
+		query = query.in("status", options.statuses);
+	}
+
+	query = query.order("updated_at", { ascending: false });
+	if (options.limit !== undefined) {
+		query = query.limit(options.limit);
+	}
+
+	const { data, error } = await query;
 
 	if (error) {
 		return { error: error.message };

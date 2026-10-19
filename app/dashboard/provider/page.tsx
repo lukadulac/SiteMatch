@@ -9,6 +9,7 @@ import {
   getUserConversations,
 } from "@/lib/messaging/service";
 import { getApplicationStatusMeta } from "@/lib/projects/application-status";
+import { getProviderPendingServiceRequestPreview } from "@/lib/provider-service-requests/service";
 import { getProviderWorkroomPreview } from "@/lib/service-workrooms/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -119,6 +120,11 @@ export default async function ProviderDashboardPage() {
     conversationsResult,
     applicationsResult,
     workroomsResult,
+    serviceRequestsResult,
+    applicationCountResult,
+    activeApplicationCountResult,
+    shortlistedCountResult,
+    acceptedCountResult,
   ] =
     await Promise.all([
       supabase
@@ -141,8 +147,14 @@ export default async function ProviderDashboardPage() {
           "id, status, proposed_price, estimated_delivery_days, created_at, project:projects!applications_project_id_fkey(id, title, slug, status, deadline_date)",
         )
         .eq("provider_id", user.id)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })
+        .limit(5),
       getProviderWorkroomPreview(supabase, user.id),
+      getProviderPendingServiceRequestPreview(supabase, user.id),
+      supabase.from("applications").select("id", { count: "exact", head: true }).eq("provider_id", user.id),
+      supabase.from("applications").select("id", { count: "exact", head: true }).eq("provider_id", user.id).in("status", ["pending", "viewed", "shortlisted"]),
+      supabase.from("applications").select("id", { count: "exact", head: true }).eq("provider_id", user.id).eq("status", "shortlisted"),
+      supabase.from("applications").select("id", { count: "exact", head: true }).eq("provider_id", user.id).eq("status", "accepted"),
     ]);
 
   if (profileResult.error || !profileResult.data) {
@@ -171,25 +183,30 @@ export default async function ProviderDashboardPage() {
     throw new Error(workroomsResult.error);
   }
 
+  if (serviceRequestsResult.error) {
+    throw new Error(serviceRequestsResult.error);
+  }
+
+  for (const result of [applicationCountResult, activeApplicationCountResult, shortlistedCountResult, acceptedCountResult]) {
+    if (result.error) throw new Error(result.error.message);
+  }
+
   const profile = profileResult.data;
   const providerProfile = providerProfileResult.data;
-  const unreadConversationCount = unreadConversationCountResult.data;
+  const unreadConversationCount = unreadConversationCountResult.data ?? 0;
   const conversations = conversationsResult.data ?? [];
   const workrooms = workroomsResult.data ?? [];
+  const pendingServiceRequests = serviceRequestsResult.data?.requests ?? [];
+  const pendingServiceRequestCount = serviceRequestsResult.data?.totalCount ?? 0;
   const applications =
     (applicationsResult.data ?? []).map((item) => ({
       ...item,
       project: Array.isArray(item.project) ? item.project[0] ?? null : item.project,
     })) ?? [];
-  const shortlistedApplications = applications.filter(
-    (application) => application.status === "shortlisted",
-  );
-  const acceptedApplications = applications.filter(
-    (application) => application.status === "accepted",
-  );
-  const activeApplications = applications.filter((application) =>
-    ["pending", "viewed", "shortlisted", "accepted"].includes(application.status),
-  );
+  const applicationCount = applicationCountResult.count ?? 0;
+  const activeApplicationCount = activeApplicationCountResult.count ?? 0;
+  const shortlistedCount = shortlistedCountResult.count ?? 0;
+  const acceptedCount = acceptedCountResult.count ?? 0;
   const isReady = isProviderProfileReady(providerProfile);
 
   return (
@@ -205,7 +222,7 @@ export default async function ProviderDashboardPage() {
         {
           href: "/dashboard/provider/applications",
           label: "Applications",
-          count: applications.length,
+          count: applicationCount,
         },
         { href: "/dashboard/provider/services", label: "Services" },
         {
@@ -232,15 +249,45 @@ export default async function ProviderDashboardPage() {
         </section>
       ) : null}
 
+      {pendingServiceRequestCount > 0 || unreadConversationCount > 0 ? (
+      <section className="rounded-lg border border-line bg-white p-5" aria-labelledby="provider-attention-title">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 id="provider-attention-title" className="text-lg font-semibold text-black">Needs attention</h2>
+            <p className="mt-1 text-sm text-secondary">
+              {pendingServiceRequestCount} service request{pendingServiceRequestCount === 1 ? "" : "s"} awaiting your decision
+              {unreadConversationCount > 0 ? ` · ${unreadConversationCount} unread conversation${unreadConversationCount === 1 ? "" : "s"}` : ""}
+            </p>
+          </div>
+          <Link href={pendingServiceRequestCount > 0 ? "/dashboard/provider/service-requests?status=pending" : "/dashboard/messages"} className="text-sm font-semibold text-black underline underline-offset-4">
+            {pendingServiceRequestCount > 0 ? "View pending requests" : "View messages"}
+          </Link>
+        </div>
+        {pendingServiceRequests.length > 0 ? (
+          <ul className="mt-4 divide-y divide-line border-t border-line">
+            {pendingServiceRequests.map((request) => (
+              <li key={request.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-black">{request.service?.title ?? "Service request"}</p>
+                  <p className="text-xs text-secondary">From {request.client?.full_name ?? "Client"}</p>
+                </div>
+                <Link href={`/dashboard/service-requests/${request.id}`} className="text-sm font-semibold text-black underline underline-offset-4">Review</Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+      ) : null}
+
       <section className="grid min-w-0 gap-4 md:grid-cols-3">
         <OverviewStat
           label="Submitted Applications"
-          value={String(applications.length)}
-          detail={`${activeApplications.length} currently active`}
+          value={String(applicationCount)}
+          detail={`${activeApplicationCount} currently active`}
         />
         <OverviewStat
           label="Shortlisted"
-          value={String(shortlistedApplications.length)}
+          value={String(shortlistedCount)}
           detail="Clients have marked these proposals as promising"
         />
         <OverviewStat
@@ -266,7 +313,7 @@ export default async function ProviderDashboardPage() {
 
           <div className="divide-y divide-line">
             {applications.length > 0 ? (
-              applications.slice(0, 5).map((application) => {
+              applications.map((application) => {
                 const statusMeta = getApplicationStatusMeta(application.status);
 
                 return (
@@ -420,7 +467,7 @@ export default async function ProviderDashboardPage() {
             <p className="mt-2 text-sm leading-6 text-secondary">
               {isReady
                 ? "Your provider profile is ready."
-                : "Finish your provider profile before heavy testing."}
+                : "Complete your profile so clients can evaluate your work."}
             </p>
             <Link
               href="/dashboard/provider/profile"
@@ -433,7 +480,7 @@ export default async function ProviderDashboardPage() {
           <section className="min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
             <p className="text-sm font-semibold text-black">Accepted Work</p>
             <p className="mt-2 text-3xl font-semibold text-black">
-              {acceptedApplications.length}
+              {acceptedCount}
             </p>
             <p className="mt-2 text-sm leading-6 text-secondary">
               Projects you have already secured.

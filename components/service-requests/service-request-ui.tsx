@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ActionSubmitButton } from "@/components/dashboard/ActionSubmitButton";
 import {
 	acceptServiceRequestAction,
 	cancelServiceRequestAction,
@@ -135,7 +136,7 @@ export function ServiceRequestActions({
 	showDetailsLink?: boolean;
 }) {
 	return (
-		<div className="flex shrink-0 flex-wrap gap-2">
+		<div className="flex min-w-0 flex-wrap gap-2">
 			{showDetailsLink ? (
 				<Link
 					href={`/dashboard/service-requests/${request.id}`}
@@ -155,33 +156,33 @@ export function ServiceRequestActions({
 			{viewerRole === "client" && request.status === "pending" ? (
 				<form action={cancelServiceRequestAction.bind(null, request.id)}>
 					{hiddenActionFields({ context, status, page })}
-					<button
-						type="submit"
-						className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-					>
-						Cancel
-					</button>
+					<ActionSubmitButton
+						label="Cancel"
+						pendingLabel="Cancelling..."
+						confirmMessage="Cancel this service request? You cannot request this service again."
+						className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+					/>
 				</form>
 			) : null}
 			{viewerRole === "provider" && request.status === "pending" ? (
 				<>
 					<form action={acceptServiceRequestAction.bind(null, request.id)}>
 						{hiddenActionFields({ context, status, page })}
-						<button
-							type="submit"
-							className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-						>
-							Accept
-						</button>
+						<ActionSubmitButton
+							label="Accept"
+							pendingLabel="Accepting..."
+							confirmMessage="Accept this service request? This confirms you are taking the job."
+							className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+						/>
 					</form>
 					<form action={rejectServiceRequestAction.bind(null, request.id)}>
 						{hiddenActionFields({ context, status, page })}
-						<button
-							type="submit"
-							className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-						>
-							Reject
-						</button>
+						<ActionSubmitButton
+							label="Reject"
+							pendingLabel="Rejecting..."
+							confirmMessage="Reject this request? The client cannot send another request for this service."
+							className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+						/>
 					</form>
 				</>
 			) : null}
@@ -205,8 +206,10 @@ export function ServiceRequestCard({
 	compact?: boolean;
 }) {
 	return (
-		<article className="rounded-3xl border border-line bg-white p-5">
-			<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+		<article className="rounded-lg border border-line bg-white p-5">
+			<div
+				className={`flex flex-col gap-4 ${compact ? "" : "md:flex-row md:items-start md:justify-between"}`}
+			>
 				<div className="min-w-0">
 					<div className="flex flex-wrap items-center gap-2">
 						<h2 className="wrap-break-word text-lg font-semibold text-black">

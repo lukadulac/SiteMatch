@@ -297,7 +297,7 @@ export function MessagingApp({
   }, []);
 
   return (
-    <div className="grid h-[calc(100vh-220px)] min-h-170 gap-6 overflow-hidden xl:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.4fr)]">
+    <div className="grid h-[calc(100dvh-190px)] min-h-120 gap-4 overflow-hidden xl:h-[calc(100dvh-230px)] xl:min-h-150 xl:grid-cols-[minmax(300px,0.8fr)_minmax(0,1.4fr)]">
       <section
         className={`min-h-0 flex-col rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-7 xl:flex ${
           hasActiveConversation ? "hidden" : "flex"
@@ -337,11 +337,10 @@ export function MessagingApp({
               Select a conversation
             </p>
             <h2 className="mt-3 max-w-lg text-3xl font-semibold text-black">
-              Open a thread to continue the project discussion.
+              Open a conversation to continue the discussion.
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-secondary">
-              Conversations are connected to applications, so both sides can keep
-              project context while discussing the work.
+              Your project and service conversations stay here with their history.
             </p>
           </div>
         </section>

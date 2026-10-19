@@ -184,3 +184,19 @@ export function getDefaultFindTalentQuery(): FindTalentQuery {
 
 	return result.data;
 }
+
+export function getFindTalentHref(query: FindTalentQuery, page: number): string {
+	const params = new URLSearchParams();
+	if (query.q) params.set("q", query.q);
+	if (query.categorySlug) params.set("category", query.categorySlug);
+	if (query.serviceTypeSlug) params.set("serviceType", query.serviceTypeSlug);
+	if (query.priceType) params.set("priceType", query.priceType);
+	if (query.minPrice !== undefined) params.set("minPrice", String(query.minPrice));
+	if (query.maxPrice !== undefined) params.set("maxPrice", String(query.maxPrice));
+	if (query.deliveryBucket) params.set("delivery", query.deliveryBucket);
+	if (query.sort !== "newest") params.set("sort", query.sort);
+	if (query.pageSize !== FIND_TALENT_DEFAULT_PAGE_SIZE) params.set("pageSize", String(query.pageSize));
+	if (page > 1) params.set("page", String(page));
+	const search = params.toString();
+	return search ? `/find-talent?${search}` : "/find-talent";
+}

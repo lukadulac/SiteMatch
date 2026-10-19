@@ -2,13 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { openProviderApplicationConversationAction } from "@/app/jobs/actions";
 import { withdrawApplicationAction } from "@/app/dashboard/actions";
+import { ActionSubmitButton } from "@/components/dashboard/ActionSubmitButton";
+import { DashboardListPagination, DashboardStatusFilters, DASHBOARD_LIST_PAGE_SIZE, dashboardListHref, parseDashboardPage, parseDashboardStatus } from "@/components/dashboard/DashboardListControls";
 import {
   DashboardPanel,
   DashboardShell,
 } from "@/components/dashboard/DashboardShell";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
-import { getUserConversations } from "@/lib/messaging/service";
+import { getUnreadConversationCount } from "@/lib/messaging/service";
 import {
   canMessageForApplicationStatus,
   canWithdrawForApplicationStatus,
@@ -163,12 +165,12 @@ function ProviderApplicationCard({
           ) : null}
           {canWithdrawForApplicationStatus(application.status) ? (
             <form action={withdrawApplicationAction.bind(null, application.id)}>
-              <button
-                type="submit"
-                className="rounded-2xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
-              >
-                Withdraw proposal
-              </button>
+              <ActionSubmitButton
+                label="Withdraw proposal"
+                pendingLabel="Withdrawing..."
+                confirmMessage="Withdraw this proposal? You may not be able to reapply."
+                className="rounded-lg border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+              />
             </form>
           ) : null}
         </div>
@@ -183,19 +185,21 @@ function ApplicationSection({
   applications,
   conversationByApplicationId,
   emptyMessage,
+  totalCount,
 }: {
   title: string;
   description: string;
   applications: ProviderApplicationListItem[];
   conversationByApplicationId: Map<string, string>;
   emptyMessage: string;
+  totalCount: number;
 }) {
   return (
     <DashboardPanel
       title={title}
       action={
         <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-sm font-semibold text-secondary">
-          {applications.length}
+          {totalCount}
         </span>
       }
     >
@@ -219,7 +223,10 @@ function ApplicationSection({
   );
 }
 
-export default async function ProviderApplicationsPage() {
+export default async function ProviderApplicationsPage({ searchParams }: { searchParams: Promise<{ status?: string | string[]; page?: string | string[] }> }) {
+  const params = await searchParams;
+  const status = parseDashboardStatus(params.status, ["all", "active", "accepted", "closed"] as const);
+  const page = parseDashboardPage(params.page);
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -240,51 +247,55 @@ export default async function ProviderApplicationsPage() {
     redirect(getDashboardPath(provisioned.role));
   }
 
-  const [conversationsResult, applicationsResult] = await Promise.all([
-    getUserConversations(supabase, user.id),
-    supabase
-      .from("applications")
-      .select(
-        "id, status, proposed_price, estimated_delivery_days, created_at, project:projects!applications_project_id_fkey(id, title, slug, status, deadline_date)",
-      )
-      .eq("provider_id", user.id)
-      .order("created_at", { ascending: false }),
+  const applicationStatuses = status === "active" ? ["pending", "viewed", "shortlisted"] as const : status === "closed" ? ["rejected", "withdrawn"] as const : null;
+  const [totalCountResult, activeCountResult, acceptedCountResult, closedCountResult, unreadCountResult] = await Promise.all([
+    (() => {
+      let query = supabase.from("applications").select("id", { count: "exact", head: true }).eq("provider_id", user.id);
+      if (applicationStatuses) query = query.in("status", [...applicationStatuses]);
+      if (status === "accepted") query = query.eq("status", "accepted");
+      return query;
+    })(),
+    supabase.from("applications").select("id", { count: "exact", head: true }).eq("provider_id", user.id).in("status", ["pending", "viewed", "shortlisted"]),
+    supabase.from("applications").select("id", { count: "exact", head: true }).eq("provider_id", user.id).eq("status", "accepted"),
+    supabase.from("applications").select("id", { count: "exact", head: true }).eq("provider_id", user.id).in("status", ["rejected", "withdrawn"]),
+    getUnreadConversationCount(supabase, user.id),
   ]);
 
-  if (conversationsResult.error) {
-    throw new Error(conversationsResult.error);
+  for (const result of [totalCountResult, activeCountResult, acceptedCountResult, closedCountResult]) {
+    if (result.error) throw new Error(result.error.message);
   }
+  if (unreadCountResult.error) throw new Error(unreadCountResult.error);
+  const totalCount = totalCountResult.count ?? 0;
+  const activeCount = activeCountResult.count ?? 0;
+  const acceptedCount = acceptedCountResult.count ?? 0;
+  const closedCount = closedCountResult.count ?? 0;
+  const totalPages = Math.ceil(totalCount / DASHBOARD_LIST_PAGE_SIZE);
+  if (page > Math.max(1, totalPages)) redirect(dashboardListHref("/dashboard/provider/applications", status, Math.max(1, totalPages)));
 
-  if (applicationsResult.error) {
-    throw new Error(applicationsResult.error.message);
-  }
-
-  const conversations = conversationsResult.data ?? [];
+  let applicationsQuery = supabase.from("applications")
+    .select("id, status, proposed_price, estimated_delivery_days, created_at, project:projects!applications_project_id_fkey(id, title, slug, status, deadline_date)")
+    .eq("provider_id", user.id);
+  if (applicationStatuses) applicationsQuery = applicationsQuery.in("status", [...applicationStatuses]);
+  if (status === "accepted") applicationsQuery = applicationsQuery.eq("status", "accepted");
+  const applicationsResult = await applicationsQuery.order("created_at", { ascending: false }).order("id", { ascending: false }).range((page - 1) * DASHBOARD_LIST_PAGE_SIZE, page * DASHBOARD_LIST_PAGE_SIZE - 1);
+  if (applicationsResult.error) throw new Error(applicationsResult.error.message);
   const applications =
     (applicationsResult.data ?? []).map((item) => ({
       ...item,
       project: Array.isArray(item.project) ? item.project[0] ?? null : item.project,
     })) ?? [];
   const conversationByApplicationId = new Map<string, string>();
-
-  for (const conversation of conversations) {
-    if (conversation.application_id) {
-      conversationByApplicationId.set(conversation.application_id, conversation.id);
+  if (applications.length > 0) {
+    const conversationsResult = await supabase.from("conversations")
+      .select("id, application_id")
+      .eq("provider_id", user.id)
+      .in("application_id", applications.map((application) => application.id));
+    if (conversationsResult.error) throw new Error(conversationsResult.error.message);
+    for (const conversation of conversationsResult.data ?? []) {
+      if (conversation.application_id) conversationByApplicationId.set(conversation.application_id, conversation.id);
     }
   }
-
-  const activeApplications = applications.filter((application) =>
-    ["pending", "viewed", "shortlisted"].includes(application.status),
-  );
-  const acceptedApplications = applications.filter(
-    (application) => application.status === "accepted",
-  );
-  const closedApplications = applications.filter((application) =>
-    ["rejected", "withdrawn"].includes(application.status),
-  );
-  const unreadConversations = conversations.filter(
-    (conversation) => conversation.unread_count > 0,
-  );
+  const unreadConversationCount = unreadCountResult.data ?? 0;
 
   return (
     <DashboardShell
@@ -297,14 +308,14 @@ export default async function ProviderApplicationsPage() {
         {
           href: "/dashboard/provider/applications",
           label: "Applications",
-          count: applications.length,
+          count: totalCount,
           active: true,
         },
         { href: "/dashboard/provider/services", label: "Services" },
         {
           href: "/dashboard/messages",
           label: "Messages",
-          count: unreadConversations.length,
+          count: unreadConversationCount,
         },
         { href: "/dashboard/provider/profile", label: "Profile" },
       ]}
@@ -312,53 +323,31 @@ export default async function ProviderApplicationsPage() {
       <section className="grid gap-4 md:grid-cols-3">
         <ApplicationSummaryCard
           label="Active proposals"
-          value={String(activeApplications.length)}
+          value={String(activeCount)}
           detail="Pending, viewed, or shortlisted proposals"
         />
         <ApplicationSummaryCard
           label="Accepted work"
-          value={String(acceptedApplications.length)}
+          value={String(acceptedCount)}
           detail="Projects where the client selected your proposal"
         />
         <ApplicationSummaryCard
           label="Closed proposals"
-          value={String(closedApplications.length)}
+          value={String(closedCount)}
           detail="Rejected or withdrawn applications"
         />
       </section>
 
-      {applications.length > 0 ? (
-        <div className="space-y-6">
-          <ApplicationSection
-            title="Active Proposals"
-            description="Open applications where you can still message the client or withdraw your proposal."
-            applications={activeApplications}
-            conversationByApplicationId={conversationByApplicationId}
-            emptyMessage="No active proposals right now."
-          />
-          <ApplicationSection
-            title="Accepted Work"
-            description="Projects where your proposal was accepted. These stay separate from open applications."
-            applications={acceptedApplications}
-            conversationByApplicationId={conversationByApplicationId}
-            emptyMessage="No accepted work yet."
-          />
-          <ApplicationSection
-            title="Closed Proposals"
-            description="Rejected and withdrawn proposals remain visible for history, but messaging is read-only."
-            applications={closedApplications}
-            conversationByApplicationId={conversationByApplicationId}
-            emptyMessage="No closed proposals yet."
-          />
-        </div>
-      ) : (
-        <DashboardPanel title="My Applications">
-          <div className="rounded-3xl border border-dashed border-line p-8 text-sm text-secondary">
-            You have not submitted applications yet. Browse open briefs and send
-            your first proposal.
-          </div>
-        </DashboardPanel>
-      )}
+      <DashboardStatusFilters basePath="/dashboard/provider/applications" status={status} options={[{ value: "all", label: "All" }, { value: "active", label: "Active" }, { value: "accepted", label: "Accepted" }, { value: "closed", label: "Closed" }]} />
+      <ApplicationSection
+        title="My Applications"
+        description="Review proposals and open their project or conversation."
+        applications={applications}
+        conversationByApplicationId={conversationByApplicationId}
+        emptyMessage={status === "all" ? "No applications yet. Browse open briefs to send your first proposal." : "No applications match this status."}
+        totalCount={totalCount}
+      />
+      <DashboardListPagination basePath="/dashboard/provider/applications" status={status} page={page} totalPages={totalPages} />
     </DashboardShell>
   );
 }

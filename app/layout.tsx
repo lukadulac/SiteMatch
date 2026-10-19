@@ -61,8 +61,9 @@ async function getHeaderAuthState() {
 	return {
 		isAuthenticated: true,
 		profileHref:
-			role === "client" || role === "provider" || role === "admin"
-				? getDashboardPath(role)
-				: "/dashboard",
+			role === "client" || role === "provider"
+				? `${getDashboardPath(role)}/profile`
+				: role === "admin" ? getDashboardPath(role) : "/dashboard",
+		profileLabel: role === "admin" ? "Dashboard" : "Profile",
 	};
 }
