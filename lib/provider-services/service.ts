@@ -167,7 +167,8 @@ export async function getPublicPublishedProviderServices(
 	let query = supabase
 		.from("provider_service_listings")
 		.select(publicProviderServiceSelect, { count: "exact" })
-		.eq("status", "published");
+		.eq("status", "published")
+		.eq("is_hidden", false);
 
 	if (filters.categorySlug) {
 		const categoryResult = await resolveCategoryIdBySlug(
@@ -278,6 +279,7 @@ export async function getPublicProviderServiceById(
 		.select(publicProviderServiceSelect)
 		.eq("id", serviceId)
 		.eq("status", "published")
+		.eq("is_hidden", false)
 		.maybeSingle();
 
 	if (error) {

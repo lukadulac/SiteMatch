@@ -1,4 +1,5 @@
 "use server";
+import { isAccountEnabled } from "@/lib/auth/account-access";
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -479,6 +480,11 @@ export async function loginAction(
       fieldErrors: {},
       fields,
     };
+  }
+
+  if (!(await isAccountEnabled(supabase, user.id))) {
+    await supabase.auth.signOut({ scope: "local" });
+    return { formError: "Your account is currently unavailable.", fieldErrors: {}, fields };
   }
 
   if (safeNext) {

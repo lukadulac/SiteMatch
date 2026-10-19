@@ -17,6 +17,14 @@ export function getAuthSiteOrigin() {
   return url.origin;
 }
 
+export function getPasswordRecoveryUrl(next?: unknown) {
+  const url = new URL("/auth/recovery", getAuthSiteOrigin());
+  const safeNext = getVerificationReturnPath(next);
+  // Keep a query parameter even without a destination so the hosted template can append &token_hash.
+  url.searchParams.set("next", safeNext ?? "");
+  return url.toString();
+}
+
 export function getEmailConfirmationUrl(next?: unknown) {
   const url = new URL("/auth/confirm", getAuthSiteOrigin());
   const safeNext = getVerificationReturnPath(next);

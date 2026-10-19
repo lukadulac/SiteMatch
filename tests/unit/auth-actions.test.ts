@@ -52,7 +52,7 @@ const ALLOWED = { allowed: true, retryAfterSeconds: 0 };
 const BLOCKED = { allowed: false, retryAfterSeconds: 900 };
 
 function arrangeSupabase(auth: AuthStubOptions = {}) {
-	const stub = createSupabaseStub({}, {
+	const stub = createSupabaseStub({ "rpc.is_account_enabled": { data: true } }, {
 		...auth,
 		user: auth.user ? { email_confirmed_at: "2026-10-01T12:00:00Z", ...auth.user } : auth.user,
 	});
@@ -113,6 +113,15 @@ beforeEach(() => {
 });
 
 describe("loginAction", () => {
+	it("rejects a blocked account even with a valid password and next URL", async () => {
+		const stub = createSupabaseStub({ "rpc.is_account_enabled": { data: false } }, {
+			user: stubUser({ email_confirmed_at: "2026-10-01T00:00:00Z" }),
+		});
+		vi.mocked(createSupabaseServerClient).mockResolvedValue(stub.client);
+		const result = await loginAction(initialAuthActionState, loginForm({ next: "/jobs/123" }));
+		expect(result.formError).toBe("Your account is currently unavailable.");
+		expect(stub.callKeys()).toContain("auth.signOut");
+	});
 	it("signs an unverified session out before provisioning or redirecting", async () => {
 		const stub = arrangeSupabase({ user: stubUser({ email_confirmed_at: undefined }) });
 		const state = await loginAction(initialAuthActionState, loginForm({ next: "/jobs/123" }));

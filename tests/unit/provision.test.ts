@@ -26,6 +26,24 @@ describe("ensureUserProfile", () => {
 		expect(stub.callKeys()).toEqual(["profiles.select"]);
 	});
 
+	it("provisions the profile without reading or overwriting an existing row", async () => {
+		// Profile columns email and phone are not readable, and an upsert that rewrites
+		// them would have to read them (ON CONFLICT DO UPDATE ... excluded.email), so the
+		// profiles insert is DO NOTHING on conflict.
+		const stub = createSupabaseStub({
+			"profiles.select": { data: null },
+			"profiles.upsert": {},
+			"client_profiles.upsert": {},
+		});
+
+		await ensureUserProfile(stub.client, user({ role: "client" }));
+
+		expect(stub.callsFor("profiles.upsert")[0]?.options).toEqual({
+			onConflict: "id",
+			ignoreDuplicates: true,
+		});
+	});
+
 	it("refuses to provision an account whose metadata has no valid role", async () => {
 		for (const role of [undefined, "", "superuser", "admin"]) {
 			const stub = createSupabaseStub({ "profiles.select": { data: null } });

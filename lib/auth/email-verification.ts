@@ -10,7 +10,10 @@ export function getVerificationReturnPath(value: unknown) {
   // Auth destinations must not become the destination of another auth flow.
   const decodedPath = decodeURIComponent(safePath.split(/[?#]/)[0]);
   const pathname = new URL(decodedPath, "https://workbridge.local").pathname.toLowerCase().replace(/\/+$/, "");
-  if (["/register", "/verify-email", "/login", "/auth"].includes(pathname) || pathname.startsWith("/auth/")) {
+  if (
+    ["/register", "/verify-email", "/login", "/forgot-password", "/reset-password", "/auth"].includes(pathname) ||
+    pathname.startsWith("/auth/")
+  ) {
     return null;
   }
   return safePath;
@@ -19,6 +22,11 @@ export function getVerificationReturnPath(value: unknown) {
 export function getVerificationHref(next?: string | null) {
   const safeNext = getVerificationReturnPath(next);
   return safeNext ? `/verify-email?next=${encodeURIComponent(safeNext)}` : "/verify-email";
+}
+
+export function getForgotPasswordHref(next?: string | null) {
+  const safeNext = getVerificationReturnPath(next);
+  return safeNext ? `/forgot-password?next=${encodeURIComponent(safeNext)}` : "/forgot-password";
 }
 
 export function getRegistrationHref(next?: string | null) {

@@ -27,6 +27,8 @@ export type RecordedCall = {
 	table: string;
 	operation: string;
 	payload?: unknown;
+	/** Second argument of insert/update/upsert, e.g. `{ onConflict, ignoreDuplicates }`. */
+	options?: unknown;
 	filters: Array<{ method: string; args: unknown[] }>;
 };
 
@@ -35,6 +37,8 @@ export type AuthStubOptions = {
 	getSession?: StubResponse;
 	signUp?: { data?: unknown; error?: { message: string } | null };
 	resend?: { data?: unknown; error?: { message: string } | null };
+	resetPasswordForEmail?: { data?: unknown; error?: { message: string; code?: string } | null };
+	updateUser?: { data?: unknown; error?: { message: string; code?: string } | null };
 	signInWithPassword?: {
 		data?: { user?: Partial<User> | null; session?: unknown };
 		error?: { message: string } | null;
@@ -110,6 +114,7 @@ export function createSupabaseStub(
 	function createBuilder(table: string) {
 		let operation: string | null = null;
 		let payload: unknown;
+		let options: unknown;
 		const filters: Array<{ method: string; args: unknown[] }> = [];
 
 		function resolve() {
@@ -121,6 +126,7 @@ export function createSupabaseStub(
 				table,
 				operation: operation ?? "select",
 				payload,
+				options,
 				filters: [...filters],
 			});
 
@@ -152,6 +158,7 @@ export function createSupabaseStub(
 
 					if (verb !== "select" && verb !== "delete") {
 						payload = args[0];
+						options = args[1];
 					}
 				}
 
@@ -235,11 +242,32 @@ export function createSupabaseStub(
 					error: null,
 				};
 			},
-			signOut: async () => {
+			resetPasswordForEmail: async (email: string, options?: unknown) => {
+				calls.push({
+					key: "auth.resetPasswordForEmail",
+					table: "auth",
+					operation: "resetPasswordForEmail",
+					payload: { email, options },
+					filters: [],
+				});
+				return auth.resetPasswordForEmail ?? { data: {}, error: null };
+			},
+			updateUser: async (attributes: unknown) => {
+				calls.push({
+					key: "auth.updateUser",
+					table: "auth",
+					operation: "updateUser",
+					payload: attributes,
+					filters: [],
+				});
+				return auth.updateUser ?? { data: { user: auth.user ?? null }, error: null };
+			},
+			signOut: async (options?: unknown) => {
 				calls.push({
 					key: "auth.signOut",
 					table: "auth",
 					operation: "signOut",
+					payload: options,
 					filters: [],
 				});
 				return { error: null };

@@ -72,7 +72,9 @@ export async function ensureUserProfile(
       country: getStringValue(metadata.country),
       city: getStringValue(metadata.city),
     },
-    { onConflict: "id" },
+    // email and phone are not readable columns, and rewriting them on conflict would
+    // read them back, so an existing row is left alone.
+    { onConflict: "id", ignoreDuplicates: true },
   );
 
   if (profileError) {

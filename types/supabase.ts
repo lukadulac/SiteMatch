@@ -1,14 +1,22 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   public: {
     Tables: {
+      account_moderation: {
+        Row: { user_id: string; status: "active" | "suspended" | "banned" | "deleted"; suspended_until: string | null; reason: string; updated_at: string; auth_deleted_at: string | null };
+        Insert: { user_id: string; status: "active" | "suspended" | "banned" | "deleted"; suspended_until?: string | null; reason: string; updated_at?: string; auth_deleted_at?: string | null };
+        Update: { status?: "active" | "suspended" | "banned" | "deleted"; suspended_until?: string | null; reason?: string; updated_at?: string; auth_deleted_at?: string | null };
+        ComputedFields: never;
+        Relationships: [{ foreignKeyName: "account_moderation_user_id_fkey"; columns: ["user_id"]; isOneToOne: true; referencedRelation: "profiles"; referencedColumns: ["id"] }];
+      };
+      moderation_events: {
+        Row: { id: string; actor_id: string; owner_id: string; target_type: string; target_id: string; action: string; reason: string; created_at: string };
+        Insert: { id?: string; actor_id: string; owner_id: string; target_type: string; target_id: string; action: string; reason: string; created_at?: string };
+        Update: { reason?: string };
+        ComputedFields: never;
+        Relationships: [];
+      };
       applications: {
         Row: {
           cover_message: string;
@@ -21,6 +29,7 @@ export type Database = {
           status: Database["public"]["Enums"]["application_status"];
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           cover_message: string;
           created_at?: string;
@@ -60,6 +69,37 @@ export type Database = {
           },
         ];
       };
+      auth_rate_limits: {
+        Row: {
+          attempt_count: number;
+          blocked_until: string | null;
+          created_at: string;
+          key_hash: string;
+          scope: string;
+          updated_at: string;
+          window_start: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          attempt_count?: number;
+          blocked_until?: string | null;
+          created_at?: string;
+          key_hash: string;
+          scope: string;
+          updated_at?: string;
+          window_start?: string;
+        };
+        Update: {
+          attempt_count?: number;
+          blocked_until?: string | null;
+          created_at?: string;
+          key_hash?: string;
+          scope?: string;
+          updated_at?: string;
+          window_start?: string;
+        };
+        Relationships: [];
+      };
       business_domains: {
         Row: {
           created_at: string;
@@ -71,6 +111,7 @@ export type Database = {
           sort_order: number;
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           created_at?: string;
           description?: string | null;
@@ -98,8 +139,8 @@ export type Database = {
           business_description: string | null;
           business_name: string;
           business_tax_id: string | null;
-          business_type_text: string | null;
           business_type: string | null;
+          business_type_text: string | null;
           company_size: string | null;
           created_at: string;
           id: string;
@@ -111,12 +152,13 @@ export type Database = {
           user_id: string;
           website_url: string | null;
         };
+        ComputedFields: never;
         Insert: {
           business_description?: string | null;
           business_name: string;
           business_tax_id?: string | null;
-          business_type_text?: string | null;
           business_type?: string | null;
+          business_type_text?: string | null;
           company_size?: string | null;
           created_at?: string;
           id?: string;
@@ -132,8 +174,8 @@ export type Database = {
           business_description?: string | null;
           business_name?: string;
           business_tax_id?: string | null;
-          business_type_text?: string | null;
           business_type?: string | null;
+          business_type_text?: string | null;
           company_size?: string | null;
           created_at?: string;
           id?: string;
@@ -157,6 +199,8 @@ export type Database = {
       };
       conversations: {
         Row: {
+          source_deleted_at: string | null;
+          source_title: string | null;
           application_id: string | null;
           client_id: string;
           created_at: string;
@@ -166,6 +210,7 @@ export type Database = {
           service_request_id: string | null;
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           application_id?: string | null;
           client_id: string;
@@ -235,6 +280,7 @@ export type Database = {
           sort_order: number;
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           created_at?: string;
           description?: string | null;
@@ -265,10 +311,11 @@ export type Database = {
           project_id: string;
           provider_profile_id: string;
           score: number;
-          score_breakdown: Json;
+          score_breakdown: NonNullable<Json>;
           status: Database["public"]["Enums"]["match_status"];
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           id?: string;
           matched_at?: string;
@@ -276,7 +323,7 @@ export type Database = {
           project_id: string;
           provider_profile_id: string;
           score: number;
-          score_breakdown?: Json;
+          score_breakdown?: NonNullable<Json>;
           status?: Database["public"]["Enums"]["match_status"];
           updated_at?: string;
         };
@@ -287,7 +334,7 @@ export type Database = {
           project_id?: string;
           provider_profile_id?: string;
           score?: number;
-          score_breakdown?: Json;
+          score_breakdown?: NonNullable<Json>;
           status?: Database["public"]["Enums"]["match_status"];
           updated_at?: string;
         };
@@ -317,6 +364,7 @@ export type Database = {
           message_text: string;
           sender_id: string;
         };
+        ComputedFields: never;
         Insert: {
           conversation_id: string;
           created_at?: string;
@@ -364,6 +412,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"];
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           avatar_url?: string | null;
           city?: string | null;
@@ -398,6 +447,7 @@ export type Database = {
           name: string;
           slug: string;
         };
+        ComputedFields: never;
         Insert: {
           id?: string;
           name: string;
@@ -421,6 +471,7 @@ export type Database = {
           sort_order: number;
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           created_at?: string;
           description?: string | null;
@@ -451,6 +502,7 @@ export type Database = {
           priority: number;
           project_id: string;
         };
+        ComputedFields: never;
         Insert: {
           created_at?: string;
           feature_id: string;
@@ -488,6 +540,7 @@ export type Database = {
           goal_id: string;
           project_id: string;
         };
+        ComputedFields: never;
         Insert: {
           created_at?: string;
           goal_id: string;
@@ -517,12 +570,13 @@ export type Database = {
       };
       projects: {
         Row: {
+          is_hidden: boolean;
           budget_max: number | null;
           budget_min: number | null;
           budget_type: Database["public"]["Enums"]["budget_type"];
+          business_context_text: string | null;
           business_domain_id: string | null;
           business_domain_other_text: string | null;
-          business_context_text: string | null;
           business_industry: string | null;
           category_id: string | null;
           client_id: string;
@@ -556,13 +610,14 @@ export type Database = {
           updated_at: string;
           what_do_you_need_text: string | null;
         };
+        ComputedFields: never;
         Insert: {
           budget_max?: number | null;
           budget_min?: number | null;
           budget_type?: Database["public"]["Enums"]["budget_type"];
+          business_context_text?: string | null;
           business_domain_id?: string | null;
           business_domain_other_text?: string | null;
-          business_context_text?: string | null;
           business_industry?: string | null;
           category_id?: string | null;
           client_id: string;
@@ -600,9 +655,9 @@ export type Database = {
           budget_max?: number | null;
           budget_min?: number | null;
           budget_type?: Database["public"]["Enums"]["budget_type"];
+          business_context_text?: string | null;
           business_domain_id?: string | null;
           business_domain_other_text?: string | null;
-          business_context_text?: string | null;
           business_industry?: string | null;
           category_id?: string | null;
           client_id?: string;
@@ -673,6 +728,7 @@ export type Database = {
           created_at: string;
           provider_profile_id: string;
         };
+        ComputedFields: never;
         Insert: {
           business_domain_id: string;
           created_at?: string;
@@ -707,6 +763,7 @@ export type Database = {
           provider_profile_id: string;
           strength: Database["public"]["Enums"]["capability_strength"];
         };
+        ComputedFields: never;
         Insert: {
           created_at?: string;
           feature_id: string;
@@ -742,6 +799,7 @@ export type Database = {
           goal_id: string;
           provider_profile_id: string;
         };
+        ComputedFields: never;
         Insert: {
           created_at?: string;
           goal_id: string;
@@ -778,6 +836,7 @@ export type Database = {
           language_name: string;
           provider_profile_id: string;
         };
+        ComputedFields: never;
         Insert: {
           created_at?: string;
           id?: string;
@@ -806,8 +865,8 @@ export type Database = {
       };
       provider_profiles: {
         Row: {
-          availability: Database["public"]["Enums"]["availability_status"];
           about: string | null;
+          availability: Database["public"]["Enums"]["availability_status"];
           average_rating: number;
           bio: string | null;
           business_domain_other_text: string | null;
@@ -840,9 +899,10 @@ export type Database = {
           user_id: string;
           years_of_experience: number | null;
         };
+        ComputedFields: never;
         Insert: {
-          availability?: Database["public"]["Enums"]["availability_status"];
           about?: string | null;
+          availability?: Database["public"]["Enums"]["availability_status"];
           average_rating?: number;
           bio?: string | null;
           business_domain_other_text?: string | null;
@@ -876,8 +936,8 @@ export type Database = {
           years_of_experience?: number | null;
         };
         Update: {
-          availability?: Database["public"]["Enums"]["availability_status"];
           about?: string | null;
+          availability?: Database["public"]["Enums"]["availability_status"];
           average_rating?: number;
           bio?: string | null;
           business_domain_other_text?: string | null;
@@ -922,6 +982,7 @@ export type Database = {
       };
       provider_service_listings: {
         Row: {
+          is_hidden: boolean;
           category_id: string | null;
           category_text: string | null;
           created_at: string;
@@ -939,6 +1000,7 @@ export type Database = {
           title: string;
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           category_id?: string | null;
           category_text?: string | null;
@@ -1010,6 +1072,7 @@ export type Database = {
           status: Database["public"]["Enums"]["provider_service_request_status"];
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           client_id: string;
           created_at?: string;
@@ -1054,6 +1117,85 @@ export type Database = {
           },
         ];
       };
+      provider_service_types: {
+        Row: {
+          created_at: string;
+          provider_profile_id: string;
+          service_type_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          provider_profile_id: string;
+          service_type_id: string;
+        };
+        Update: {
+          created_at?: string;
+          provider_profile_id?: string;
+          service_type_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "provider_service_types_provider_profile_id_fkey";
+            columns: ["provider_profile_id"];
+            isOneToOne: false;
+            referencedRelation: "provider_profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "provider_service_types_service_type_id_fkey";
+            columns: ["service_type_id"];
+            isOneToOne: false;
+            referencedRelation: "service_types";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      service_types: {
+        Row: {
+          category_id: string | null;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_active: boolean;
+          name: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          category_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          category_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "service_types_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "project_categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       service_workrooms: {
         Row: {
           accepted_at: string;
@@ -1067,6 +1209,7 @@ export type Database = {
           status: Database["public"]["Enums"]["service_workroom_status"];
           updated_at: string;
         };
+        ComputedFields: never;
         Insert: {
           accepted_at?: string;
           client_id: string;
@@ -1116,163 +1259,128 @@ export type Database = {
           {
             foreignKeyName: "service_workrooms_service_request_id_fkey";
             columns: ["service_request_id"];
-            isOneToOne: true;
+            isOneToOne: false;
             referencedRelation: "provider_service_requests";
             referencedColumns: ["id"];
           },
         ];
       };
-      provider_service_types: {
-        Row: {
-          created_at: string;
-          provider_profile_id: string;
-          service_type_id: string;
-        };
-        Insert: {
-          created_at?: string;
-          provider_profile_id: string;
-          service_type_id: string;
-        };
-        Update: {
-          created_at?: string;
-          provider_profile_id?: string;
-          service_type_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "provider_service_types_provider_profile_id_fkey";
-            columns: ["provider_profile_id"];
-            isOneToOne: false;
-            referencedRelation: "provider_profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "provider_service_types_service_type_id_fkey";
-            columns: ["service_type_id"];
-            isOneToOne: false;
-            referencedRelation: "service_types";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      service_types: {
-        Row: {
-          category_id: string | null;
-          created_at: string;
-          description: string | null;
-          id: string;
-          is_active: boolean;
-          name: string;
-          slug: string;
-          sort_order: number;
-          updated_at: string;
-        };
-        Insert: {
-          category_id?: string | null;
-          created_at?: string;
-          description?: string | null;
-          id?: string;
-          is_active?: boolean;
-          name: string;
-          slug: string;
-          sort_order?: number;
-          updated_at?: string;
-        };
-        Update: {
-          category_id?: string | null;
-          created_at?: string;
-          description?: string | null;
-          id?: string;
-          is_active?: boolean;
-          name?: string;
-          slug?: string;
-          sort_order?: number;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "service_types_category_id_fkey";
-            columns: ["category_id"];
-            isOneToOne: false;
-            referencedRelation: "project_categories";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
     };
-    Views: Record<string, never>;
+    Views: {
+      [_ in never]: never;
+    };
     Functions: {
-      accept_provider_service_request: {
-        Args: {
-          target_request_id: string;
-        };
+      is_account_enabled: { Args: { target_user_id: string }; Returns: boolean };
+      can_send_conversation_message: { Args: { target_conversation_id: string }; Returns: boolean };
+      before_user_created_moderation: { Args: { event: Json }; Returns: Json };
+      admin_moderate_listing: { Args: { target_type: string; target_id: string; decision: string; reason: string }; Returns: Json };
+      admin_moderate_user: { Args: { target_user_id: string; decision: string; reason: string; suspension_end?: string | null }; Returns: Json };
+      admin_confirm_auth_deleted: { Args: { target_user_id: string }; Returns: undefined };
+      admin_list_records: { Args: { resource: string; page_number?: number; filter_value?: string }; Returns: Json };
+      admin_overview: { Args: Record<PropertyKey, never>; Returns: Json };
+      accept_project_application: {
+        Args: { target_application_id: string };
         Returns: {
-          request_id: string;
-          request_status: Database["public"]["Enums"]["provider_service_request_status"];
-          conversation_id: string | null;
-          workroom_id: string | null;
-        }[];
-      };
-      cancel_provider_service_request: {
-        Args: {
-          target_request_id: string;
-        };
-        Returns: {
-          request_id: string;
-          request_status: Database["public"]["Enums"]["provider_service_request_status"];
-          conversation_id: string | null;
-        }[];
-      };
-      is_admin: {
-        Args: Record<PropertyKey, never>;
-        Returns: boolean;
-      };
-      is_conversation_participant: {
-        Args: {
-          target_conversation_id: string;
-        };
-        Returns: boolean;
-      };
-      owns_project: {
-        Args: {
-          target_project_id: string;
-        };
-        Returns: boolean;
-      };
-      owns_provider_profile: {
-        Args: {
-          target_provider_profile_id: string;
-        };
-        Returns: boolean;
-      };
-      reject_provider_service_request: {
-        Args: {
-          target_request_id: string;
-        };
-        Returns: {
-          request_id: string;
-          request_status: Database["public"]["Enums"]["provider_service_request_status"];
-          conversation_id: string | null;
-        }[];
-      };
-      request_provider_service: {
-        Args: {
-          target_service_id: string;
-          request_message: string;
-        };
-        Returns: {
-          request_id: string;
-          request_status: Database["public"]["Enums"]["provider_service_request_status"];
+          application_id: string;
+          application_status: Database["public"]["Enums"]["application_status"];
           conversation_id: string;
         }[];
       };
-      complete_service_workroom: {
+      accept_provider_service_request: {
+        Args: { target_request_id: string };
+        Returns: {
+          conversation_id: string;
+          request_id: string;
+          request_status: Database["public"]["Enums"]["provider_service_request_status"];
+          workroom_id: string;
+        }[];
+      };
+      auth_rate_limit_check: {
+        Args: { target_key_hash: string; target_scope: string };
+        Returns: {
+          allowed: boolean;
+          retry_after_seconds: number;
+        }[];
+      };
+      auth_rate_limit_record_attempt: {
         Args: {
-          target_workroom_id: string;
+          block_seconds: number;
+          max_attempts: number;
+          target_key_hash: string;
+          target_scope: string;
+          window_seconds: number;
         };
+        Returns: {
+          allowed: boolean;
+          retry_after_seconds: number;
+        }[];
+      };
+      auth_rate_limit_reset: {
+        Args: { target_key_hash: string; target_scope: string };
+        Returns: undefined;
+      };
+      cancel_provider_service_request: {
+        Args: { target_request_id: string };
+        Returns: {
+          conversation_id: string;
+          request_id: string;
+          request_status: Database["public"]["Enums"]["provider_service_request_status"];
+        }[];
+      };
+      complete_service_workroom: {
+        Args: { target_workroom_id: string };
         Returns: {
           workroom_id: string;
           workroom_status: Database["public"]["Enums"]["service_workroom_status"];
+        }[];
+      };
+      get_own_contact_details: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          email: string;
+          phone: string;
+        }[];
+      };
+      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
+      is_conversation_participant: { Args: { target_conversation_id: string }; Returns: boolean };
+      owns_project: { Args: { target_project_id: string }; Returns: boolean };
+      owns_provider_profile: { Args: { target_provider_profile_id: string }; Returns: boolean };
+      provider_has_application_for_project: {
+        Args: { target_project_id: string; target_provider_id: string };
+        Returns: boolean;
+      };
+      reject_project_application: {
+        Args: { target_application_id: string };
+        Returns: {
+          application_id: string;
+          application_status: Database["public"]["Enums"]["application_status"];
+          project_id: string;
+          project_status: Database["public"]["Enums"]["project_status"];
+        }[];
+      };
+      reject_provider_service_request: {
+        Args: { target_request_id: string };
+        Returns: {
+          conversation_id: string;
+          request_id: string;
+          request_status: Database["public"]["Enums"]["provider_service_request_status"];
+        }[];
+      };
+      request_provider_service: {
+        Args: { request_message: string; target_service_id: string };
+        Returns: {
+          conversation_id: string;
+          request_id: string;
+          request_status: Database["public"]["Enums"]["provider_service_request_status"];
+        }[];
+      };
+      withdraw_project_application: {
+        Args: { target_application_id: string };
+        Returns: {
+          application_id: string;
+          application_status: Database["public"]["Enums"]["application_status"];
+          project_id: string;
+          project_status: Database["public"]["Enums"]["project_status"];
         }[];
       };
     };
@@ -1288,48 +1396,8 @@ export type Database = {
       budget_type: "fixed" | "range" | "negotiable";
       capability_strength: "basic" | "strong" | "expert";
       deadline_type: "specific_date" | "flexible" | "asap";
-      match_status:
-        | "suggested"
-        | "viewed"
-        | "contacted"
-        | "accepted"
-        | "rejected"
-        | "archived";
+      match_status: "suggested" | "viewed" | "contacted" | "accepted" | "rejected" | "archived";
       preferred_provider_type: "freelancer" | "agency" | "studio" | "any";
-      provider_service_category:
-        | "web_development"
-        | "mobile_development"
-        | "ui_ux_design"
-        | "graphic_design"
-        | "video_editing"
-        | "seo"
-        | "marketing"
-        | "copywriting"
-        | "branding"
-        | "ecommerce"
-        | "automation"
-        | "other";
-      provider_service_listing_status: "draft" | "published" | "paused";
-      provider_service_request_status:
-        | "pending"
-        | "accepted"
-        | "rejected"
-        | "cancelled";
-      service_workroom_status:
-        | "active"
-        | "completed";
-      provider_service_delivery_bucket:
-        | "urgent_24h"
-        | "up_to_3_days"
-        | "up_to_1_week"
-        | "up_to_2_weeks"
-        | "up_to_1_month"
-        | "flexible";
-      provider_service_price_type:
-        | "fixed"
-        | "hourly"
-        | "starting_at"
-        | "negotiable";
       project_readiness_level:
         | "idea_only"
         | "need_guidance"
@@ -1344,14 +1412,191 @@ export type Database = {
         | "assigned"
         | "completed"
         | "cancelled";
-      provider_type:
-        | "freelancer"
-        | "agency"
-        | "company"
-        | "studio"
+      provider_service_category:
+        | "web_development"
+        | "mobile_development"
+        | "ui_ux_design"
+        | "graphic_design"
+        | "video_editing"
+        | "seo"
+        | "marketing"
+        | "copywriting"
+        | "branding"
+        | "ecommerce"
+        | "automation"
         | "other";
+      provider_service_delivery_bucket:
+        | "urgent_24h"
+        | "up_to_3_days"
+        | "up_to_1_week"
+        | "up_to_2_weeks"
+        | "up_to_1_month"
+        | "flexible";
+      provider_service_listing_status: "draft" | "published" | "paused";
+      provider_service_price_type: "fixed" | "hourly" | "starting_at" | "negotiable";
+      provider_service_request_status: "pending" | "accepted" | "rejected" | "cancelled";
+      provider_type: "freelancer" | "agency" | "studio" | "company" | "other";
+      service_workroom_status: "active" | "completed";
       user_role: "client" | "provider" | "admin";
     };
-    CompositeTypes: Record<string, never>;
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
 };
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R;
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
+      }
+      ? R
+      : never
+    : never;
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I;
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I;
+      }
+      ? I
+      : never
+    : never;
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U;
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U;
+      }
+      ? U
+      : never
+    : never;
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never;
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never;
+
+export const Constants = {
+  public: {
+    Enums: {
+      application_status: ["pending", "viewed", "shortlisted", "rejected", "accepted", "withdrawn"],
+      availability_status: ["available", "busy", "unavailable"],
+      budget_type: ["fixed", "range", "negotiable"],
+      capability_strength: ["basic", "strong", "expert"],
+      deadline_type: ["specific_date", "flexible", "asap"],
+      match_status: ["suggested", "viewed", "contacted", "accepted", "rejected", "archived"],
+      preferred_provider_type: ["freelancer", "agency", "studio", "any"],
+      project_readiness_level: [
+        "idea_only",
+        "need_guidance",
+        "content_ready",
+        "design_ready",
+        "spec_ready",
+      ],
+      project_scope_level: ["small", "medium", "large"],
+      project_status: ["draft", "published", "in_discussion", "assigned", "completed", "cancelled"],
+      provider_service_category: [
+        "web_development",
+        "mobile_development",
+        "ui_ux_design",
+        "graphic_design",
+        "video_editing",
+        "seo",
+        "marketing",
+        "copywriting",
+        "branding",
+        "ecommerce",
+        "automation",
+        "other",
+      ],
+      provider_service_delivery_bucket: [
+        "urgent_24h",
+        "up_to_3_days",
+        "up_to_1_week",
+        "up_to_2_weeks",
+        "up_to_1_month",
+        "flexible",
+      ],
+      provider_service_listing_status: ["draft", "published", "paused"],
+      provider_service_price_type: ["fixed", "hourly", "starting_at", "negotiable"],
+      provider_service_request_status: ["pending", "accepted", "rejected", "cancelled"],
+      provider_type: ["freelancer", "agency", "studio", "company", "other"],
+      service_workroom_status: ["active", "completed"],
+      user_role: ["client", "provider", "admin"],
+    },
+  },
+} as const;

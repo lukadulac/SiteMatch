@@ -359,12 +359,6 @@ export default async function ListingDetailsPage({
                         {statusMeta.description}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-secondary">
-                        {application.provider?.email ? (
-                          <p>{application.provider.email}</p>
-                        ) : null}
-                        {application.provider?.phone ? (
-                          <p>{application.provider.phone}</p>
-                        ) : null}
                         {application.provider?.city || application.provider?.country ? (
                           <p>
                             {[application.provider.city, application.provider.country]
