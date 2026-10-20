@@ -1,114 +1,38 @@
-import type {
-  ConversationDetail,
-  ConversationListItem,
-} from "@/lib/messaging/service";
+import { ChevronRight, MessageSquare } from "lucide-react";
+import type { ConversationListItem } from "@/lib/messaging/service";
 import {
-  getApplicationStatusMeta,
-  type ApplicationStatus,
-} from "@/lib/projects/application-status";
+  getConversationStatus,
+  getConversationTitle,
+  getOtherParty,
+  statusToneClasses,
+} from "@/components/messaging/conversation-view";
 
-function formatTimeLabel(value: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
+function formatInboxTime(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+
+  if (date.toDateString() === today.toDateString()) {
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: "UTC",
-  }).formatToParts(new Date(value));
-  const partMap = new Map(parts.map((part) => [part.type, part.value]));
-
-  return `${partMap.get("month")} ${partMap.get("day")}, ${partMap.get(
-    "hour",
-  )}:${partMap.get("minute")} ${partMap.get("dayPeriod")}`;
+    day: "numeric",
+  }).format(date);
 }
 
-function applicationStatusClasses(status: string | null | undefined) {
-  switch (status) {
-    case "pending":
-      return "bg-blue-50 text-blue-700";
-    case "viewed":
-      return "bg-zinc-100 text-zinc-700";
-    case "shortlisted":
-      return "bg-amber-50 text-amber-700";
-    case "accepted":
-      return "bg-emerald-50 text-emerald-700";
-    case "rejected":
-    case "withdrawn":
-      return "bg-red-50 text-red-700";
-    default:
-      return "bg-zinc-100 text-zinc-700";
-  }
-}
-
-function serviceRequestStatusClasses(status: string | null | undefined) {
-  switch (status) {
-    case "accepted":
-      return "bg-emerald-50 text-emerald-700";
-    case "rejected":
-    case "cancelled":
-      return "bg-red-50 text-red-700";
-    default:
-      return "bg-blue-50 text-blue-700";
-  }
-}
-
-function applicationStatusLabel(status: ApplicationStatus | null | undefined) {
-  return status ? getApplicationStatusMeta(status).label : "Application";
-}
-
-function serviceRequestStatusLabel(status: string | null | undefined) {
-  switch (status) {
-    case "accepted":
-      return "Accepted";
-    case "rejected":
-      return "Rejected";
-    case "cancelled":
-      return "Cancelled";
-    default:
-      return "Pending";
-  }
-}
-
-function getConversationTitle(
-  conversation: ConversationListItem | ConversationDetail,
-) {
-  return (
-    conversation.project?.title ??
-    conversation.service_request?.service?.title ??
-    "Marketplace conversation"
-  );
-}
-
-function getConversationStatus(
-  conversation: ConversationListItem | ConversationDetail,
-) {
-  if (conversation.service_request) {
-    return {
-      label: serviceRequestStatusLabel(conversation.service_request.status),
-      classes: serviceRequestStatusClasses(conversation.service_request.status),
-    };
-  }
-
-  return {
-    label: applicationStatusLabel(conversation.application?.status),
-    classes: applicationStatusClasses(conversation.application?.status),
-  };
-}
-
-function getOtherParty(
-  conversation: ConversationListItem | ConversationDetail,
-  currentUserId: string,
-) {
-  return conversation.client_id === currentUserId
-    ? conversation.provider
-    : conversation.client;
+function initials(name: string) {
+  return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
 
 type ConversationInboxProps = {
   conversations: ConversationListItem[];
   currentUserId: string;
   activeConversationId?: string;
+  isFiltered?: boolean;
   onSelectConversation?: (conversationId: string) => void;
 };
 
@@ -116,87 +40,77 @@ export function ConversationInbox({
   conversations,
   currentUserId,
   activeConversationId,
+  isFiltered = false,
   onSelectConversation,
 }: ConversationInboxProps) {
   if (conversations.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-line p-8 text-sm leading-6 text-secondary">
-        No conversations yet. Start from a provider application and choose
-        Message to open a discussion.
+      <div className="flex min-h-40 flex-col items-center justify-center px-5 py-8 text-center">
+        <MessageSquare aria-hidden="true" className="mb-3 size-6 text-secondary" />
+        <p className="text-sm font-semibold text-black">
+          {isFiltered ? "No matching conversations" : "No conversations yet"}
+        </p>
+        <p className="mt-1 max-w-xs text-sm leading-5 text-secondary">
+          {isFiltered
+            ? "Try another search or filter."
+            : "Project and service discussions will appear here."}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+    <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain" aria-label="Conversations">
       {conversations.map((conversation) => {
-        const otherParty = getOtherParty(conversation, currentUserId);
+        const name = getOtherParty(conversation, currentUserId)?.full_name ?? "Marketplace member";
         const isActive = conversation.id === activeConversationId;
         const status = getConversationStatus(conversation);
 
         return (
-          <button
-            key={conversation.id}
-            type="button"
-            onClick={() => onSelectConversation?.(conversation.id)}
-            className={`block w-full rounded-3xl border p-4 text-left transition ${
-              isActive
-                ? "border-black bg-black text-white"
-                : "border-line bg-white hover:border-black/30 hover:bg-black/3"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p
-                  className={`truncate text-sm font-semibold ${
-                    isActive ? "text-white" : "text-black"
-                  }`}
-                >
-                  {otherParty?.full_name ?? "Marketplace conversation"}
-                </p>
-                <p
-                  className={`mt-1 truncate text-sm ${
-                    isActive ? "text-white/70" : "text-secondary"
-                  }`}
-                >
-                  {getConversationTitle(conversation)}
-                </p>
-              </div>
-              {conversation.unread_count > 0 ? (
-                <span className="inline-flex min-w-7 shrink-0 items-center justify-center rounded-full bg-accent px-2 py-1 text-xs font-semibold text-accent-ink">
-                  {conversation.unread_count}
-                </span>
-              ) : null}
-            </div>
-
-            <p
-              className={`mt-4 line-clamp-2 text-sm leading-6 ${
-                isActive ? "text-white/70" : "text-secondary"
+          <li key={conversation.id}>
+            <button
+              type="button"
+              onClick={() => onSelectConversation?.(conversation.id)}
+              aria-current={isActive ? "true" : undefined}
+              className={`group flex min-h-22 w-full items-start gap-3 border-l-2 px-3 py-3 text-left transition-colors sm:px-4 ${
+                isActive
+                  ? "border-l-violet-600 bg-violet-50/70"
+                  : "border-l-transparent hover:bg-zinc-50"
               }`}
             >
-              {conversation.last_message?.message_text ?? "No messages yet."}
-            </p>
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  isActive ? "bg-white/15 text-white" : status.classes
-                }`}
-              >
-                {status.label}
+              <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-700">
+                {initials(name)}
               </span>
-              <span
-                className={`shrink-0 text-xs ${
-                  isActive ? "text-white/60" : "text-secondary"
-                }`}
-              >
-                {formatTimeLabel(
-                  conversation.last_message?.created_at ?? conversation.updated_at,
-                )}
+              <span className="min-w-0 flex-1">
+                <span className="flex min-w-0 items-baseline justify-between gap-2">
+                  <span className="truncate text-sm font-semibold text-black">{name}</span>
+                  <time className="shrink-0 text-xs text-secondary" dateTime={conversation.last_message?.created_at ?? conversation.updated_at}>
+                    {formatInboxTime(conversation.last_message?.created_at ?? conversation.updated_at)}
+                  </time>
+                </span>
+                <span className="mt-0.5 flex min-w-0 items-center gap-2">
+                  <span className="truncate text-xs text-secondary">{getConversationTitle(conversation)}</span>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${statusToneClasses[status.tone]}`}>
+                    {status.label}
+                  </span>
+                </span>
+                <span className="mt-1.5 flex min-w-0 items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-xs text-secondary">
+                    {conversation.last_message?.message_text ?? "No messages yet"}
+                  </span>
+                  {conversation.unread_count > 0 ? (
+                    <span className="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-violet-700 px-1 text-[10px] font-bold text-white" aria-label={`${conversation.unread_count} unread messages`}>
+                      {conversation.unread_count}
+                    </span>
+                  ) : (
+                    <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-zinc-400 lg:hidden" />
+                  )}
+                </span>
               </span>
-            </div>
-          </button>
+            </button>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

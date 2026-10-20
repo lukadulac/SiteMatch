@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
+import { ArrowLeft, Check, CheckCheck, ExternalLink, Send } from "lucide-react";
 import type { ConversationDetail } from "@/lib/messaging/service";
 import {
-  getApplicationStatusMeta,
-  type ApplicationStatus,
-} from "@/lib/projects/application-status";
+  canComposeConversation,
+  getConversationStatus,
+  getConversationTitle,
+  getOtherParty,
+  statusToneClasses,
+} from "@/components/messaging/conversation-view";
 import {
   authenticateSupabaseRealtime,
   createSupabaseBrowserClient,
@@ -71,70 +75,6 @@ function formatTimeLabel(value: string) {
   )}:${partMap.get("minute")} ${partMap.get("dayPeriod")}`;
 }
 
-function applicationStatusClasses(status: string | null | undefined) {
-  switch (status) {
-    case "pending":
-      return "bg-blue-50 text-blue-700";
-    case "viewed":
-      return "bg-zinc-100 text-zinc-700";
-    case "shortlisted":
-      return "bg-amber-50 text-amber-700";
-    case "accepted":
-      return "bg-emerald-50 text-emerald-700";
-    case "rejected":
-    case "withdrawn":
-      return "bg-red-50 text-red-700";
-    default:
-      return "bg-zinc-100 text-zinc-700";
-  }
-}
-
-function serviceRequestStatusClasses(status: string | null | undefined) {
-  switch (status) {
-    case "accepted":
-      return "bg-emerald-50 text-emerald-700";
-    case "rejected":
-    case "cancelled":
-      return "bg-red-50 text-red-700";
-    default:
-      return "bg-blue-50 text-blue-700";
-  }
-}
-
-function applicationStatusLabel(status: ApplicationStatus | null | undefined) {
-  return status ? getApplicationStatusMeta(status).label : "Application";
-}
-
-function serviceRequestStatusLabel(status: string | null | undefined) {
-  switch (status) {
-    case "accepted":
-      return "Accepted";
-    case "rejected":
-      return "Rejected";
-    case "cancelled":
-      return "Cancelled";
-    default:
-      return "Pending";
-  }
-}
-
-function canSendMessages(status: string | null | undefined) {
-  return (
-    status === "pending" ||
-    status === "viewed" ||
-    status === "shortlisted" ||
-    status === "accepted"
-  );
-}
-
-function canSendConversationMessages(conversation: ConversationDetail) {
-  if (conversation.service_request) {
-    return true;
-  }
-
-  return canSendMessages(conversation.application?.status);
-}
-
 function readOnlyConversationMessage(status: string | null | undefined) {
   if (status === "rejected") {
     return "This application was rejected. Conversation history remains visible, but new messages are disabled.";
@@ -147,29 +87,11 @@ function readOnlyConversationMessage(status: string | null | undefined) {
   return "This application is closed. Conversation history remains visible, but new messages are disabled.";
 }
 
-function getConversationTitle(conversation: ConversationDetail) {
-  return (
-    conversation.project?.title ??
-    conversation.service_request?.service?.title ??
-    "Marketplace conversation"
-  );
-}
-
-function getConversationStatus(conversation: ConversationDetail) {
-  if (conversation.service_request) {
-    return {
-      label: serviceRequestStatusLabel(conversation.service_request.status),
-      classes: serviceRequestStatusClasses(conversation.service_request.status),
-    };
+function getReadOnlyMessage(conversation: ConversationDetail) {
+  if (conversation.source_deleted_at) {
+    return "This listing was removed. Conversation history remains visible, but new messages are disabled.";
   }
 
-  return {
-    label: applicationStatusLabel(conversation.application?.status),
-    classes: applicationStatusClasses(conversation.application?.status),
-  };
-}
-
-function getReadOnlyMessage(conversation: ConversationDetail) {
   if (conversation.service_request) {
     return "";
   }
@@ -196,11 +118,9 @@ function MessageStatusTicks({
     <span
       aria-label={isRead ? "Seen" : "Sent"}
       title={isRead ? "Seen" : "Sent"}
-      className={`ml-2 inline-flex items-center font-semibold tracking-[-0.18em] ${
-        isRead ? "text-sky-300" : "text-white/60"
-      }`}
+      className={`ml-1 inline-flex items-center ${isRead ? "text-emerald-200" : "text-white/70"}`}
     >
-      {isRead ? "✓✓" : "✓"}
+      {isRead ? <CheckCheck size={13} aria-hidden="true" /> : <Check size={13} aria-hidden="true" />}
     </span>
   );
 }
@@ -230,17 +150,15 @@ export function MessageThread({
   >("connecting");
   const formRef = useRef<HTMLFormElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-
-  const otherParty =
-    conversation.client_id === currentUserId
-      ? conversation.provider
-      : conversation.client;
-  const composerEnabled = canSendConversationMessages(conversation);
+  const otherParty = getOtherParty(conversation, currentUserId);
+  const composerEnabled = canComposeConversation(conversation);
   const conversationStatus = getConversationStatus(conversation);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages.length]);
 
   useEffect(() => {
@@ -500,73 +418,44 @@ export function MessageThread({
   }
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-4xl border border-line bg-white/90 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
-      <header className="border-b border-line p-5 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            {onBackToInbox ? (
-              <button
-                type="button"
-                onClick={onBackToInbox}
-                className="mb-4 inline-flex rounded-full border border-line px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-black/3 xl:hidden"
-              >
-                Back to inbox
-              </button>
-            ) : null}
-            <p className="text-sm font-semibold text-secondary">
-              {otherParty?.full_name ?? "Marketplace conversation"}
-            </p>
-            <h2 className="mt-1 truncate text-2xl font-semibold text-black">
-              {getConversationTitle(conversation)}
-            </h2>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${conversationStatus.classes}`}
-              >
-                {conversationStatus.label}
-              </span>
-              {conversation.project ? (
-                <Link
-                  href={`/oglasi/${conversation.project.id}`}
-                  className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-black transition hover:bg-black/3"
-                >
-                  View project
-                </Link>
-              ) : null}
-              {conversation.service_request?.service ? (
-                <Link
-                  href={`/find-talent/${conversation.service_request.service.id}`}
-                  className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-black transition hover:bg-black/3"
-                >
-                  View service
-                </Link>
-              ) : null}
-              {connectionStatus !== "connected" ? (
-                <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                  {connectionStatus === "connecting"
-                    ? "Connecting"
-                    : "Reconnecting"}
-                </span>
-              ) : null}
-            </div>
+    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white lg:rounded-lg lg:border lg:border-line">
+      <header className="shrink-0 border-b border-line px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 sm:px-5 lg:pt-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {onBackToInbox ? (
+            <button type="button" onClick={onBackToInbox} aria-label="Back to inbox" title="Back to inbox" className="flex size-10 shrink-0 items-center justify-center rounded-md text-zinc-700 transition hover:bg-zinc-100 lg:hidden">
+              <ArrowLeft size={19} aria-hidden="true" />
+            </button>
+          ) : null}
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-800" aria-hidden="true">
+            {(otherParty?.full_name ?? "M").split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-sm font-semibold text-zinc-950 sm:text-base">{otherParty?.full_name ?? "Marketplace conversation"}</h2>
+            <p className="truncate text-xs text-secondary">{getConversationTitle(conversation)}</p>
           </div>
-
           {unreadCount > 0 ? (
-            <button
-              type="button"
-              disabled={isMarkingRead}
-              onClick={handleMarkRead}
-              className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <button type="button" disabled={isMarkingRead} onClick={handleMarkRead} className="shrink-0 rounded-md px-2 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50" title="Mark conversation as read">
               {isMarkingRead ? "Marking..." : "Mark as read"}
             </button>
+          ) : null}
+        </div>
+        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 pl-0 lg:pl-13">
+          <span className={`rounded px-2 py-1 text-xs font-semibold ${statusToneClasses[conversationStatus.tone]}`}>{conversationStatus.label}</span>
+          {conversation.project ? (
+            <Link href={`/oglasi/${conversation.project.id}`} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100">View project <ExternalLink size={12} aria-hidden="true" /></Link>
+          ) : null}
+          {conversation.service_request?.service ? (
+            <Link href={`/find-talent/${conversation.service_request.service.id}`} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100">View service <ExternalLink size={12} aria-hidden="true" /></Link>
+          ) : null}
+          {connectionStatus !== "connected" ? (
+            <span className="text-xs text-amber-700" role="status">{connectionStatus === "connecting" ? "Connecting" : "Reconnecting"}</span>
           ) : null}
         </div>
       </header>
 
       <div
         ref={messagesContainerRef}
-        className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-5 sm:p-6"
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-zinc-50/60 p-4 sm:p-5"
       >
         {hasOlderMessages ? (
           <div className="flex justify-center">
@@ -574,7 +463,7 @@ export function MessageThread({
               type="button"
               disabled={isLoadingOlderMessages}
               onClick={handleLoadOlderMessages}
-              className="rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md border border-line bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoadingOlderMessages ? "Loading..." : "Load older messages"}
             </button>
@@ -591,17 +480,17 @@ export function MessageThread({
                 className={`flex ${isMine ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[min(72ch,85%)] rounded-3xl px-5 py-4 ${
+                  className={`max-w-[min(72ch,85%)] rounded-md px-3 py-2.5 sm:px-4 ${
                     isMine
-                      ? "bg-zinc-500 text-white shadow-[0_14px_30px_rgba(17,17,17,0.12)]"
-                      : "border border-line bg-white text-black shadow-[0_10px_24px_rgba(17,17,17,0.04)]"
+                      ? "bg-[#6447b5] text-white"
+                      : "border border-line bg-white text-zinc-950"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap wrap-break-word text-sm leading-6">
+                  <p className="whitespace-pre-wrap wrap-break-word text-sm leading-5">
                     {message.message_text}
                   </p>
                   <p
-                    className={`mt-3 flex items-center text-xs ${
+                    className={`mt-1.5 flex items-center text-[11px] ${
                       isMine ? "text-white/60" : "text-secondary"
                     }`}
                   >
@@ -613,51 +502,32 @@ export function MessageThread({
             );
           })
         ) : (
-          <div className="rounded-3xl border border-dashed border-line p-8 text-sm leading-6 text-secondary">
+          <div className="mx-auto max-w-sm py-12 text-center text-sm leading-6 text-secondary">
             {composerEnabled
               ? "No messages yet. Send the first message to discuss scope, budget, timing, or project details."
               : "No messages were sent before this conversation became read-only."}
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
-      <footer className="border-t border-line p-5 sm:p-6">
+      <footer className="shrink-0 border-t border-line bg-white p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-4 lg:pb-4">
         {error ? (
-          <p className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <p role="alert" className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
             {error}
           </p>
         ) : null}
 
         {composerEnabled ? (
-          <form ref={formRef} onSubmit={handleSend} className="space-y-3">
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={handleComposerKeyDown}
-              rows={3}
-              required
-              maxLength={4000}
-              placeholder="Write a message..."
-              disabled={isSending}
-              className="max-h-40 min-h-24 w-full resize-none rounded-3xl border border-line bg-white px-5 py-4 text-sm leading-6 text-black outline-none transition placeholder:text-secondary focus:border-black disabled:cursor-not-allowed disabled:opacity-70"
-            />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-secondary">
-                Enter sends. Shift+Enter adds a new line.
-              </p>
-              <button
-                type="submit"
-                disabled={isSending || draft.trim().length === 0}
-                className="rounded-full bg-linear-to-r from-violet-500 to-pink-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(168,85,247,0.25)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSending ? "Sending..." : "Send message"}
-              </button>
-            </div>
+          <form ref={formRef} onSubmit={handleSend} className="flex items-end gap-2">
+            <label htmlFor="conversation-message" className="sr-only">Message</label>
+            <textarea id="conversation-message" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown} rows={2} required maxLength={4000} placeholder="Write a message..." disabled={isSending} className="max-h-40 min-h-12 flex-1 resize-none rounded-md border border-line bg-white px-3 py-2.5 text-sm leading-5 text-black outline-none transition placeholder:text-secondary focus:border-[#6447b5] disabled:opacity-70" />
+            <button type="submit" disabled={isSending || draft.trim().length === 0} aria-label={isSending ? "Sending message" : "Send message"} title="Send message" className="flex size-11 shrink-0 items-center justify-center rounded-md bg-[#6447b5] text-white transition hover:bg-[#50369c] disabled:cursor-not-allowed disabled:opacity-50">
+              <Send size={18} aria-hidden="true" />
+            </button>
           </form>
         ) : (
-          <div className="rounded-3xl border border-red-100 bg-red-50 p-5 text-sm leading-6 text-red-700">
-            <p className="font-semibold text-red-800">Conversation is read-only</p>
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm leading-5 text-zinc-600">
+            <p className="font-semibold text-zinc-800">Conversation is read-only</p>
             <p className="mt-1">{getReadOnlyMessage(conversation)}</p>
           </div>
         )}
