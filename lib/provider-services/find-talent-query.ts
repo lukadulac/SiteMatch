@@ -2,7 +2,7 @@ import z from "zod";
 import type { Database } from "@/types/supabase";
 
 export const FIND_TALENT_DEFAULT_PAGE = 1;
-export const FIND_TALENT_DEFAULT_PAGE_SIZE = 20;
+export const FIND_TALENT_DEFAULT_PAGE_SIZE = 10;
 export const FIND_TALENT_MAX_PAGE_SIZE = 50;
 
 const priceTypeSchema = z.enum([
