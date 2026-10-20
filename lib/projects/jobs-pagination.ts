@@ -1,4 +1,4 @@
-export const JOBS_PAGE_SIZE = 20;
+export const JOBS_PAGE_SIZE = 10;
 
 export function parseJobsPage(value: string | string[] | undefined): number {
   if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return 1;
