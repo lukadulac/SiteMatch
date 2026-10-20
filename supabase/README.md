@@ -61,6 +61,15 @@ have to read the column.
 
 `client_profiles` (tax ID, project idea) is readable by its owner and admins only.
 
+## Profile pictures
+
+Pictures live in the public `avatars` Storage bucket (PNG, JPEG or WebP, 2 MB at
+most). A user uploads only into the folder named after their profile id, and never
+overwrites a file: each upload gets a new `<uuid>.<ext>` name. `profiles.avatar_url`
+holds that object path, not a URL, and a check constraint only accepts a path in
+the profile's own folder. Build the URL with `getAvatarUrl()` from
+`lib/profiles/avatar.ts`; uploads and removals go through `/api/profile/avatar`.
+
 ## Writing policies, guards and RPCs
 
 - **One policy per command and role.** Permissive policies OR together, so a second,

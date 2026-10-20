@@ -204,6 +204,33 @@ export function createSupabaseStub(
 				},
 			};
 		},
+		/** Storage calls are keyed `"storage.<bucket>.<upload|remove|list>"`. */
+		storage: {
+			from: (bucket: string) => {
+				function call(operation: string) {
+					return async (...args: unknown[]) => {
+						const key = `storage.${bucket}.${operation}`;
+						const response = takeResponse(key);
+
+						calls.push({
+							key,
+							table: `storage.${bucket}`,
+							operation,
+							payload: args,
+							filters: [],
+						});
+
+						return { data: null, error: null, ...response };
+					};
+				}
+
+				return {
+					upload: call("upload"),
+					remove: call("remove"),
+					list: call("list"),
+				};
+			},
+		},
 		auth: {
 			getUser: async () => ({
 				data: { user: auth.user ?? null },

@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adminListSchema, moderationSchema } from "@/lib/admin/schemas";
+import { removeUserAvatarFolder } from "@/lib/profiles/avatar";
 import type { Database, Json } from "@/types/supabase";
 
 type Client = SupabaseClient<Database>;
@@ -87,6 +88,8 @@ export async function moderate(supabase: Client, input: unknown, authAdminFactor
     }
     const confirmed = await supabase.rpc("admin_confirm_auth_deleted", { target_user_id: value.targetId });
     if (confirmed.error) return { error: "Account access is blocked; deletion confirmation is pending. Retry this deletion.", status: 503 };
+    // Best effort: the profile no longer references the files, so a leftover is never shown.
+    try { await removeUserAvatarFolder(supabase, value.targetId); } catch { /* Ignore; see above. */ }
   }
   return { data: result.data };
 }
