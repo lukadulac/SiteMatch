@@ -70,6 +70,12 @@ holds that object path, not a URL, and a check constraint only accepts a path in
 the profile's own folder. Build the URL with `getAvatarUrl()` from
 `lib/profiles/avatar.ts`; uploads and removals go through `/api/profile/avatar`.
 
+A picture picked on the registration form (48 KB at most, because Server Action
+bodies are capped at 64 KB) is uploaded by `registerAction` with the service-role
+client, since the account has no session or profile yet. It is only stored for an
+account that sign-up just created. On the first sign-in `ensureUserProfile` links
+the newest file in the user's folder to the new profile row.
+
 ## Writing policies, guards and RPCs
 
 - **One policy per command and role.** Permissive policies OR together, so a second,

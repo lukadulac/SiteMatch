@@ -1,5 +1,6 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { isAppRole, type UserRole } from "@/lib/auth/roles";
+import { findUploadedAvatarPath } from "@/lib/profiles/avatar";
 import type { Database } from "@/types/supabase";
 
 type ProvisionResult = {
@@ -62,6 +63,10 @@ export async function ensureUserProfile(
     getStringValue(user.email?.split("@")[0]) ??
     "New user";
 
+  // A picture chosen on the registration form was stored before the account had
+  // a profile row; link it now.
+  const avatarPath = await findUploadedAvatarPath(supabase, user.id);
+
   const { error: profileError } = await supabase.from("profiles").upsert(
     {
       id: user.id,
@@ -71,6 +76,7 @@ export async function ensureUserProfile(
       phone: getStringValue(metadata.phone),
       country: getStringValue(metadata.country),
       city: getStringValue(metadata.city),
+      ...(avatarPath ? { avatar_url: avatarPath } : {}),
     },
     // email and phone are not readable columns, and rewriting them on conflict would
     // read them back, so an existing row is left alone.

@@ -324,6 +324,58 @@ describe("ensureUserProfile", () => {
 		});
 	});
 
+	describe("registration profile picture", () => {
+		const AVATAR = "11111111-1111-4111-8111-111111111111.webp";
+
+		function provisionStub(list: { data?: unknown; error?: { message: string } | null }) {
+			return createSupabaseStub({
+				"profiles.select": { data: null },
+				"storage.avatars.list": list,
+				"profiles.upsert": {},
+				"client_profiles.upsert": {},
+			});
+		}
+
+		it("links the picture uploaded at registration", async () => {
+			const stub = provisionStub({ data: [{ name: AVATAR }] });
+
+			await ensureUserProfile(stub.client, user({ role: "client" }));
+
+			expect(stub.callsFor("storage.avatars.list")[0].payload).toEqual([
+				USER_ID,
+				{ limit: 10, sortBy: { column: "created_at", order: "desc" } },
+			]);
+			expect(stub.callsFor("profiles.upsert")[0].payload).toMatchObject({
+				avatar_url: `${USER_ID}/${AVATAR}`,
+			});
+		});
+
+		it("skips files the profile constraint would reject", async () => {
+			const stub = provisionStub({ data: [{ name: "notes.txt" }, { name: ".emptyFolderPlaceholder" }] });
+
+			await ensureUserProfile(stub.client, user({ role: "client" }));
+
+			expect(stub.callsFor("profiles.upsert")[0].payload).not.toHaveProperty("avatar_url");
+		});
+
+		it("provisions without a picture when the folder cannot be read", async () => {
+			const stub = provisionStub({ error: { message: "storage unavailable" } });
+
+			const result = await ensureUserProfile(stub.client, user({ role: "client" }));
+
+			expect(result).toEqual({ role: "client" });
+			expect(stub.callsFor("profiles.upsert")[0].payload).not.toHaveProperty("avatar_url");
+		});
+
+		it("does not look for a picture when the profile already exists", async () => {
+			const stub = createSupabaseStub({ "profiles.select": { data: { role: "client" } } });
+
+			await ensureUserProfile(stub.client, user({ role: "client" }));
+
+			expect(stub.callKeys()).not.toContain("storage.avatars.list");
+		});
+	});
+
 	it("recognises an existing admin profile without provisioning from metadata", async () => {
 		const stub = createSupabaseStub({
 			"profiles.select": { data: { role: "admin" } },
