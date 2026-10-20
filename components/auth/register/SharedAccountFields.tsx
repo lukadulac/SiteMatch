@@ -4,10 +4,20 @@ import {
 	type RegisterFormFields,
 } from "@/components/auth/register/RegisterForm";
 import { FieldError, FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
+import { AvatarPicker } from "@/components/profile/avatar-picker";
+
+export type RegistrationAvatarState = {
+	previewUrl: string | null;
+	busy: boolean;
+	error: string | null;
+	onPick: (file: File) => void;
+	onRemove: () => void;
+};
 
 type SharedAccountFieldsProps = {
 	errors?: RegisterFieldErrors;
 	fields?: RegisterFormFields;
+	avatar: RegistrationAvatarState;
 };
 
 const accountFields = [
@@ -19,7 +29,7 @@ const accountFields = [
 	{ name: "password", label: "Password", type: "password", autoComplete: "new-password", placeholder: "At least 8 characters", required: true },
 ] as const;
 
-export default function SharedAccountFields({ errors, fields }: SharedAccountFieldsProps) {
+export default function SharedAccountFields({ errors, fields, avatar }: SharedAccountFieldsProps) {
 	return (
 		<section className="p-2">
 			<h3 className="font-semibold">Personal information</h3>
@@ -46,6 +56,22 @@ export default function SharedAccountFields({ errors, fields }: SharedAccountFie
 						</div>
 					);
 				})}
+				<div className="flex min-w-0 flex-col gap-2 md:col-span-2">
+					<span className="flex items-baseline justify-between gap-2 text-sm font-medium text-black">
+						<span id="avatar-label">Profile photo</span>
+						<span className="text-xs font-normal text-secondary">Optional</span>
+					</span>
+					<AvatarPicker
+						name={null}
+						labelledBy="avatar-label"
+						previewSrc={avatar.previewUrl}
+						hasPhoto={Boolean(avatar.previewUrl)}
+						busy={avatar.busy}
+						error={avatar.error ?? fieldError(errors, "avatar")}
+						onPick={avatar.onPick}
+						onRemove={avatar.onRemove}
+					/>
+				</div>
 			</div>
 		</section>
 	);

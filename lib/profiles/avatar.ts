@@ -97,6 +97,20 @@ function uploadAvatarFile(supabase: Client, userId: string, file: ValidAvatarFil
 		.then(({ error }) => ({ avatarPath, error }));
 }
 
+/**
+ * Puts a resized picture into form data as the `avatar` field (or removes the
+ * field), with a file name matching its type.
+ */
+export function setAvatarFormField(formData: FormData, avatar: Blob | null) {
+	formData.delete("avatar");
+
+	if (avatar) {
+		formData.set("avatar", avatar, avatar.type === "image/jpeg" ? "avatar.jpg" : "avatar.webp");
+	}
+
+	return formData;
+}
+
 /** Whether a stored avatar path belongs to the given user's folder. */
 export function isOwnAvatarPath(path: string, userId: string) {
 	return path.startsWith(`${userId}/`) && !path.slice(userId.length + 1).includes("/");

@@ -12,6 +12,7 @@ import type {
 	ServiceRequestDetail,
 } from "@/lib/provider-service-requests/service";
 import type { ServiceRequestStatusFilter } from "@/lib/provider-service-requests/schemas";
+import { Avatar } from "@/components/profile/avatar";
 
 type RequestActionContext =
 	| "client-home"
@@ -83,19 +84,21 @@ export function formatServiceRequestTimeAgo(value: string) {
 	return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
-function otherPartyName(
+function otherParty(
 	request: ServiceRequestSummary,
 	viewerRole: "client" | "provider",
 ) {
-	if (viewerRole === "client" && "provider" in request) {
-		return request.provider?.full_name ?? "Provider";
-	}
+	const party =
+		viewerRole === "client" && "provider" in request
+			? request.provider
+			: viewerRole === "provider" && "client" in request
+				? request.client
+				: null;
 
-	if (viewerRole === "provider" && "client" in request) {
-		return request.client?.full_name ?? "Client";
-	}
-
-	return viewerRole === "client" ? "Provider" : "Client";
+	return {
+		name: party?.full_name ?? (viewerRole === "client" ? "Provider" : "Client"),
+		avatarPath: party?.avatar_url ?? null,
+	};
 }
 
 function serviceTitle(request: ServiceRequestSummary) {
@@ -205,6 +208,8 @@ export function ServiceRequestCard({
 	page?: number;
 	compact?: boolean;
 }) {
+	const party = otherParty(request, viewerRole);
+
 	return (
 		<article className="rounded-lg border border-line bg-white p-5">
 			<div
@@ -223,9 +228,12 @@ export function ServiceRequestCard({
 							{serviceRequestStatusLabel(request.status)}
 						</span>
 					</div>
-					<p className="mt-1 text-sm text-secondary">
-						{otherPartyName(request, viewerRole)} ·{" "}
-						{formatServiceRequestTimeAgo(request.created_at)}
+					<p className="mt-2 flex min-w-0 items-center gap-2 text-sm text-secondary">
+						<Avatar name={party.name} avatarPath={party.avatarPath} size="sm" />
+						<span className="min-w-0">
+							{party.name} ·{" "}
+							{formatServiceRequestTimeAgo(request.created_at)}
+						</span>
 					</p>
 					<p
 						className={`mt-4 whitespace-pre-line wrap-break-word text-sm leading-6 text-black/75 ${

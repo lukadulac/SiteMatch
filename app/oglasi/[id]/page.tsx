@@ -13,6 +13,7 @@ import {
 } from "@/lib/projects/service";
 import { getApplicationStatusMeta } from "@/lib/projects/application-status";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { Avatar } from "@/components/profile/avatar";
 
 type PageProps = {
   params: Promise<{
@@ -344,6 +345,7 @@ export default async function ListingDetailsPage({
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-3">
+                        <Avatar name={application.provider?.full_name ?? "Provider"} avatarPath={application.provider?.avatar_url} size="lg" />
                         <h3 className="text-xl font-semibold text-black">
                           {application.provider?.full_name ?? "Provider"}
                         </h3>

@@ -6,6 +6,7 @@ import {
   getOtherParty,
   statusToneClasses,
 } from "@/components/messaging/conversation-view";
+import { Avatar } from "@/components/profile/avatar";
 
 function formatInboxTime(value: string) {
   const date = new Date(value);
@@ -22,10 +23,6 @@ function formatInboxTime(value: string) {
     month: "short",
     day: "numeric",
   }).format(date);
-}
-
-function initials(name: string) {
-  return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
 
 type ConversationInboxProps = {
@@ -62,7 +59,8 @@ export function ConversationInbox({
   return (
     <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain" aria-label="Conversations">
       {conversations.map((conversation) => {
-        const name = getOtherParty(conversation, currentUserId)?.full_name ?? "Marketplace member";
+        const otherParty = getOtherParty(conversation, currentUserId);
+        const name = otherParty?.full_name ?? "Marketplace member";
         const isActive = conversation.id === activeConversationId;
         const status = getConversationStatus(conversation);
 
@@ -78,9 +76,7 @@ export function ConversationInbox({
                   : "border-l-transparent hover:bg-zinc-50"
               }`}
             >
-              <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-700">
-                {initials(name)}
-              </span>
+              <Avatar name={name} avatarPath={otherParty?.avatar_url} size="md" />
               <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 items-baseline justify-between gap-2">
                   <span className="truncate text-sm font-semibold text-black">{name}</span>

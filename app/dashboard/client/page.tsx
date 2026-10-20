@@ -14,6 +14,7 @@ import { getClientServiceRequestPreview } from "@/lib/provider-service-requests/
 import { getClientProjects } from "@/lib/projects/service";
 import { getClientWorkroomPreview } from "@/lib/service-workrooms/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { Avatar } from "@/components/profile/avatar";
 
 function formatDateLabel(value: string | null) {
   if (!value) {
@@ -506,14 +507,17 @@ export default async function ClientDashboardPage({
                       className="block min-w-0 rounded-2xl border border-line p-4 transition hover:bg-black/3"
                     >
                       <div className="flex min-w-0 items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-black">
-                            {otherParty?.full_name ?? "Marketplace conversation"}
-                          </p>
-                          <p className="mt-1 line-clamp-2 text-sm leading-5 text-secondary">
-                            {conversation.last_message?.message_text ??
-                              "No messages yet."}
-                          </p>
+                        <div className="flex min-w-0 items-start gap-3">
+                          <Avatar name={otherParty?.full_name ?? "Marketplace member"} avatarPath={otherParty?.avatar_url} size="md" />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-black">
+                              {otherParty?.full_name ?? "Marketplace conversation"}
+                            </p>
+                            <p className="mt-1 line-clamp-2 text-sm leading-5 text-secondary">
+                              {conversation.last_message?.message_text ??
+                                "No messages yet."}
+                            </p>
+                          </div>
                         </div>
                         <span className="shrink-0 text-xs text-secondary">
                           {formatTimeAgo(

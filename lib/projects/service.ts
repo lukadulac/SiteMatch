@@ -105,7 +105,7 @@ type ClientProjectApplicationSummary = Pick<
 > & {
 	provider: Pick<
 		Database["public"]["Tables"]["profiles"]["Row"],
-		"id" | "full_name" | "country" | "city"
+		"id" | "full_name" | "avatar_url" | "country" | "city"
 	> | null;
 };
 
@@ -113,7 +113,7 @@ type ClientProjectApplicationDetail =
 	Database["public"]["Tables"]["applications"]["Row"] & {
 		provider: Pick<
 			Database["public"]["Tables"]["profiles"]["Row"],
-			"id" | "full_name" | "country" | "city"
+			"id" | "full_name" | "avatar_url" | "country" | "city"
 		> | null;
 		project: Pick<
 			Database["public"]["Tables"]["projects"]["Row"],
@@ -835,7 +835,7 @@ export async function getProjectApplicationsForClient(
 	const { data, error } = await supabase
 		.from("applications")
 		.select(
-			"id, project_id, provider_id, status, cover_message, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, country, city)",
+			"id, project_id, provider_id, status, cover_message, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, avatar_url, country, city)",
 		)
 		.eq("project_id", projectId)
 		.order("created_at", { ascending: false });
@@ -868,7 +868,7 @@ export async function getProjectApplicationForClient(
 	const { data, error } = await supabase
 		.from("applications")
 		.select(
-			"id, project_id, provider_id, status, cover_message, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, country, city), project:projects!applications_project_id_fkey(id, title, slug, status, client_id)",
+			"id, project_id, provider_id, status, cover_message, proposed_price, estimated_delivery_days, created_at, updated_at, provider:profiles!applications_provider_id_fkey(id, full_name, avatar_url, country, city), project:projects!applications_project_id_fkey(id, title, slug, status, client_id)",
 		)
 		.eq("id", applicationId)
 		.maybeSingle();

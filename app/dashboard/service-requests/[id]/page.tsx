@@ -13,6 +13,7 @@ import { getUserConversations } from "@/lib/messaging/service";
 import { getServiceRequestDetailForParticipant } from "@/lib/provider-service-requests/service";
 import { priceTypeLabel } from "@/lib/provider-services/formatters";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { Avatar } from "@/components/profile/avatar";
 
 type ServiceRequestDetailPageProps = {
 	params: Promise<{ id: string }>;
@@ -238,9 +239,7 @@ export default async function ServiceRequestDetailPage({
 								{otherPartyLabel}
 							</p>
 							<div className="mt-4 flex items-center gap-3">
-								<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-violet-100 to-pink-100 text-sm font-bold text-violet-700">
-									{otherParty?.full_name?.slice(0, 1) ?? otherPartyLabel.slice(0, 1)}
-								</div>
+								<Avatar name={otherParty?.full_name ?? otherPartyLabel} avatarPath={otherParty?.avatar_url} size="lg" />
 								<div className="min-w-0">
 									<p className="wrap-break-word font-semibold text-black">
 										{otherParty?.full_name ?? otherPartyLabel}

@@ -16,6 +16,7 @@ import {
 import { getPublicPublishedProviderServices } from "@/lib/provider-services/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { headerTheme } from "@/theme/header-theme";
+import { Avatar } from "@/components/profile/avatar";
 
 type FindTalentPageProps = {
 	searchParams: Promise<RawFindTalentQuery>;
@@ -254,9 +255,9 @@ export default async function FindTalentPage({
 								</p>
 
 								<div className="mt-6 grid gap-3 text-sm text-secondary sm:grid-cols-2">
-									<p>
-										<span className="font-semibold text-black">Provider:</span>{" "}
-										{service.provider?.full_name ?? "Provider"}
+									<p className="flex min-w-0 items-center gap-2">
+										<Avatar name={service.provider?.full_name ?? "Provider"} avatarPath={service.provider?.avatar_url} size="sm" />
+										<span className="min-w-0 truncate">{service.provider?.full_name ?? "Provider"}</span>
 									</p>
 									<p>
 										<span className="font-semibold text-black">Price:</span>{" "}
