@@ -6,14 +6,7 @@ import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type MessagesPageProps = {
-  searchParams: Promise<{
-    conversation?: string;
-  }>;
-};
-
-export default async function MessagesPage({ searchParams }: MessagesPageProps) {
-  const { conversation: initialConversationId } = await searchParams;
+export default async function MessagesPage() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -99,7 +92,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
       <MessagingApp
         conversations={conversations}
         currentUserId={user.id}
-        initialConversationId={initialConversationId}
+        dashboardHref={roleDashboardPath}
       />
     </DashboardShell>
   );

@@ -1,12 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { ArrowLeft, MessageSquare, Search, X } from "lucide-react";
 import type {
   ConversationDetail,
   ConversationListItem,
 } from "@/lib/messaging/service";
 import { ConversationInbox } from "@/components/messaging/conversation-ui";
 import { MessageThread } from "@/components/messaging/message-thread-client";
+import {
+  filterConversations,
+  type InboxFilter,
+} from "@/components/messaging/conversation-view";
 import {
   authenticateSupabaseRealtime,
   createSupabaseBrowserClient,
@@ -15,7 +22,7 @@ import {
 type MessagingAppProps = {
   conversations: ConversationListItem[];
   currentUserId: string;
-  initialConversationId?: string;
+  dashboardHref: string;
 };
 
 type ConversationResponse = {
@@ -30,6 +37,14 @@ type ConversationsResponse = {
 
 type MessageRow = ConversationDetail["messages"][number];
 
+const inboxFilters: { value: InboxFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "unread", label: "Unread" },
+  { value: "pending", label: "Pending" },
+  { value: "accepted", label: "Accepted" },
+  { value: "closed", label: "Closed" },
+];
+
 function sortConversations(conversations: ConversationListItem[]) {
   return [...conversations].sort(
     (firstConversation, secondConversation) =>
@@ -41,33 +56,37 @@ function sortConversations(conversations: ConversationListItem[]) {
 export function MessagingApp({
   conversations,
   currentUserId,
-  initialConversationId,
+  dashboardHref,
 }: MessagingAppProps) {
+  const searchParams = useSearchParams();
   const [conversationList, setConversationList] = useState(() =>
     sortConversations(conversations),
   );
-  const firstConversationId = conversationList[0]?.id;
-  const [activeConversationId, setActiveConversationId] = useState(
-    initialConversationId ?? "",
-  );
+  const activeConversationId = searchParams.get("conversation") ?? "";
   const [conversation, setConversation] = useState<ConversationDetail | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<InboxFilter>("all");
 
-  const activeConversationExists = useMemo(
-    () =>
-      conversationList.some((item) => item.id === activeConversationId) ||
-      !activeConversationId,
-    [activeConversationId, conversationList],
-  );
-  const selectedConversationId = activeConversationExists
+  const selectedConversationId = conversationList.some(
+    (item) => item.id === activeConversationId,
+  )
     ? activeConversationId
-    : firstConversationId ?? "";
-  const hasActiveConversation = selectedConversationId.length > 0;
+    : "";
+  const hasActiveConversation = activeConversationId.length > 0;
+  const invalidConversationId = hasActiveConversation && !selectedConversationId;
   const conversationIdKey = useMemo(
     () => conversationList.map((item) => item.id).join(","),
     [conversationList],
   );
+  const filteredConversations = useMemo(
+    () => filterConversations(conversationList, currentUserId, search, filter),
+    [conversationList, currentUserId, search, filter],
+  );
+  const unreadConversationCount = conversationList.filter(
+    (item) => item.unread_count > 0,
+  ).length;
 
   async function refreshConversationList() {
     const response = await fetch("/api/conversations", { cache: "no-store" });
@@ -85,6 +104,9 @@ export function MessagingApp({
 
     async function loadConversation() {
       if (!selectedConversationId) {
+        setConversation(null);
+        setError("");
+        setIsLoading(false);
         return;
       }
 
@@ -265,20 +287,17 @@ export function MessagingApp({
   }, [conversationIdKey, currentUserId, selectedConversationId]);
 
   function handleSelectConversation(conversationId: string) {
-    setActiveConversationId(conversationId);
-
     const url = new URL(window.location.href);
     url.searchParams.set("conversation", conversationId);
-    window.history.pushState({}, "", url);
+    window.history.pushState(null, "", url);
   }
 
   function handleBackToInbox() {
-    setActiveConversationId("");
     setConversation(null);
 
     const url = new URL(window.location.href);
     url.searchParams.delete("conversation");
-    window.history.pushState({}, "", url);
+    window.history.pushState(null, "", url);
   }
 
   const handleActiveConversationRead = useCallback((conversationId: string) => {
@@ -297,30 +316,100 @@ export function MessagingApp({
   }, []);
 
   return (
-    <div className="grid h-[calc(100dvh-190px)] min-h-120 gap-4 overflow-hidden xl:h-[calc(100dvh-230px)] xl:min-h-150 xl:grid-cols-[minmax(300px,0.8fr)_minmax(0,1.4fr)]">
+    <div className="fixed inset-0 z-60 grid h-dvh min-h-0 min-w-0 gap-0 overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-16rem)] lg:min-h-140 lg:gap-3 lg:bg-transparent lg:grid-cols-[minmax(270px,0.85fr)_minmax(0,1.5fr)]">
       <section
-        className={`min-h-0 flex-col rounded-4xl border border-line bg-white/90 p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-7 xl:flex ${
+        className={`min-h-0 min-w-0 flex-col overflow-hidden bg-white lg:flex lg:rounded-lg lg:border lg:border-line ${
           hasActiveConversation ? "hidden" : "flex"
         }`}
       >
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <h2 className="text-2xl font-semibold text-black">Inbox</h2>
+        <div className="border-b border-line px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 sm:px-5 lg:pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Link href={dashboardHref} aria-label="Back to dashboard" title="Back to dashboard" className="flex size-9 shrink-0 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100 lg:hidden">
+                <ArrowLeft aria-hidden="true" className="size-5" />
+              </Link>
+              <h2 className="text-lg font-semibold text-black">Inbox</h2>
+            </div>
+            <span className="text-xs text-secondary">{conversationList.length} conversations</span>
+          </div>
+          <div className="relative mt-4">
+            <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-secondary" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search conversations"
+              aria-label="Search conversations"
+              className="min-h-10 w-full rounded-md border border-line bg-zinc-50 pr-10 pl-9 text-sm text-black outline-none placeholder:text-secondary focus:border-violet-500 focus:bg-white"
+            />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                title="Clear search"
+                className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded text-secondary hover:bg-zinc-200 hover:text-black"
+              >
+                <X aria-hidden="true" className="size-4" />
+              </button>
+            ) : null}
+          </div>
+          <div className="-mx-1 mt-3 flex gap-1 overflow-x-auto px-1 pb-1" role="group" aria-label="Filter conversations">
+            {inboxFilters.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                aria-pressed={filter === item.value}
+                onClick={() => setFilter(item.value)}
+                className={`min-h-8 shrink-0 rounded-md px-2.5 text-xs font-semibold transition-colors ${
+                  filter === item.value
+                    ? "bg-zinc-900 text-white"
+                    : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                }`}
+              >
+                {item.label}{item.value === "unread" && unreadConversationCount > 0 ? ` ${unreadConversationCount}` : ""}
+              </button>
+            ))}
+          </div>
         </div>
         <ConversationInbox
-          conversations={conversationList}
+          conversations={filteredConversations}
           currentUserId={currentUserId}
           activeConversationId={selectedConversationId}
+          isFiltered={Boolean(search.trim()) || filter !== "all"}
           onSelectConversation={handleSelectConversation}
         />
       </section>
 
-      {isLoading ? (
-        <section className="flex min-h-0 items-center justify-center rounded-4xl border border-line bg-white/90 p-8 text-sm font-semibold text-secondary shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
-          Loading conversation...
+      {!hasActiveConversation ? (
+        <section className="hidden min-h-0 flex-col items-center justify-center rounded-lg border border-line bg-white px-8 text-center lg:flex">
+          <span className="flex size-14 items-center justify-center rounded-full bg-zinc-100 text-zinc-700">
+            <MessageSquare aria-hidden="true" className="size-6" />
+          </span>
+          <h2 className="mt-5 text-lg font-semibold text-black">Select a conversation</h2>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-secondary">
+            Choose a project or service discussion from your inbox.
+          </p>
+        </section>
+      ) : invalidConversationId ? (
+        <section className="flex min-h-0 flex-col items-start justify-center gap-4 rounded-lg border border-line bg-white p-8">
+          <h2 className="text-lg font-semibold text-black">Conversation not found</h2>
+          <p className="text-sm text-secondary">This conversation is not available in your inbox.</p>
+          <button type="button" onClick={handleBackToInbox} className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-black lg:hidden">
+            <ArrowLeft aria-hidden="true" className="size-4" /> Back to inbox
+          </button>
+        </section>
+      ) : isLoading ? (
+        <section className="flex min-h-0 flex-col items-start gap-6 rounded-lg border border-line bg-white p-4 text-sm font-medium text-secondary lg:items-center lg:justify-center lg:p-8" role="status">
+          <button type="button" onClick={handleBackToInbox} aria-label="Back to inbox" title="Back to inbox" className="flex size-10 items-center justify-center rounded-md text-zinc-700 lg:hidden"><ArrowLeft aria-hidden="true" className="size-5" /></button>
+          <span>Loading conversation...</span>
         </section>
       ) : error ? (
-        <section className="flex min-h-0 items-center justify-center rounded-4xl border border-red-200 bg-red-50 p-8 text-sm font-semibold text-red-700 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
-          {error}
+        <section className="flex min-h-0 flex-col items-center justify-center gap-3 rounded-lg border border-red-200 bg-white p-8 text-sm font-medium text-red-700" role="alert">
+          <p>{error}</p>
+          <button type="button" onClick={handleBackToInbox} className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-black lg:hidden">
+            <ArrowLeft aria-hidden="true" className="size-4" /> Back to inbox
+          </button>
         </section>
       ) : conversation && conversation.id === selectedConversationId ? (
         <MessageThread
@@ -330,21 +419,7 @@ export function MessagingApp({
           onConversationRead={handleActiveConversationRead}
           onBackToInbox={handleBackToInbox}
         />
-      ) : (
-        <section className="hidden rounded-4xl border border-line bg-white/90 p-8 shadow-[0_20px_60px_rgba(17,17,17,0.06)] xl:block">
-          <div className="flex min-h-105 flex-col items-start justify-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-secondary">
-              Select a conversation
-            </p>
-            <h2 className="mt-3 max-w-lg text-3xl font-semibold text-black">
-              Open a conversation to continue the discussion.
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-secondary">
-              Your project and service conversations stay here with their history.
-            </p>
-          </div>
-        </section>
-      )}
+      ) : null}
     </div>
   );
 }
