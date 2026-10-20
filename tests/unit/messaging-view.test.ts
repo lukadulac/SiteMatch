@@ -27,8 +27,8 @@ function conversation(
     project: { id, title: "Website design", slug: "website-design", status: "in_discussion" },
     application: { id, status: "pending", proposed_price: null, estimated_delivery_days: null },
     service_request: null,
-    client: { id: currentUserId, full_name: "Client", country: null, city: null },
-    provider: { id: "provider-1", full_name: "Elena Rostova", country: null, city: null },
+    client: { id: currentUserId, full_name: "Client", avatar_url: null, country: null, city: null },
+    provider: { id: "provider-1", full_name: "Elena Rostova", avatar_url: null, country: null, city: null },
     last_message: {
       id: `${id}-message`,
       message_text: "Let's discuss the website scope",

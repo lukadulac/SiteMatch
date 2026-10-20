@@ -29,11 +29,11 @@ export type ConversationListItem =
     | null;
   client: Pick<
     Database["public"]["Tables"]["profiles"]["Row"],
-    "id" | "full_name" | "country" | "city"
+    "id" | "full_name" | "avatar_url" | "country" | "city"
   > | null;
   provider: Pick<
     Database["public"]["Tables"]["profiles"]["Row"],
-    "id" | "full_name" | "country" | "city"
+    "id" | "full_name" | "avatar_url" | "country" | "city"
   > | null;
   last_message: Pick<
     Database["public"]["Tables"]["messages"]["Row"],
@@ -54,7 +54,7 @@ type GetConversationMessagesOptions = {
 };
 
 const conversationSelect =
-  "id, application_id, client_id, provider_id, project_id, service_request_id, source_deleted_at, source_title, created_at, updated_at, project:projects!conversations_project_id_fkey(id, title, slug, status), application:applications!conversations_application_id_fkey(id, status, proposed_price, estimated_delivery_days), service_request:provider_service_requests!conversations_service_request_id_fkey(id, status, service_id, message, service:provider_service_listings!provider_service_requests_service_id_fkey(id, title, status, price_type, starting_price)), client:profiles!conversations_client_id_fkey(id, full_name, country, city), provider:profiles!conversations_provider_id_fkey(id, full_name, country, city)";
+  "id, application_id, client_id, provider_id, project_id, service_request_id, source_deleted_at, source_title, created_at, updated_at, project:projects!conversations_project_id_fkey(id, title, slug, status), application:applications!conversations_application_id_fkey(id, status, proposed_price, estimated_delivery_days), service_request:provider_service_requests!conversations_service_request_id_fkey(id, status, service_id, message, service:provider_service_listings!provider_service_requests_service_id_fkey(id, title, status, price_type, starting_price)), client:profiles!conversations_client_id_fkey(id, full_name, avatar_url, country, city), provider:profiles!conversations_provider_id_fkey(id, full_name, avatar_url, country, city)";
 
 async function getConversationByApplicationId(
   supabase: SupabaseClient<Database>,

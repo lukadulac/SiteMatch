@@ -16,6 +16,7 @@ import {
   authenticateSupabaseRealtime,
   createSupabaseBrowserClient,
 } from "@/lib/supabase/client";
+import { Avatar } from "@/components/profile/avatar";
 
 type MessageRow = ConversationDetail["messages"][number];
 
@@ -426,9 +427,7 @@ export function MessageThread({
               <ArrowLeft size={19} aria-hidden="true" />
             </button>
           ) : null}
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-800" aria-hidden="true">
-            {(otherParty?.full_name ?? "M").split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
-          </span>
+          <Avatar name={otherParty?.full_name ?? "Marketplace member"} avatarPath={otherParty?.avatar_url} size="md" />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-semibold text-zinc-950 sm:text-base">{otherParty?.full_name ?? "Marketplace conversation"}</h2>
             <p className="truncate text-xs text-secondary">{getConversationTitle(conversation)}</p>

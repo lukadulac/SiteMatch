@@ -4,6 +4,7 @@ import {
   DashboardShell,
 } from "@/components/dashboard/DashboardShell";
 import { ClientProfileForm } from "@/components/dashboard/client-profile-form";
+import { ProfilePhotoCard } from "@/components/profile/profile-photo-card";
 import { getOwnContactDetails } from "@/lib/auth/own-contact";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
 import { ensureUserProfile } from "@/lib/auth/provision";
@@ -43,7 +44,7 @@ export default async function ClientProfilePage() {
     await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, country, city")
+        .select("full_name, avatar_url, country, city")
         .eq("id", user.id)
         .single(),
       getOwnContactDetails(supabase),
@@ -124,6 +125,10 @@ export default async function ClientProfilePage() {
             : "Complete the remaining client fields so your business profile is ready for better provider matching."}
         </p>
       </section>
+
+      <DashboardPanel title="Profile photo">
+        <ProfilePhotoCard name={profile.full_name} avatarPath={profile.avatar_url} />
+      </DashboardPanel>
 
       <DashboardPanel title="Client Profile">
         <ClientProfileForm profile={profile} clientProfile={clientProfile} />

@@ -7,6 +7,7 @@ import type {
 	ServiceWorkroomSummary,
 } from "@/lib/service-workrooms/service";
 import type { WorkroomStatusFilter } from "@/lib/service-workrooms/schemas";
+import { Avatar } from "@/components/profile/avatar";
 
 type WorkroomActionContext =
 	| "client-workrooms"
@@ -98,15 +99,16 @@ function serviceTitle(workroom: WorkroomSummary) {
 	return workroom.service?.title ?? "Accepted service";
 }
 
-function otherPartyName(
+function otherParty(
 	workroom: WorkroomSummary,
 	viewerRole: "client" | "provider",
 ) {
-	if (viewerRole === "client") {
-		return workroom.provider?.full_name ?? "Provider";
-	}
+	const party = viewerRole === "client" ? workroom.provider : workroom.client;
 
-	return workroom.client?.full_name ?? "Client";
+	return {
+		name: party?.full_name ?? (viewerRole === "client" ? "Provider" : "Client"),
+		avatarPath: party?.avatar_url ?? null,
+	};
 }
 
 function requestMessage(workroom: WorkroomSummary) {
@@ -194,6 +196,8 @@ export function WorkroomCard({
 	page?: number;
 	compact?: boolean;
 }) {
+	const party = otherParty(workroom, viewerRole);
+
 	return (
 		<article className="rounded-lg border border-line bg-white p-5">
 			<div className={`flex flex-col gap-4 ${compact ? "" : "lg:flex-row lg:items-start lg:justify-between"}`}>
@@ -204,9 +208,12 @@ export function WorkroomCard({
 						</h2>
 						<WorkroomStatusBadge status={workroom.status} />
 					</div>
-					<p className="mt-1 text-sm text-secondary">
-						{otherPartyName(workroom, viewerRole)} · Accepted{" "}
-						{formatWorkroomTimeAgo(workroom.accepted_at)}
+					<p className="mt-2 flex min-w-0 items-center gap-2 text-sm text-secondary">
+						<Avatar name={party.name} avatarPath={party.avatarPath} size="sm" />
+						<span className="min-w-0">
+							{party.name} · Accepted{" "}
+							{formatWorkroomTimeAgo(workroom.accepted_at)}
+						</span>
 					</p>
 					<p
 						className={`mt-4 whitespace-pre-line wrap-break-word text-sm leading-6 text-black/75 ${

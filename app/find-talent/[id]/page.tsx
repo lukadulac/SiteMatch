@@ -18,6 +18,7 @@ import {
 } from "@/lib/provider-services/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { headerTheme } from "@/theme/header-theme";
+import { Avatar } from "@/components/profile/avatar";
 
 type FindTalentServicePageProps = {
 	params: Promise<{ id: string }>;
@@ -182,9 +183,7 @@ export default async function FindTalentServicePage({
 						</h1>
 
 						<div className="mt-6 flex flex-wrap items-center gap-3 border-b border-line pb-6">
-							<div className="flex h-11 w-11 items-center justify-center rounded-full bg-linear-to-br from-violet-100 to-pink-100 text-sm font-bold text-violet-700">
-								{service.provider?.full_name?.slice(0, 1) ?? "P"}
-							</div>
+							<Avatar name={service.provider?.full_name ?? "Provider"} avatarPath={service.provider?.avatar_url} size="lg" />
 							<div>
 								<p className="font-semibold text-black">
 									{service.provider?.full_name ?? "Provider"}
@@ -224,9 +223,7 @@ export default async function FindTalentServicePage({
 					<section className="rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)] sm:p-7">
 						<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 							<div className="flex min-w-0 items-center gap-3">
-								<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-violet-100 to-pink-100 text-sm font-bold text-violet-700">
-									{service.provider?.full_name?.slice(0, 1) ?? "P"}
-								</div>
+								<Avatar name={service.provider?.full_name ?? "Provider"} avatarPath={service.provider?.avatar_url} size="lg" />
 								<div className="min-w-0">
 									<p className="wrap-break-word font-semibold text-black">
 										{service.provider?.full_name ?? "Provider"}

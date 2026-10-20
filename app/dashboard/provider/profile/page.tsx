@@ -4,6 +4,7 @@ import {
   DashboardShell,
 } from "@/components/dashboard/DashboardShell";
 import { ProviderProfileForm } from "@/components/dashboard/provider-profile-form";
+import { ProfilePhotoCard } from "@/components/profile/profile-photo-card";
 import { getOwnContactDetails } from "@/lib/auth/own-contact";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
@@ -59,7 +60,7 @@ export default async function ProviderProfilePage() {
     await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, country, city")
+        .select("full_name, avatar_url, country, city")
         .eq("id", user.id)
         .single(),
       getOwnContactDetails(supabase),
@@ -144,6 +145,10 @@ export default async function ProviderProfilePage() {
             : "Complete the remaining provider fields so your public-facing information and matching signals are ready."}
         </p>
       </section>
+
+      <DashboardPanel title="Profile photo">
+        <ProfilePhotoCard name={profile.full_name} avatarPath={profile.avatar_url} />
+      </DashboardPanel>
 
       <DashboardPanel title="Provider Profile">
         <ProviderProfileForm profile={profile} providerProfile={providerProfile} />
