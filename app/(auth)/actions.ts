@@ -20,6 +20,13 @@ import {
 import { getSafeReturnPath } from "@/lib/auth/return-url";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getEmailConfirmationUrl } from "@/lib/auth/site-url";
+import {
+  MAX_REGISTRATION_AVATAR_BYTES,
+  uploadRegistrationAvatar,
+  validateAvatarFile,
+  type ValidAvatarFile,
+} from "@/lib/profiles/avatar";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const passwordSchema = z
@@ -182,6 +189,36 @@ function collectRegisterFields(formData: FormData) {
   };
 }
 
+// A repeated sign-up for an existing unconfirmed email returns that account, so
+// only an account this request just created gets the picture.
+const NEW_ACCOUNT_MAX_AGE_MS = 2 * 60 * 1000;
+
+function isNewlyCreatedAccount(user: { created_at?: string; identities?: unknown[] }) {
+  const createdAt = Date.parse(user.created_at ?? "");
+
+  return (
+    // Supabase answers a sign-up for an already confirmed email with a fake user
+    // that has no identities.
+    Array.isArray(user.identities) &&
+    user.identities.length > 0 &&
+    Number.isFinite(createdAt) &&
+    Date.now() - createdAt < NEW_ACCOUNT_MAX_AGE_MS
+  );
+}
+
+/** Best effort: registration succeeds without the picture, which can be added later. */
+async function storeRegistrationAvatar(userId: string, avatar: ValidAvatarFile) {
+  try {
+    const result = await uploadRegistrationAvatar(createSupabaseAdminClient(), userId, avatar);
+
+    if (result.error) {
+      console.error("Registration avatar upload failed", result.error);
+    }
+  } catch (error) {
+    console.error("Registration avatar upload failed", error);
+  }
+}
+
 function validationError(
   fields: Record<string, string>,
   fieldErrors: Record<string, string[] | undefined>,
@@ -232,6 +269,19 @@ export async function registerAction(
 
   if (!parsed.success) {
     return validationError(fields, parsed.error.flatten().fieldErrors);
+  }
+
+  const avatarEntry = formData.get("avatar");
+  let avatar: ValidAvatarFile | null = null;
+
+  if (avatarEntry instanceof Blob && avatarEntry.size > 0) {
+    const validAvatar = await validateAvatarFile(avatarEntry, MAX_REGISTRATION_AVATAR_BYTES);
+
+    if ("error" in validAvatar) {
+      return validationError(fields, { avatar: [validAvatar.error] });
+    }
+
+    avatar = validAvatar;
   }
 
   const supabase = await createSupabaseServerClient();
@@ -303,6 +353,10 @@ export async function registerAction(
         fieldErrors: {},
         fields,
       };
+    }
+
+    if (avatar && isNewlyCreatedAccount(authData.user)) {
+      await storeRegistrationAvatar(authData.user.id, avatar);
     }
 
     if (!authData.session) {

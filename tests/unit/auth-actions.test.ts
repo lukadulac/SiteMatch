@@ -7,6 +7,7 @@ import {
 	recordAuthRateLimitAttempt,
 	resetAuthRateLimit,
 } from "@/lib/auth/rate-limit";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildFormData } from "../helpers/form-data";
 import {
@@ -27,6 +28,10 @@ vi.mock("next/headers", () => ({
 
 vi.mock("@/lib/supabase/server", () => ({
 	createSupabaseServerClient: vi.fn(),
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
+	createSupabaseAdminClient: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/provision", () => ({
@@ -459,6 +464,110 @@ describe("registerAction", () => {
 			business_name: "Dulac Studio",
 		});
 		expect(state.fields).not.toHaveProperty("password");
+	});
+});
+
+describe("registerAction with a profile picture", () => {
+	const WEBP = [0x52, 0x49, 0x46, 0x46, 0x10, 0, 0, 0, 0x57, 0x45, 0x42, 0x50];
+
+	function newUser(overrides: Record<string, unknown> = {}) {
+		return {
+			id: "user-1",
+			created_at: new Date().toISOString(),
+			identities: [{ id: "identity-1" }],
+			...overrides,
+		};
+	}
+
+	function formWithAvatar(bytes: number[] | Uint8Array) {
+		const form = registerForm();
+		form.set("avatar", new Blob([new Uint8Array(bytes)], { type: "image/webp" }), "me.webp");
+		return form;
+	}
+
+	function arrangeAdmin(upload: { error?: { message: string } | null } = {}) {
+		const admin = createSupabaseStub({ "storage.avatars.upload": upload });
+		vi.mocked(createSupabaseAdminClient).mockReturnValue(admin.client);
+		return admin;
+	}
+
+	it("stores the picture in the new account's folder", async () => {
+		arrangeSupabase({ signUp: { data: { user: newUser(), session: null } } });
+		const admin = arrangeAdmin();
+
+		const state = await registerAction(initialAuthActionState, formWithAvatar(WEBP));
+
+		expect(state.formSuccess).toMatch(/confirm your email/i);
+		const [path, , options] = admin.callsFor("storage.avatars.upload")[0].payload as [
+			string,
+			Uint8Array,
+			Record<string, unknown>,
+		];
+		expect(path).toMatch(/^user-1\/[0-9a-f-]{36}\.webp$/);
+		expect(options).toMatchObject({ contentType: "image/webp", upsert: false });
+	});
+
+	it("rejects an invalid or oversized picture before creating the account", async () => {
+		const stub = arrangeSupabase();
+
+		const gif = await registerAction(
+			initialAuthActionState,
+			formWithAvatar([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]),
+		);
+		const large = await registerAction(
+			initialAuthActionState,
+			formWithAvatar(new Uint8Array(48 * 1024 + 1)),
+		);
+
+		expect(gif.fieldErrors).toEqual({ avatar: ["Upload a PNG, JPEG or WebP image."] });
+		expect(large.fieldErrors).toEqual({ avatar: ["The image must be 48 KB or smaller."] });
+		expect(stub.callKeys()).not.toContain("auth.signUp");
+		expect(createSupabaseAdminClient).not.toHaveBeenCalled();
+	});
+
+	it("does not store a picture for an already registered email", async () => {
+		// Supabase returns a user without identities for a confirmed email.
+		arrangeSupabase({ signUp: { data: { user: newUser({ identities: [] }), session: null } } });
+		arrangeAdmin();
+
+		await registerAction(initialAuthActionState, formWithAvatar(WEBP));
+
+		expect(createSupabaseAdminClient).not.toHaveBeenCalled();
+	});
+
+	it("does not store a picture on an existing unconfirmed account", async () => {
+		arrangeSupabase({
+			signUp: { data: { user: newUser({ created_at: "2026-01-01T00:00:00Z" }), session: null } },
+		});
+		arrangeAdmin();
+
+		await registerAction(initialAuthActionState, formWithAvatar(WEBP));
+
+		expect(createSupabaseAdminClient).not.toHaveBeenCalled();
+	});
+
+	it("still registers the account when storing the picture fails", async () => {
+		arrangeSupabase({ signUp: { data: { user: newUser(), session: null } } });
+		vi.mocked(createSupabaseAdminClient).mockImplementation(() => {
+			throw new Error("missing service role key");
+		});
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const state = await registerAction(initialAuthActionState, formWithAvatar(WEBP));
+
+		expect(state.formSuccess).toMatch(/confirm your email/i);
+		expect(consoleError).toHaveBeenCalled();
+	});
+
+	it("ignores an empty file input", async () => {
+		arrangeSupabase({ signUp: { data: { user: newUser(), session: null } } });
+		const form = registerForm();
+		form.set("avatar", new Blob([]), "");
+
+		const state = await registerAction(initialAuthActionState, form);
+
+		expect(state.formSuccess).toMatch(/confirm your email/i);
+		expect(createSupabaseAdminClient).not.toHaveBeenCalled();
 	});
 });
 

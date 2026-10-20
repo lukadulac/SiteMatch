@@ -6,6 +6,11 @@ type Client = SupabaseClient<Database>;
 export const AVATAR_BUCKET = "avatars";
 /** Matches the bucket's file_size_limit (supabase/migrations/20261020120000_profile_avatars.sql). */
 export const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+/**
+ * The registration form is a Server Action, and Server Action bodies are capped
+ * at 64 KB (next.config.ts), so the browser shrinks the picture below this first.
+ */
+export const MAX_REGISTRATION_AVATAR_BYTES = 48 * 1024;
 
 const AVATAR_TYPES = {
 	png: "image/png",
@@ -45,6 +50,51 @@ export function detectAvatarType(bytes: Uint8Array): AvatarExtension | null {
 	}
 
 	return null;
+}
+
+/** Same rule as the profiles_avatar_url_own_path check constraint. */
+const AVATAR_FILE_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$/;
+
+function formatSize(bytes: number) {
+	return bytes >= 1024 * 1024 ? `${bytes / (1024 * 1024)} MB` : `${Math.round(bytes / 1024)} KB`;
+}
+
+export type ValidAvatarFile = { bytes: Uint8Array; extension: AvatarExtension };
+
+/** Checks a picked file's size and real type before anything is stored. */
+export async function validateAvatarFile(
+	file: Blob,
+	maxBytes = MAX_AVATAR_BYTES,
+): Promise<ValidAvatarFile | { error: string; status: number }> {
+	if (file.size === 0) {
+		return { error: "Choose an image to upload.", status: 400 };
+	}
+
+	if (file.size > maxBytes) {
+		return { error: `The image must be ${formatSize(maxBytes)} or smaller.`, status: 413 };
+	}
+
+	const bytes = new Uint8Array(await file.arrayBuffer());
+	const extension = detectAvatarType(bytes);
+
+	if (!extension) {
+		return { error: "Upload a PNG, JPEG or WebP image.", status: 415 };
+	}
+
+	return { bytes, extension };
+}
+
+function uploadAvatarFile(supabase: Client, userId: string, file: ValidAvatarFile) {
+	const avatarPath = `${userId}/${crypto.randomUUID()}.${file.extension}`;
+
+	return supabase.storage
+		.from(AVATAR_BUCKET)
+		.upload(avatarPath, file.bytes, {
+			contentType: AVATAR_TYPES[file.extension],
+			cacheControl: "31536000",
+			upsert: false,
+		})
+		.then(({ error }) => ({ avatarPath, error }));
 }
 
 /** Whether a stored avatar path belongs to the given user's folder. */
@@ -100,19 +150,10 @@ export async function uploadOwnAvatar(
 	userId: string,
 	file: Blob,
 ): Promise<AvatarResult> {
-	if (file.size === 0) {
-		return { error: "Choose an image to upload.", status: 400 };
-	}
+	const validFile = await validateAvatarFile(file);
 
-	if (file.size > MAX_AVATAR_BYTES) {
-		return { error: "The image must be 2 MB or smaller.", status: 413 };
-	}
-
-	const bytes = new Uint8Array(await file.arrayBuffer());
-	const extension = detectAvatarType(bytes);
-
-	if (!extension) {
-		return { error: "Upload a PNG, JPEG or WebP image.", status: 415 };
+	if ("error" in validFile) {
+		return validFile;
 	}
 
 	const current = await getCurrentAvatarPath(supabase, userId);
@@ -121,14 +162,7 @@ export async function uploadOwnAvatar(
 		return { error: "Your profile could not be loaded.", status: 400 };
 	}
 
-	const avatarPath = `${userId}/${crypto.randomUUID()}.${extension}`;
-	const { error: uploadError } = await supabase.storage
-		.from(AVATAR_BUCKET)
-		.upload(avatarPath, bytes, {
-			contentType: AVATAR_TYPES[extension],
-			cacheControl: "31536000",
-			upsert: false,
-		});
+	const { avatarPath, error: uploadError } = await uploadAvatarFile(supabase, userId, validFile);
 
 	if (uploadError) {
 		return { error: "The image could not be uploaded.", status: 400 };
@@ -197,4 +231,43 @@ export async function removeUserAvatarFolder(supabase: Client, userId: string) {
 	const { error: removeError } = await bucket.remove(paths);
 
 	return removeError ? { error: removeError.message } : { removed: paths.length };
+}
+
+/**
+ * Stores the picture chosen on the registration form. The account has no session
+ * or profile row until the email is confirmed, so this runs with the service-role
+ * client, right after sign-up created the account. ensureUserProfile() links the
+ * file to the profile on the first sign-in.
+ */
+export async function uploadRegistrationAvatar(
+	adminClient: Client,
+	userId: string,
+	file: ValidAvatarFile,
+) {
+	const { error } = await uploadAvatarFile(adminClient, userId, file);
+
+	return error ? { error: error.message } : {};
+}
+
+/**
+ * The most recent picture in a user's folder, for linking a registration upload
+ * to a newly provisioned profile. Null when there is none or it cannot be read.
+ */
+export async function findUploadedAvatarPath(supabase: Client, userId: string) {
+	try {
+		const { data, error } = await supabase.storage.from(AVATAR_BUCKET).list(userId, {
+			limit: 10,
+			sortBy: { column: "created_at", order: "desc" },
+		});
+
+		if (error) {
+			return null;
+		}
+
+		const file = (data ?? []).find((item) => AVATAR_FILE_NAME.test(item.name));
+
+		return file ? `${userId}/${file.name}` : null;
+	} catch {
+		return null;
+	}
 }
