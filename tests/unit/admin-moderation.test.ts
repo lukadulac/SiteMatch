@@ -88,6 +88,28 @@ describe("admin moderation", () => {
     expect(result.error).toBeUndefined();
     expect(deleteUser).not.toHaveBeenCalled();
   });
+  it("removes the deleted user's avatar files after confirming deletion", async () => {
+    const stub = createSupabaseStub({
+      "rpc.is_admin": { data: true }, "rpc.admin_moderate_user": { data: { id: targetId, authDeleted: true } },
+      "rpc.admin_confirm_auth_deleted": { data: null },
+      "storage.avatars.list": { data: [{ name: "a.webp" }, { name: "b.png" }] },
+      "storage.avatars.remove": { data: [] },
+    }, { user });
+    const result = await moderate(stub.client, { ...input, targetType: "user", decision: "delete" }, () => ({ deleteUser: vi.fn() }));
+    expect(result.error).toBeUndefined();
+    expect(stub.callsFor("storage.avatars.list")[0].payload).toEqual([targetId, { limit: 100 }]);
+    expect(stub.callsFor("storage.avatars.remove")[0].payload).toEqual([[`${targetId}/a.webp`, `${targetId}/b.png`]]);
+  });
+  it("still reports success when avatar cleanup fails", async () => {
+    const stub = createSupabaseStub({
+      "rpc.is_admin": { data: true }, "rpc.admin_moderate_user": { data: { id: targetId, authDeleted: true } },
+      "rpc.admin_confirm_auth_deleted": { data: null },
+      "storage.avatars.list": { error: { message: "storage unavailable" } },
+    }, { user });
+    const result = await moderate(stub.client, { ...input, targetType: "user", decision: "delete" }, () => ({ deleteUser: vi.fn() }));
+    expect(result).toEqual({ data: { id: targetId, authDeleted: true } });
+    expect(stub.callKeys()).not.toContain("storage.avatars.remove");
+  });
   it("paginates privileged reads and checks admin permissions first", async () => {
     const stub = createSupabaseStub({ "rpc.is_admin": { data: true }, "rpc.admin_list_records": { data: { items: [], totalCount: 0 } } }, { user });
     await getAdminRecords(stub.client, { resource: "users", page: "2", filter: "banned" });
