@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loginAction, logoutAction, registerAction } from "@/app/(auth)/actions";
 import { initialAuthActionState } from "@/app/(auth)/action-state";
+import { clientSolutionTypes } from "@/lib/auth/client-profile";
+import { providerServiceCategories } from "@/lib/auth/provider-profile";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import {
 	checkAuthRateLimit,
@@ -372,9 +374,40 @@ describe("registerAction", () => {
 		const state = await registerAction(initialAuthActionState, registerForm());
 
 		expect(state.formError).toBe(
+			"Too many sign-up attempts from your network. Try again in 15 minutes.",
+		);
+		expect(stub.callKeys()).not.toContain("auth.signUp");
+	});
+
+	it("stays generic when the rate limiter itself fails", async () => {
+		vi.mocked(recordAuthRateLimitAttempt).mockResolvedValue({
+			allowed: false,
+			retryAfterSeconds: 0,
+		});
+		const stub = arrangeSupabase();
+
+		const state = await registerAction(initialAuthActionState, registerForm());
+
+		expect(state.formError).toBe(
 			"We could not create your account. Please try again.",
 		);
 		expect(stub.callKeys()).not.toContain("auth.signUp");
+	});
+
+	it("explains when Supabase cannot send more confirmation emails", async () => {
+		arrangeSupabase({
+			signUp: {
+				error: {
+					message: "email rate limit exceeded",
+					code: "over_email_send_rate_limit",
+					status: 429,
+				},
+			},
+		});
+
+		const state = await registerAction(initialAuthActionState, registerForm());
+
+		expect(state.formError).toMatch(/can't send confirmation emails/);
 	});
 
 	it("reports a signup failure generically", async () => {
@@ -399,6 +432,119 @@ describe("registerAction", () => {
 		expect(state.verificationRequired).toBe(true);
 		expect(state.fields).toEqual({ email: "ana@example.com" });
 		expect(ensureUserProfile).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		["Bosnia & Herzegovina", "Sarajevo, BiH"],
+		["USA", "Washington, D.C."],
+		["Germany", "Frankfurt (Oder)"],
+		["France", "Paris 15"],
+		["Côte d’Ivoire", "Abidjan"],
+		["Россия", "Санкт-Петербург"],
+	])("accepts %s / %s as a location", async (country, city) => {
+		const stub = arrangeSupabase({
+			signUp: { data: { user: { id: "user-1" }, session: null } },
+		});
+
+		const state = await registerAction(
+			initialAuthActionState,
+			registerForm({ country, city }),
+		);
+
+		expect(state.fieldErrors ?? {}).not.toHaveProperty("country");
+		expect(state.fieldErrors ?? {}).not.toHaveProperty("city");
+		expect(stub.callsFor("auth.signUp")[0]?.payload).toMatchObject({
+			options: { data: { country, city } },
+		});
+	});
+
+	it("rejects markup in a location and names the field", async () => {
+		arrangeSupabase();
+
+		const state = await registerAction(
+			initialAuthActionState,
+			registerForm({ city: "<script>", country: "1234" }),
+		);
+
+		expect(state.fieldErrors?.city?.[0]).toMatch(/can only contain letters, numbers/);
+		expect(state.fieldErrors).toHaveProperty("country");
+		expect(state.formError).toBe("Please fix the highlighted fields: Country, City.");
+	});
+
+	it("accepts every solution type and service category at once", async () => {
+		const clientStub = arrangeSupabase({
+			signUp: { data: { user: { id: "user-1" }, session: null } },
+		});
+
+		const clientState = await registerAction(
+			initialAuthActionState,
+			registerForm({
+				interested_solution_types: clientSolutionTypes.filter((type) => type !== "other"),
+			}),
+		);
+
+		expect(clientState.fieldErrors ?? {}).toEqual({});
+		expect(clientStub.callKeys()).toContain("auth.signUp");
+
+		const providerStub = arrangeSupabase({
+			signUp: { data: { user: { id: "user-2" }, session: null } },
+		});
+
+		const providerState = await registerAction(
+			initialAuthActionState,
+			registerForm({
+				role: "provider",
+				provider_type: "freelancer",
+				service_categories: providerServiceCategories.filter((category) => category !== "other"),
+			}),
+		);
+
+		expect(providerState.fieldErrors ?? {}).toEqual({});
+		expect(providerStub.callKeys()).toContain("auth.signUp");
+	});
+
+	it("accepts provider links pasted without https://", async () => {
+		const stub = arrangeSupabase({
+			signUp: { data: { user: { id: "user-1" }, session: null } },
+		});
+
+		await registerAction(
+			initialAuthActionState,
+			registerForm({
+				role: "provider",
+				provider_type: "freelancer",
+				service_categories: ["web_development"],
+				portfolio_url: "janedoe.dev",
+				social_link: "linkedin.com/in/janedoe",
+			}),
+		);
+
+		expect(stub.callsFor("auth.signUp")[0]?.payload).toMatchObject({
+			options: {
+				data: {
+					portfolio_url: "https://janedoe.dev",
+					social_link: "https://linkedin.com/in/janedoe",
+				},
+			},
+		});
+	});
+
+	it("still rejects a link that is not a website", async () => {
+		arrangeSupabase();
+
+		const state = await registerAction(
+			initialAuthActionState,
+			registerForm({
+				role: "provider",
+				provider_type: "freelancer",
+				service_categories: ["web_development"],
+				portfolio_url: "javascript:alert(1)",
+				social_link: "not a link",
+			}),
+		);
+
+		expect(state.fieldErrors).toHaveProperty("portfolio_url");
+		expect(state.fieldErrors).toHaveProperty("social_link");
 	});
 
 	it("sends a trusted confirmation callback with a safe return destination", async () => {

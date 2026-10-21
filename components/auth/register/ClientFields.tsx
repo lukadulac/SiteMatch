@@ -10,7 +10,7 @@ import {
 	type RegisterFieldErrors,
 	type RegisterFormFields,
 } from "@/components/auth/register/RegisterForm";
-import { FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
+import { FieldError, FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 
 type ClientFieldsProps = {
 	errors?: RegisterFieldErrors;
@@ -61,9 +61,7 @@ export default function ClientFields({
 						placeholder="Your Company Inc."
 						defaultValue={getRegisterFieldValue(fields, "business_name")}
 					/>
-					{getError(errors, "business_name") ? (
-						<p>{getError(errors, "business_name")}</p>
-					) : null}
+					<FieldError name="business_name" errors={errors} />
 				</div>
 
 				<div className="flex flex-col gap-2 my-2 w-full md:max-w-[50%]">
@@ -76,9 +74,7 @@ export default function ClientFields({
 						placeholder="123456"
 						defaultValue={getRegisterFieldValue(fields, "business_tax_id")}
 					/>
-					{getError(errors, "business_tax_id") ? (
-						<p>{getError(errors, "business_tax_id")}</p>
-					) : null}
+					<FieldError name="business_tax_id" errors={errors} />
 				</div>
 			</div>
 
@@ -100,9 +96,7 @@ export default function ClientFields({
 						</option>
 					))}
 				</select>
-				{getError(errors, "business_type") ? (
-					<p>{getError(errors, "business_type")}</p>
-				) : null}
+				<FieldError name="business_type" errors={errors} />
 			</div>
 
 			{businessType === "other" ? (
@@ -117,9 +111,7 @@ export default function ClientFields({
 						placeholder="Describe your business type"
 						defaultValue={getRegisterFieldValue(fields, "business_type_text")}
 					/>
-					{getError(errors, "business_type_text") ? (
-						<p>{getError(errors, "business_type_text")}</p>
-					) : null}
+					<FieldError name="business_type_text" errors={errors} />
 				</div>
 			) : null}
 
@@ -133,9 +125,7 @@ export default function ClientFields({
 					placeholder="Tell us about your project and what you're looking to build..."
 					defaultValue={getRegisterFieldValue(fields, "project_idea")}
 				/>
-				{getError(errors, "project_idea") ? (
-					<p>{getError(errors, "project_idea")}</p>
-				) : null}
+				<FieldError name="project_idea" errors={errors} />
 			</div>
 
 			<fieldset className="mt-4">
@@ -159,9 +149,7 @@ export default function ClientFields({
 						</label>
 					))}
 				</div>
-				{getError(errors, "interested_solution_types") ? (
-					<p>{getError(errors, "interested_solution_types")}</p>
-				) : null}
+				<FieldError name="interested_solution_types" errors={errors} />
 			</fieldset>
 
 			{selectedSolutions.includes("other") ? (
@@ -179,9 +167,7 @@ export default function ClientFields({
 							"interested_solution_other_text",
 						)}
 					/>
-					{getError(errors, "interested_solution_other_text") ? (
-						<p>{getError(errors, "interested_solution_other_text")}</p>
-					) : null}
+					<FieldError name="interested_solution_other_text" errors={errors} />
 				</div>
 			) : null}
 		</section>

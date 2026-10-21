@@ -19,6 +19,12 @@ import {
 } from "@/lib/auth/rate-limit";
 import { getSafeReturnPath } from "@/lib/auth/return-url";
 import { getDashboardPath } from "@/lib/auth/roles";
+import {
+  PLACE_NAME_MAX_LENGTH,
+  PLACE_NAME_MIN_LENGTH,
+  placeNameMessage,
+  placeNamePattern,
+} from "@/lib/auth/place-name";
 import { getEmailConfirmationUrl } from "@/lib/auth/site-url";
 import {
   MAX_REGISTRATION_AVATAR_BYTES,
@@ -35,7 +41,6 @@ const passwordSchema = z
   .max(72, "Password must be 72 characters or fewer.");
 
 const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
-const placeNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
 const phonePattern = /^\+?[0-9().\-\s]{7,20}$/;
 
 function normalizeWhitespace(value: string) {
@@ -109,8 +114,19 @@ function optionalPlace(label: string) {
     .transform((value) => value === "" ? null : value)
     .superRefine((value, ctx) => {
       if (value === null) return;
-      if (value.length < 2 || value.length > 56 || !placeNamePattern.test(value)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Enter a valid ${label.toLowerCase()}.` });
+
+      if (value.length < PLACE_NAME_MIN_LENGTH) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} must be at least ${PLACE_NAME_MIN_LENGTH} characters long.`,
+        });
+      } else if (value.length > PLACE_NAME_MAX_LENGTH) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} must be ${PLACE_NAME_MAX_LENGTH} characters or fewer.`,
+        });
+      } else if (!placeNamePattern.test(value)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: placeNameMessage(label) });
       }
     });
 }
@@ -219,16 +235,83 @@ async function storeRegistrationAvatar(userId: string, avatar: ValidAvatarFile) 
   }
 }
 
+const registerFieldLabels: Record<string, string> = {
+  role: "I want to",
+  full_name: "Full name",
+  email: "Email",
+  phone: "Phone",
+  country: "Country",
+  city: "City",
+  password: "Password",
+  avatar: "Profile photo",
+  business_name: "Business or personal name",
+  business_tax_id: "Business registration ID",
+  business_type: "Business type",
+  business_type_text: "Other business type",
+  project_idea: "Project idea",
+  interested_solution_types: "Interested solution types",
+  interested_solution_other_text: "Other solution type",
+  provider_type: "Provider type",
+  tax_id: "Business registration ID",
+  years_of_experience: "Years of experience",
+  portfolio_url: "Portfolio URL",
+  social_link: "Social link",
+  service_categories: "Service categories",
+  service_category_other_text: "Other service category",
+  about: "About",
+};
+
+/** Names the fields, since the message sits below a long form. */
+function describeInvalidFields(
+  fieldErrors: Record<string, string[] | undefined>,
+) {
+  const labels = Object.keys(fieldErrors)
+    .filter((key) => fieldErrors[key]?.length)
+    .map((key) => registerFieldLabels[key] ?? key);
+
+  return labels.length > 0
+    ? `Please fix the highlighted fields: ${[...new Set(labels)].join(", ")}.`
+    : "Please fix the highlighted fields.";
+}
+
 function validationError(
   fields: Record<string, string>,
   fieldErrors: Record<string, string[] | undefined>,
 ): AuthActionState {
   return {
-    formError: "Please fix the highlighted fields.",
+    formError: describeInvalidFields(fieldErrors),
     formSuccess: undefined,
     fieldErrors,
     fields,
   };
+}
+
+function formatWait(seconds: number) {
+  const minutes = Math.ceil(seconds / 60);
+
+  return minutes <= 1 ? "a minute" : `${minutes} minutes`;
+}
+
+/**
+ * Says what the user can do about a failed sign-up. "Already registered" stays
+ * generic so the form cannot be used to test which emails have accounts.
+ */
+function getSignUpErrorMessage(code: string | undefined) {
+  switch (code) {
+    case "over_email_send_rate_limit":
+      return "We can't send confirmation emails right now. Please try again in a little while.";
+    case "over_request_rate_limit":
+      return "Too many sign-up attempts. Please wait a few minutes and try again.";
+    case "weak_password":
+      return "Choose a stronger password.";
+    case "email_address_invalid":
+      return "This email address can't be used. Try another one.";
+    case "signup_disabled":
+    case "email_provider_disabled":
+      return "New sign-ups are turned off right now.";
+    default:
+      return "We could not create your account. Please try again.";
+  }
 }
 
 async function redirectToRoleHome(
@@ -297,8 +380,18 @@ export async function registerAction(
   );
 
   if (!registerLimit.allowed) {
+    // retryAfterSeconds is 0 when the limiter itself failed (already logged).
+    if (registerLimit.retryAfterSeconds > 0) {
+      console.warn("Registration blocked by the per-IP rate limit", {
+        retryAfterSeconds: registerLimit.retryAfterSeconds,
+      });
+    }
+
     return {
-      formError: "We could not create your account. Please try again.",
+      formError:
+        registerLimit.retryAfterSeconds > 0
+          ? `Too many sign-up attempts from your network. Try again in ${formatWait(registerLimit.retryAfterSeconds)}.`
+          : "We could not create your account. Please try again.",
       formSuccess: undefined,
       fieldErrors: {},
       fields,
@@ -347,8 +440,14 @@ export async function registerAction(
     });
 
     if (signUpError || !authData.user) {
+      console.error("Registration sign-up failed", {
+        code: signUpError?.code,
+        status: signUpError?.status,
+        message: signUpError?.message ?? "No user returned",
+      });
+
       return {
-        formError: "We could not create your account. Please try again.",
+        formError: getSignUpErrorMessage(signUpError?.code),
         formSuccess: undefined,
         fieldErrors: {},
         fields,

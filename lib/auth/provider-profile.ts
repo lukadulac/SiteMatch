@@ -16,10 +16,17 @@ function optionalText(max: number) {
 		});
 }
 
+/** "linkedin.com/in/jane" is what people paste; it means https://. */
+export function withDefaultUrlScheme(value: string) {
+	return /^[a-z][a-z\d+.-]*:\/\//i.test(value)
+		? value
+		: `https://${value.replace(/^\/+/, "")}`;
+}
+
 const optionalUrl = z
 	.string()
 	.trim()
-	.transform((value) => (value === "" ? null : value))
+	.transform((value) => (value === "" ? null : withDefaultUrlScheme(value)))
 	.nullable()
 	.optional()
 	.refine((value) => {
@@ -29,11 +36,14 @@ const optionalUrl = z
 
 		try {
 			const parsed = new URL(value);
-			return parsed.protocol === "http:" || parsed.protocol === "https:";
+			return (
+				(parsed.protocol === "http:" || parsed.protocol === "https:") &&
+				parsed.hostname.includes(".")
+			);
 		} catch {
 			return false;
 		}
-	}, "Enter a valid URL.");
+	}, "Enter a valid link, for example linkedin.com/in/yourname.");
 
 export const providerTypes = [
 	"freelancer",
@@ -111,7 +121,7 @@ export const providerProfileInputSchema = z
 		social_link: optionalUrl,
 		service_categories: z
 			.array(providerServiceCategorySchema)
-			.max(8)
+			.max(providerServiceCategories.length, "Choose each service category only once.")
 			.refine((value) => value.length > 0, {
 				message: "Choose at least one service category.",
 			}),

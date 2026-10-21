@@ -79,7 +79,7 @@ export const clientSolutionTypeLabels: Record<
   booking_platform: "Booking platform",
   Web_design: "Web design",
   Video_Editing: "Video editing",
-  Digital_Markteing:"Digital markteing",
+  Digital_Markteing: "Digital marketing",
   other: "Other",
 };
 
@@ -101,7 +101,7 @@ export const clientProfileInputSchema = z
     ),
     interested_solution_types: z
       .array(clientSolutionTypeSchema)
-      .max(8),
+      .max(clientSolutionTypes.length, "Choose each solution type only once."),
     interested_solution_other_text: optionalText(120),
   })
   .superRefine((value, ctx) => {
