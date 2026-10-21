@@ -5,7 +5,7 @@ import {
 } from "@/components/dashboard/DashboardShell";
 import { ProviderProfileForm } from "@/components/dashboard/provider-profile-form";
 import { ProfilePhotoCard } from "@/components/profile/profile-photo-card";
-import { getOwnContactDetails } from "@/lib/auth/own-contact";
+import { getOwnContactDetails, getOwnProviderTaxId } from "@/lib/auth/own-contact";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
@@ -53,6 +53,7 @@ export default async function ProviderProfilePage() {
   const [
     profileResult,
     contactResult,
+    taxIdResult,
     providerProfileResult,
     conversationsResult,
     applicationsResult,
@@ -64,10 +65,11 @@ export default async function ProviderProfilePage() {
         .eq("id", user.id)
         .single(),
       getOwnContactDetails(supabase),
+      getOwnProviderTaxId(supabase),
       supabase
         .from("provider_profiles")
         .select(
-          "provider_type, tax_id, years_of_experience, portfolio_url, social_link, service_categories, service_category_other_text, about, average_rating, total_reviews, is_verified",
+          "provider_type, years_of_experience, portfolio_url, social_link, service_categories, service_category_other_text, about",
         )
         .eq("user_id", user.id)
         .maybeSingle(),
@@ -81,6 +83,10 @@ export default async function ProviderProfilePage() {
 
   if ("error" in contactResult) {
     throw new Error(contactResult.error);
+  }
+
+  if ("error" in taxIdResult) {
+    throw new Error(taxIdResult.error);
   }
 
   if (providerProfileResult.error || !providerProfileResult.data) {
@@ -98,7 +104,7 @@ export default async function ProviderProfilePage() {
   }
 
   const profile = { ...profileResult.data, phone: contactResult.data.phone };
-  const providerProfile = providerProfileResult.data;
+  const providerProfile = { ...providerProfileResult.data, tax_id: taxIdResult.data };
   const conversations = conversationsResult.data ?? [];
   const applications = applicationsResult.data ?? [];
   const unreadConversations = conversations.filter(

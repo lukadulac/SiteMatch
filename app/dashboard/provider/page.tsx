@@ -136,7 +136,7 @@ export default async function ProviderDashboardPage() {
       supabase
         .from("provider_profiles")
         .select(
-          "provider_type, tax_id, years_of_experience, portfolio_url, social_link, service_categories, service_category_other_text, about, average_rating, total_reviews, is_verified",
+          "provider_type, years_of_experience, portfolio_url, social_link, service_categories, service_category_other_text, about",
         )
         .eq("user_id", user.id)
         .maybeSingle(),

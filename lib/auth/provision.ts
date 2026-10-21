@@ -151,7 +151,9 @@ export async function ensureUserProfile(
         service_category_other_text: serviceCategoryOtherText,
         about: getStringValue(metadata.about),
       },
-      { onConflict: "user_id" },
+      // tax_id is not a readable column, and rewriting it on conflict would read
+      // it back, so an existing row is left alone.
+      { onConflict: "user_id", ignoreDuplicates: true },
     );
 
     if (error) {

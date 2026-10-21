@@ -46,10 +46,10 @@ function plainColumns(list: string) {
 }
 
 /** Columns requested by every `profiles(...)` / `profiles!fk!inner(...)` embed in a source string. */
-export function extractProfileEmbeds(source: string): string[][] {
+export function extractProfileEmbeds(source: string, table = "profiles"): string[][] {
 	const embeds: string[][] = [];
 
-	for (const match of source.matchAll(/\bprofiles(?:![\w.]+)*\(/g)) {
+	for (const match of source.matchAll(new RegExp(`\\b${table}(?:![\\w.]+)*\\(`, "g"))) {
 		let depth = 1;
 		let index = match.index + match[0].length;
 		const start = index;
@@ -80,10 +80,10 @@ function endOfCall(source: string, open: number) {
 }
 
 /** Columns requested by every select chained onto `.from("profiles")`, including after update/insert. */
-export function extractProfileChainSelects(source: string): string[][] {
+export function extractProfileChainSelects(source: string, table = "profiles"): string[][] {
 	const selects: string[][] = [];
 
-	for (const from of source.matchAll(/\.from\(\s*["']profiles["']\s*\)/g)) {
+	for (const from of source.matchAll(new RegExp(`\\.from\\(\\s*["']${table}["']\\s*\\)`, "g"))) {
 		let index = from.index + from[0].length;
 
 		// Walk `.method(args)` links until the chain ends.
@@ -117,21 +117,23 @@ export function extractProfileChainSelects(source: string): string[][] {
 	return selects;
 }
 
-/** The columns the migrations grant to signed-in users on profiles (the last such grant wins). */
-function readGrantedProfileColumns() {
+/** The columns the migrations grant to signed-in users on a table (the last such grant wins). */
+function readGrantedProfileColumns(table = "profiles") {
 	const migrations = listFiles(join(root, "supabase", "migrations"), /\.sql$/)
 		.sort()
 		.map((file) => readFileSync(file, "utf8"))
 		.join("\n");
 	const grants = [
-		...migrations.matchAll(/grant\s+select\s*\(([^)]*)\)\s+on\s+public\.profiles\s+to\s+[^;]*\bauthenticated\b/gi),
+		...migrations.matchAll(
+			new RegExp(`grant\\s+select\\s*\\(([^)]*)\\)\\s+on\\s+public\\.${table}\\s+to\\s+[^;]*\\bauthenticated\\b`, "gi"),
+		),
 	];
 	const last = grants.at(-1);
 
-	return new Set(last ? last[1].split(",").map((column) => column.trim()) : []);
+	return new Set(last ? last[1].split(",").map((column) => column.trim()).filter(Boolean) : []);
 }
 
-function findProfileColumnReads() {
+function findProfileColumnReads(table = "profiles") {
 	const reads: Array<{ file: string; columns: string[] }> = [];
 	const files = ["app", "lib", "components"].flatMap((dir) =>
 		listFiles(join(root, dir), /\.(ts|tsx)$/),
@@ -141,7 +143,10 @@ function findProfileColumnReads() {
 		const source = readFileSync(file, "utf8");
 		const path = relative(root, file);
 
-		for (const columns of [...extractProfileEmbeds(source), ...extractProfileChainSelects(source)]) {
+		for (const columns of [
+			...extractProfileEmbeds(source, table),
+			...extractProfileChainSelects(source, table),
+		]) {
 			reads.push({ file: path, columns });
 		}
 	}
@@ -192,6 +197,33 @@ describe("profiles column reads", () => {
 
 	it("only ask for columns every signed-in user may read", () => {
 		// email and phone are readable only through get_own_contact_details().
+		const unreadable = reads.flatMap((read) =>
+			read.columns
+				.filter((column) => !readable.has(column))
+				.map((column) => `${column} (selected in ${read.file})`),
+		);
+
+		expect(unreadable).toEqual([]);
+	});
+});
+
+describe("provider_profiles column reads", () => {
+	const readable = readGrantedProfileColumns("provider_profiles");
+	const reads = findProfileColumnReads("provider_profiles");
+
+	it("takes the readable columns from the migration grant", () => {
+		expect(readable.has("headline")).toBe(true);
+		expect(readable.has("tax_id")).toBe(false);
+		expect(readable.has("average_rating")).toBe(false);
+		expect(readable.has("is_verified")).toBe(false);
+	});
+
+	it("finds the selects it is meant to check", () => {
+		expect(reads.some((read) => read.columns.includes("provider_type"))).toBe(true);
+	});
+
+	it("only ask for columns every signed-in user may read", () => {
+		// tax_id is readable only through get_own_provider_tax_id().
 		const unreadable = reads.flatMap((read) =>
 			read.columns
 				.filter((column) => !readable.has(column))

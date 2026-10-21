@@ -25,3 +25,22 @@ export async function getOwnContactDetails(
 
 	return { data: { email: contact.email, phone: contact.phone } };
 }
+
+export type OwnProviderTaxIdResult = { data: string | null } | { error: string };
+
+/**
+ * The signed-in provider's own tax ID. No user can read tax_id from
+ * provider_profiles, their own included, so this goes through
+ * get_own_provider_tax_id().
+ */
+export async function getOwnProviderTaxId(
+	supabase: SupabaseClient<Database>,
+): Promise<OwnProviderTaxIdResult> {
+	const { data, error } = await supabase.rpc("get_own_provider_tax_id");
+
+	if (error) {
+		return { error: "Your tax ID could not be loaded." };
+	}
+
+	return { data: data ?? null };
+}

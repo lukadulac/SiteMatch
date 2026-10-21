@@ -81,7 +81,7 @@ function providerProfileForm(
 const PROFILE_WRITE_STUBS: StubResponses = {
 	"profiles.update": {},
 	"client_profiles.upsert": {},
-	"provider_profiles.upsert": {},
+	"provider_profiles.update": { data: [{ id: "provider-profile-1" }] },
 };
 
 beforeEach(() => {
@@ -221,18 +221,57 @@ describe("updateProviderProfileAction", () => {
 		);
 
 		expect(state.formSuccess).toBeTruthy();
-		expect(stub.callsFor("provider_profiles.upsert")[0]?.payload).toMatchObject({
+		expect(stub.callsFor("provider_profiles.update")[0]?.payload).toMatchObject({
 			user_id: "user-1",
 			provider_type: "freelancer",
 			years_of_experience: 3,
 			service_categories: ["web_development", "seo"],
 		});
+		expect(stub.callsFor("provider_profiles.update")[0]?.filters).toContainEqual({
+			method: "eq",
+			args: ["user_id", "user-1"],
+		});
 	});
 
-	it("surfaces a failure from the provider profile write", async () => {
-		signIn("user-1", {
+	it("updates the provider profile in place instead of upserting it", async () => {
+		// An upsert would rewrite tax_id on conflict, which reads a column no user may read.
+		const stub = signIn("user-1", PROFILE_WRITE_STUBS);
+
+		await updateProviderProfileAction(
+			EMPTY_STATE,
+			providerProfileForm({ tax_id: "12345678" }),
+		);
+
+		expect(stub.callKeys()).not.toContain("provider_profiles.upsert");
+		expect(stub.callKeys()).not.toContain("provider_profiles.insert");
+		expect(stub.callsFor("provider_profiles.update")[0]?.payload).toMatchObject({
+			tax_id: "12345678",
+		});
+	});
+
+	it("creates the provider profile when there is none to update", async () => {
+		const stub = signIn("user-1", {
 			...PROFILE_WRITE_STUBS,
-			"provider_profiles.upsert": { error: { message: "column missing" } },
+			"provider_profiles.update": { data: [] },
+			"provider_profiles.insert": {},
+		});
+
+		const state = await updateProviderProfileAction(
+			EMPTY_STATE,
+			providerProfileForm({ tax_id: "12345678" }),
+		);
+
+		expect(state.formSuccess).toBeTruthy();
+		expect(stub.callsFor("provider_profiles.insert")[0]?.payload).toMatchObject({
+			user_id: "user-1",
+			tax_id: "12345678",
+		});
+	});
+
+	it("surfaces a failure from the provider profile update", async () => {
+		const stub = signIn("user-1", {
+			...PROFILE_WRITE_STUBS,
+			"provider_profiles.update": { error: { message: "column missing" } },
 		});
 
 		const state = await updateProviderProfileAction(
@@ -241,6 +280,22 @@ describe("updateProviderProfileAction", () => {
 		);
 
 		expect(state.formError).toBe("column missing");
+		expect(stub.callKeys()).not.toContain("provider_profiles.insert");
+	});
+
+	it("surfaces a failure from the provider profile insert", async () => {
+		signIn("user-1", {
+			...PROFILE_WRITE_STUBS,
+			"provider_profiles.update": { data: [] },
+			"provider_profiles.insert": { error: { message: "insert refused" } },
+		});
+
+		const state = await updateProviderProfileAction(
+			EMPTY_STATE,
+			providerProfileForm(),
+		);
+
+		expect(state.formError).toBe("insert refused");
 	});
 });
 
