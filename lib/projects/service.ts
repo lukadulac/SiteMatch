@@ -61,7 +61,7 @@ type ClientProjectDetail = Database["public"]["Tables"]["projects"]["Row"] & {
 	feature_ids: string[];
 };
 
-type ProviderProjectSummary = Pick<
+export type ProviderProjectSummary = Pick<
 	Database["public"]["Tables"]["projects"]["Row"],
 	| "id"
 	| "slug"
@@ -136,6 +136,8 @@ export type PublicProjectFilters = {
 	budget?: "fixed" | "range" | "negotiable" | "";
 	scope?: "small" | "medium" | "large" | "";
 	sort?: "newest" | "oldest" | "budget_high" | "budget_low";
+	/** Only this client's projects, e.g. on their public profile. */
+	clientId?: string;
 };
 
 type AcceptProjectApplicationRpcRow = {
@@ -616,14 +618,21 @@ export async function getPublicPublishedProjects(
 	supabase: SupabaseClient<Database>,
 	filters: PublicProjectFilters = {},
 ): Promise<ProjectResult<ProviderProjectSummary[]>> {
-	const { data, error } = await supabase
+	let query = supabase
 		.from("projects")
 		.select(
 			"id, slug, title, description, what_do_you_need_text, status, service_type_id, budget_type, budget_min, budget_max, deadline_type, deadline_date, preferred_provider_type, preferred_language, scope_level, readiness_level, needs_design, needs_seo, needs_content_writing, created_at, updated_at",
 		)
 		.in("status", ["published", "in_discussion"])
-		.eq("is_hidden", false)
-		.order("created_at", { ascending: filters.sort === "oldest" });
+		.eq("is_hidden", false);
+
+	if (filters.clientId) {
+		query = query.eq("client_id", filters.clientId);
+	}
+
+	const { data, error } = await query.order("created_at", {
+		ascending: filters.sort === "oldest",
+	});
 
 	if (error) {
 		return { error: error.message };

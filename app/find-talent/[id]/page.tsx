@@ -233,17 +233,16 @@ export default async function FindTalentServicePage({
 									</p>
 								</div>
 							</div>
-							<button
-								type="button"
-								disabled
-								className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-line bg-white px-4 text-sm font-semibold text-secondary"
+							<Link
+								href={`/profiles/${service.provider_id}`}
+								className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-line bg-white px-4 text-sm font-semibold text-black transition hover:border-black"
 							>
 								View provider profile
-							</button>
+							</Link>
 						</div>
 						<p className="mt-5 text-sm leading-6 text-secondary">
-							Independent provider focused on clear, useful digital outcomes. A
-							full provider profile and portfolio will appear here soon.
+							See this provider&apos;s other services, expertise and track record
+							on their profile.
 						</p>
 					</section>
 				</div>
