@@ -256,6 +256,22 @@ describe("ensureUserProfile", () => {
 			}
 		});
 
+		it("leaves an existing provider profile alone", async () => {
+			// Rewriting tax_id on conflict would read it back, and it is not readable.
+			const stub = createSupabaseStub({
+				"profiles.select": { data: null },
+				"profiles.upsert": {},
+				"provider_profiles.upsert": {},
+			});
+
+			await ensureUserProfile(stub.client, user({ role: "provider" }));
+
+			expect(stub.callsFor("provider_profiles.upsert")[0]?.options).toEqual({
+				onConflict: "user_id",
+				ignoreDuplicates: true,
+			});
+		});
+
 		it("guarantees at least one service category", async () => {
 			const stub = createSupabaseStub({
 				"profiles.select": { data: null },

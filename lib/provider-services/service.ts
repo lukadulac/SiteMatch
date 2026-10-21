@@ -52,6 +52,8 @@ export type PublicProviderServicesPage = {
 
 type PublicProviderServiceFilters = Partial<Omit<FindTalentQuery, "sort">> & {
 	sort?: FindTalentQuery["sort"] | "price_high" | "price_low";
+	/** Only this provider's services, e.g. on their public profile. */
+	providerId?: string;
 };
 
 type ProviderServiceListing = Pick<
@@ -169,6 +171,10 @@ export async function getPublicPublishedProviderServices(
 		.select(publicProviderServiceSelect, { count: "exact" })
 		.eq("status", "published")
 		.eq("is_hidden", false);
+
+	if (filters.providerId) {
+		query = query.eq("provider_id", filters.providerId);
+	}
 
 	if (filters.categorySlug) {
 		const categoryResult = await resolveCategoryIdBySlug(

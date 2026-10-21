@@ -467,10 +467,146 @@ async function projectFlow() {
 	});
 }
 
+async function publicProfile() {
+	const provider = await signUp("public-provider", "provider");
+	const client = await signUp("public-client", "client");
+	const visitor = createClient(stack.url, stack.anonKey, noSession);
+
+	for (const [user, role, city] of [
+		[provider, "provider", "Lisbon"],
+		[client, "client", "Belgrade"],
+	]) {
+		const { error } = await provisionProfile(user, role, { phone: "+381 60 555", city, country: "Serbia" });
+
+		if (error) {
+			throw new Error(`provisioning ${role}: ${error.message}`);
+		}
+	}
+
+	await admin.from("client_profiles").insert({
+		user_id: client.id,
+		business_name: "Public Ltd",
+		business_tax_id: "100000009",
+		project_idea: "A secret idea",
+	});
+
+	// Same write as lib/auth/provision.ts: insert, leave an existing row alone.
+	const providerRow = {
+		user_id: provider.id,
+		provider_type: "freelancer",
+		tax_id: "87654321",
+		service_categories: ["web_development"],
+		headline: "Smoke builder",
+	};
+
+	await check("a new provider provisions their provider profile, tax ID included", async () => {
+		const { error } = await provider.client
+			.from("provider_profiles")
+			.upsert(providerRow, { onConflict: "user_id", ignoreDuplicates: true });
+
+		expect(!error, error?.message);
+
+		const { data } = await provider.client.rpc("get_own_provider_tax_id");
+
+		expect(data === "87654321", `the tax ID read back as ${data}`);
+	});
+
+	await check("a provider saves their profile from the dashboard, tax ID included", async () => {
+		// Same write as updateProviderProfileAction: update in place, then check a row was hit.
+		const { data, error } = await provider.client
+			.from("provider_profiles")
+			.update({ ...providerRow, tax_id: "11223344", about: "Updated from the dashboard" })
+			.eq("user_id", provider.id)
+			.select("id");
+
+		expect(!error, error?.message);
+		expect(data.length === 1, "no provider profile row was updated");
+
+		const { data: taxId } = await provider.client.rpc("get_own_provider_tax_id");
+
+		expect(taxId === "11223344", `the tax ID read back as ${taxId}`);
+	});
+
+	await check("an upsert that rewrites the tax ID is refused (the old dashboard write)", async () => {
+		const { error } = await provider.client
+			.from("provider_profiles")
+			.upsert(providerRow, { onConflict: "user_id" });
+
+		expectDenied(error, "tax ID upsert");
+	});
+
+	await check("other users read a provider's headline but not their tax ID, rating or verification", async () => {
+		const { data, error } = await client.client
+			.from("provider_profiles")
+			.select("headline")
+			.eq("user_id", provider.id);
+
+		expect(!error && data[0]?.headline === "Smoke builder", error?.message ?? "headline not readable");
+
+		for (const column of ["tax_id", "average_rating", "total_reviews", "is_verified"]) {
+			const { error: columnError } = await client.client.from("provider_profiles").select(column);
+
+			expectDenied(columnError, `${column} read`);
+		}
+	});
+
+	await check("a signed-out visitor reads a provider's public profile without private details", async () => {
+		const { data, error } = await visitor.rpc("get_public_profile", { target_user_id: provider.id });
+
+		expect(!error, error?.message);
+		expect(data?.role === "provider" && data.provider?.headline === "Smoke builder", "wrong provider profile");
+		expect(data.stats?.jobs_won === 0 && data.stats?.collaborations_completed === 0, "unexpected stats");
+
+		const text = JSON.stringify(data);
+
+		for (const secret of [provider.email, "+381 60 555", "11223344", "tax_id", "is_verified"]) {
+			expect(!text.includes(secret), `the public profile contains ${secret}`);
+		}
+	});
+
+	await check("a signed-out visitor reads a client's public profile without private details", async () => {
+		const { data, error } = await visitor.rpc("get_public_profile", { target_user_id: client.id });
+
+		expect(!error, error?.message);
+		expect(data?.role === "client" && data.client?.business_name === "Public Ltd", "wrong client profile");
+
+		const text = JSON.stringify(data);
+
+		for (const secret of [client.email, "+381 60 555", "100000009", "A secret idea"]) {
+			expect(!text.includes(secret), `the public profile contains ${secret}`);
+		}
+	});
+
+	await check("a suspended account has no public profile until the suspension ends", async () => {
+		const { error: suspendError } = await admin.from("account_moderation").insert({
+			user_id: provider.id,
+			status: "suspended",
+			suspended_until: new Date(Date.now() + 86_400_000).toISOString(),
+			reason: "Smoke test suspension",
+		});
+
+		expect(!suspendError, suspendError?.message);
+
+		try {
+			const { data, error } = await visitor.rpc("get_public_profile", { target_user_id: provider.id });
+
+			expect(!error && data === null, `suspended profile returned ${error?.message ?? JSON.stringify(data)}`);
+		} finally {
+			// account_moderation blocks deleting the profile, so clear it before cleanup.
+			await admin.from("account_moderation").delete().eq("user_id", provider.id);
+		}
+
+		const { data } = await visitor.rpc("get_public_profile", { target_user_id: provider.id });
+
+		expect(data?.role === "provider", "the profile did not come back");
+	});
+}
+
 try {
 	await securityHardening();
 	await profilePrivacy();
 	await projectFlow();
+	await publicProfile();
 } finally {
 	for (const id of createdUserIds) {
 		await admin.auth.admin.deleteUser(id);

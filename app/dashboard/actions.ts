@@ -421,9 +421,20 @@ export async function updateProviderProfileAction(
 			about: parsed.data.about,
 		};
 
-	const { error: providerProfileError } = await supabase
-		.from("provider_profiles")
-		.upsert(providerProfilePayload, { onConflict: "user_id" });
+	// tax_id is not a readable column, so an upsert that rewrites it on conflict
+	// is refused. Update the row in place and insert only when there is none.
+	const { data: updatedProviderProfiles, error: providerProfileUpdateError } =
+		await supabase
+			.from("provider_profiles")
+			.update(providerProfilePayload)
+			.eq("user_id", user.id)
+			.select("id");
+
+	const { error: providerProfileError } = providerProfileUpdateError
+		? { error: providerProfileUpdateError }
+		: updatedProviderProfiles && updatedProviderProfiles.length > 0
+			? { error: null }
+			: await supabase.from("provider_profiles").insert(providerProfilePayload);
 
 	if (providerProfileError) {
 		return {

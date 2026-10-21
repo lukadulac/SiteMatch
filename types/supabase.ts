@@ -1341,6 +1341,8 @@ export type Database = {
           phone: string;
         }[];
       };
+      get_own_provider_tax_id: { Args: Record<PropertyKey, never>; Returns: string | null };
+      get_public_profile: { Args: { target_user_id: string }; Returns: Json | null };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_conversation_participant: { Args: { target_conversation_id: string }; Returns: boolean };
       owns_project: { Args: { target_project_id: string }; Returns: boolean };
