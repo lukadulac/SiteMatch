@@ -347,6 +347,7 @@ export async function registerAction(
     });
 
     if (signUpError || !authData.user) {
+      console.error("Registration sign-up failed", signUpError ?? "no user returned");
       return {
         formError: "We could not create your account. Please try again.",
         formSuccess: undefined,
