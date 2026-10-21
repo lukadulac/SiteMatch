@@ -5,34 +5,20 @@ import {
 	clientSolutionTypeLabels,
 	clientSolutionTypes,
 } from "@/lib/auth/client-profile";
-import {
-	getRegisterFieldValue,
-	type RegisterFieldErrors,
-	type RegisterFormFields,
-} from "@/components/auth/register/RegisterForm";
+import type { RegisterFieldErrors } from "@/components/auth/register/RegisterForm";
 import { FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 
 type ClientFieldsProps = {
 	errors?: RegisterFieldErrors;
-	fields?: RegisterFormFields;
-	selectedSolutionTypes: string[];
 };
 
 function getError(errors: RegisterFieldErrors | undefined, name: string) {
 	return errors?.[name]?.[0];
 }
 
-export default function ClientFields({
-	errors,
-	fields,
-	selectedSolutionTypes,
-}: ClientFieldsProps) {
-	const [businessType, setBusinessType] = useState(
-		getRegisterFieldValue(fields, "business_type"),
-	);
-	const [selectedSolutions, setSelectedSolutions] = useState<string[]>(
-		selectedSolutionTypes,
-	);
+export default function ClientFields({ errors }: ClientFieldsProps) {
+	const [businessType, setBusinessType] = useState("");
+	const [selectedSolutions, setSelectedSolutions] = useState<string[]>([]);
 
 	function handleSolutionTypeChange(type: string, checked: boolean) {
 		setSelectedSolutions((current) => {
@@ -59,7 +45,6 @@ export default function ClientFields({
 						required
 						aria-invalid={Boolean(getError(errors, "business_name"))}
 						placeholder="Your Company Inc."
-						defaultValue={getRegisterFieldValue(fields, "business_name")}
 					/>
 					{getError(errors, "business_name") ? (
 						<p>{getError(errors, "business_name")}</p>
@@ -74,7 +59,6 @@ export default function ClientFields({
 						type="text"
 						className={fieldClass(fieldError(errors, "business_tax_id"))}
 						placeholder="123456"
-						defaultValue={getRegisterFieldValue(fields, "business_tax_id")}
 					/>
 					{getError(errors, "business_tax_id") ? (
 						<p>{getError(errors, "business_tax_id")}</p>
@@ -115,7 +99,6 @@ export default function ClientFields({
 						className={fieldClass(fieldError(errors, "business_type_text"))}
 						required
 						placeholder="Describe your business type"
-						defaultValue={getRegisterFieldValue(fields, "business_type_text")}
 					/>
 					{getError(errors, "business_type_text") ? (
 						<p>{getError(errors, "business_type_text")}</p>
@@ -131,7 +114,6 @@ export default function ClientFields({
 					rows={5}
 					className={fieldClass(fieldError(errors, "project_idea"))}
 					placeholder="Tell us about your project and what you're looking to build..."
-					defaultValue={getRegisterFieldValue(fields, "project_idea")}
 				/>
 				{getError(errors, "project_idea") ? (
 					<p>{getError(errors, "project_idea")}</p>
@@ -174,10 +156,6 @@ export default function ClientFields({
 						className={fieldClass(fieldError(errors, "interested_solution_other_text"))}
 						required
 						placeholder="Tell us your other interested solution type"
-						defaultValue={getRegisterFieldValue(
-							fields,
-							"interested_solution_other_text",
-						)}
 					/>
 					{getError(errors, "interested_solution_other_text") ? (
 						<p>{getError(errors, "interested_solution_other_text")}</p>

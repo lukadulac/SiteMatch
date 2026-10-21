@@ -16,30 +16,11 @@ import { AvatarResizeError, resizeAvatar } from "@/lib/profiles/resize-avatar";
 export type RegisterRole = "client" | "provider";
 
 export type RegisterFieldErrors = Record<string, string[] | undefined>;
-export type RegisterFormFields = Record<string, string>;
-
-export const MULTI_VALUE_SEPARATOR = "||";
 
 const submitLabelByRole: Record<RegisterRole, string> = {
 	client: "Create client account",
 	provider: "Create provider account",
 };
-
-export function getRegisterFieldValue(
-	fields: RegisterFormFields | undefined,
-	name: string,
-) {
-	return fields?.[name] ?? "";
-}
-
-export function getRegisterFieldValues(
-	fields: RegisterFormFields | undefined,
-	name: string,
-) {
-	const value = getRegisterFieldValue(fields, name);
-
-	return value === "" ? [] : value.split(MULTI_VALUE_SEPARATOR);
-}
 
 function RegisterSubmitButton({ label, pending }: { label: string; pending: boolean }) {
 	return (
@@ -140,26 +121,12 @@ export default function RegisterForm({ next }: { next?: string | null }) {
 				error={state.fieldErrors?.role?.[0]}
 			/>
 
-			<SharedAccountFields errors={state.fieldErrors} fields={state.fields} avatar={avatar.field} />
+			<SharedAccountFields errors={state.fieldErrors} avatar={avatar.field} />
 
 			{selectedRole === "client" ? (
-				<ClientFields
-					errors={state.fieldErrors}
-					fields={state.fields}
-					selectedSolutionTypes={getRegisterFieldValues(
-						state.fields,
-						"interested_solution_types",
-					)}
-				/>
+				<ClientFields errors={state.fieldErrors} />
 			) : selectedRole === "provider" ? (
-				<ProviderFields
-					errors={state.fieldErrors}
-					fields={state.fields}
-					selectedServiceCategories={getRegisterFieldValues(
-						state.fields,
-						"service_categories",
-					)}
-				/>
+				<ProviderFields errors={state.fieldErrors} />
 			) : null}
 
 			{state.formError ? (
