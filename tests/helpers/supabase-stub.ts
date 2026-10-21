@@ -35,7 +35,7 @@ export type RecordedCall = {
 export type AuthStubOptions = {
 	user?: Partial<User> | null;
 	getSession?: StubResponse;
-	signUp?: { data?: unknown; error?: { message: string } | null };
+	signUp?: { data?: unknown; error?: { message: string; code?: string; status?: number } | null };
 	resend?: { data?: unknown; error?: { message: string } | null };
 	resetPasswordForEmail?: { data?: unknown; error?: { message: string; code?: string } | null };
 	updateUser?: { data?: unknown; error?: { message: string; code?: string } | null };
