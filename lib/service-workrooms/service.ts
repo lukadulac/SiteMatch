@@ -294,6 +294,33 @@ async function getWorkroomsPageWithOptions({
 	};
 }
 
+export type WorkroomStatusCounts = Record<WorkroomStatusFilter, number>;
+
+/** Counts for the list tabs, so each tab shows its total before it is opened. */
+export async function getWorkroomStatusCounts(
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	role: "client" | "provider",
+): Promise<Result<WorkroomStatusCounts>> {
+	const [activeResult, completedResult] = await Promise.all([
+		countWorkrooms({ supabase, userId, role, status: "active" }),
+		countWorkrooms({ supabase, userId, role, status: "completed" }),
+	]);
+
+	if (activeResult.error) {
+		return { error: activeResult.error };
+	}
+
+	if (completedResult.error) {
+		return { error: completedResult.error };
+	}
+
+	const active = activeResult.data ?? 0;
+	const completed = completedResult.data ?? 0;
+
+	return { data: { all: active + completed, active, completed } };
+}
+
 export async function getClientWorkroomsPage(
 	supabase: SupabaseClient<Database>,
 	userId: string,
