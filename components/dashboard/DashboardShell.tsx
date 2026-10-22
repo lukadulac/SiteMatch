@@ -47,8 +47,9 @@ export function completeDashboardNavigation(items: DashboardNavItem[]) {
 }
 
 type DashboardShellProps = {
-  title: string;
-  subtitle: string;
+  /** Leave out when the page renders its own heading, as the workroom detail does. */
+  title?: string;
+  subtitle?: string;
   actionHref?: string;
   actionLabel?: string;
   navItems: DashboardNavItem[];
@@ -101,24 +102,28 @@ export function DashboardShell({
       </aside>
 
       <div className="min-w-0 max-w-full space-y-6 overflow-hidden">
-        <div className="flex flex-col gap-5 border-b border-line pb-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <h1 className="break-words text-2xl font-semibold text-black sm:text-3xl">
-              {title}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-secondary sm:text-base">
-              {subtitle}
-            </p>
+        {title ? (
+          <div className="flex flex-col gap-5 border-b border-line pb-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <h1 className="break-words text-2xl font-semibold text-black sm:text-3xl">
+                {title}
+              </h1>
+              {subtitle ? (
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-secondary sm:text-base">
+                  {subtitle}
+                </p>
+              ) : null}
+            </div>
+            {actionHref && actionLabel ? (
+              <Link
+                href={actionHref}
+                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-black px-5 text-sm font-semibold text-white transition hover:bg-zinc-800 sm:w-auto"
+              >
+                {actionLabel}
+              </Link>
+            ) : null}
           </div>
-          {actionHref && actionLabel ? (
-            <Link
-              href={actionHref}
-              className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg bg-black px-5 text-sm font-semibold text-white transition hover:bg-zinc-800 sm:w-auto"
-            >
-              {actionLabel}
-            </Link>
-          ) : null}
-        </div>
+        ) : null}
 
         {children}
       </div>

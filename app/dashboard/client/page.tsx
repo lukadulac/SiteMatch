@@ -392,8 +392,6 @@ export default async function ClientDashboardPage({
                 key={workroom.id}
                 workroom={workroom}
                 viewerRole="client"
-                context="client-workrooms"
-                compact
               />
             ))
           ) : (

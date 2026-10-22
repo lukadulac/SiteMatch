@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import {
 	WorkroomCard,
+	WorkroomEmptyState,
 	WorkroomNotice,
 	WorkroomPagination,
 	WorkroomStatusFilters,
@@ -9,7 +10,10 @@ import {
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
-import { getProviderWorkroomsPage } from "@/lib/service-workrooms/service";
+import {
+	getProviderWorkroomsPage,
+	getWorkroomStatusCounts,
+} from "@/lib/service-workrooms/service";
 import {
 	parseWorkroomListQuery,
 	type RawWorkroomListQuery,
@@ -72,11 +76,12 @@ export default async function ProviderWorkroomsPage({
 		redirect(getDashboardPath(provisioned.role));
 	}
 
-	const [conversationsResult, applicationsResult, workroomsResult] =
+	const [conversationsResult, applicationsResult, workroomsResult, countsResult] =
 		await Promise.all([
 			getUserConversations(supabase, user.id),
 			supabase.from("applications").select("id").eq("provider_id", user.id),
 			getProviderWorkroomsPage(supabase, user.id, listQuery),
+			getWorkroomStatusCounts(supabase, user.id, "provider"),
 		]);
 
 	if (conversationsResult.error) {
@@ -90,6 +95,12 @@ export default async function ProviderWorkroomsPage({
 	if (workroomsResult.error) {
 		throw new Error(workroomsResult.error);
 	}
+
+	if (countsResult.error || !countsResult.data) {
+		throw new Error(countsResult.error ?? "Workroom counts could not be loaded.");
+	}
+
+	const counts = countsResult.data;
 
 	const pageData = workroomsResult.data;
 	if (!pageData) {
@@ -112,9 +123,7 @@ export default async function ProviderWorkroomsPage({
 	return (
 		<DashboardShell
 			title="Workrooms"
-			subtitle="Manage accepted service work and mark delivered work as completed."
-			actionHref="/dashboard/provider/services/post"
-			actionLabel="Post Service"
+			subtitle="One shared space per hire, from acceptance until the work is completed."
 			navItems={[
 				{ href: "/dashboard/provider", label: "Overview" },
 				{
@@ -127,7 +136,7 @@ export default async function ProviderWorkroomsPage({
 				{
 					href: "/dashboard/provider/workrooms",
 					label: "Workrooms",
-					count: pageData.totalCount,
+					count: counts.all,
 					active: true,
 				},
 				{
@@ -138,46 +147,27 @@ export default async function ProviderWorkroomsPage({
 				{ href: "/dashboard/provider/profile", label: "Profile" },
 			]}
 		>
-			<section className="space-y-5">
+			<section className="space-y-4 sm:space-y-5">
 				<WorkroomNotice status={workroomStatus} error={workroomError} />
-				<div className="flex flex-col gap-4 rounded-[1.75rem] border border-line bg-white/90 p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)] lg:flex-row lg:items-center lg:justify-between">
-					<div>
-						<h2 className="text-xl font-semibold text-black">Accepted work</h2>
-						<p className="mt-1 text-sm text-secondary">
-							{pageData.totalCount} workroom
-							{pageData.totalCount === 1 ? "" : "s"} found
-						</p>
-					</div>
-					<WorkroomStatusFilters
-						basePath="/dashboard/provider/workrooms"
-						activeStatus={listQuery.status}
-					/>
-				</div>
+				<WorkroomStatusFilters
+					basePath="/dashboard/provider/workrooms"
+					activeStatus={listQuery.status}
+					counts={counts}
+				/>
 
 				{pageData.workrooms.length > 0 ? (
-					<div className="space-y-4">
+					<ul className="space-y-3">
 						{pageData.workrooms.map((workroom) => (
-							<WorkroomCard
-								key={workroom.id}
-								workroom={workroom}
-								viewerRole="provider"
-								context="provider-workrooms"
-								status={listQuery.status}
-								page={pageData.page}
-							/>
+							<li key={workroom.id}>
+								<WorkroomCard workroom={workroom} viewerRole="provider" />
+							</li>
 						))}
-					</div>
+					</ul>
 				) : (
-					<div className="rounded-3xl border border-dashed border-line-strong bg-panel-soft p-8 text-center">
-						<h2 className="text-2xl font-semibold text-black">
-							No workrooms found
-						</h2>
-						<p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-secondary">
-							{listQuery.status === "all"
-								? "Accepted service requests will appear here."
-								: "There are no workrooms in this status yet."}
-						</p>
-					</div>
+					<WorkroomEmptyState
+						status={listQuery.status}
+						serviceRequestsHref="/dashboard/provider/service-requests"
+					/>
 				)}
 
 				<WorkroomPagination

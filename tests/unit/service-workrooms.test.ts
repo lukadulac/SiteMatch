@@ -5,6 +5,7 @@ import {
 	getClientWorkroomsPage,
 	getProviderWorkroomsPage,
 	getWorkroomDetailForParticipant,
+	getWorkroomStatusCounts,
 } from "@/lib/service-workrooms/service";
 import { parseWorkroomListQuery } from "@/lib/service-workrooms/schemas";
 import { createSupabaseStub } from "../helpers/supabase-stub";
@@ -176,6 +177,24 @@ describe("workroom list queries", () => {
 		expect(stub.callsFor("service_workrooms.select")[1]?.filters).toEqual(
 			expect.arrayContaining([
 				{ method: "eq", args: ["provider_id", PROVIDER_ID] },
+			]),
+		);
+	});
+
+	it("counts active and completed workrooms for the list tabs", async () => {
+		const stub = createSupabaseStub({
+			"service_workrooms.select": [{ data: null, count: 3 }, { data: null, count: 5 }],
+		});
+
+		const result = await getWorkroomStatusCounts(stub.client, PROVIDER_ID, "provider");
+
+		expect(result.data).toEqual({ all: 8, active: 3, completed: 5 });
+		const calls = stub.callsFor("service_workrooms.select");
+		expect(calls[0]?.filters).toContainEqual({ method: "eq", args: ["provider_id", PROVIDER_ID] });
+		expect(calls.map((call) => call.filters)).toEqual(
+			expect.arrayContaining([
+				expect.arrayContaining([{ method: "eq", args: ["status", "active"] }]),
+				expect.arrayContaining([{ method: "eq", args: ["status", "completed"] }]),
 			]),
 		);
 	});

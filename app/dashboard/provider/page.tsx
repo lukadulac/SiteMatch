@@ -396,8 +396,6 @@ export default async function ProviderDashboardPage() {
                     key={workroom.id}
                     workroom={workroom}
                     viewerRole="provider"
-                    context="provider-home"
-                    compact
                   />
                 ))
               ) : (
