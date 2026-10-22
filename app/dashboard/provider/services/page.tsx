@@ -271,6 +271,7 @@ export default async function ProviderServicesPage({
 												label="Delete"
 												pendingLabel="Deleting..."
 												confirmMessage="Delete this service listing? Listings with client requests cannot be deleted."
+												destructive
 												className="rounded-lg border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
 											/>
 										</form>

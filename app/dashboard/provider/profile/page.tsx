@@ -116,6 +116,8 @@ export default async function ProviderProfilePage() {
     <DashboardShell
       title="Profile"
       subtitle="Keep your provider profile ready so clients can evaluate your fit quickly."
+      actionHref={`/profiles/${user.id}`}
+      actionLabel="View public profile"
       navItems={[
         { href: "/dashboard/provider", label: "Overview" },
         {

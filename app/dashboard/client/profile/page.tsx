@@ -91,6 +91,8 @@ export default async function ClientProfilePage() {
     <DashboardShell
       title="Profile"
       subtitle="Keep your business profile and account details ready for project creation and provider matching."
+      actionHref={`/profiles/${user.id}`}
+      actionLabel="View public profile"
       navItems={[
         { href: "/dashboard/client", label: "Overview" },
         {

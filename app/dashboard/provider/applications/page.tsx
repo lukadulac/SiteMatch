@@ -169,6 +169,7 @@ function ProviderApplicationCard({
                 label="Withdraw proposal"
                 pendingLabel="Withdrawing..."
                 confirmMessage="Withdraw this proposal? You may not be able to reapply."
+                destructive
                 className="rounded-lg border border-red-100 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
               />
             </form>
