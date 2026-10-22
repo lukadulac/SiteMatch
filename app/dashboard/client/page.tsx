@@ -1,11 +1,24 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import {
-	ServiceRequestCard,
-	ServiceRequestNotice,
-} from "@/components/service-requests/service-request-ui";
-import { WorkroomCard } from "@/components/workrooms/workroom-ui";
+  conversationPartner,
+  MessagesPanel,
+  WorkroomsPanel,
+} from "@/components/dashboard/overview/overview-panels";
+import {
+  type ChipTone,
+  joinNames,
+  type NeedsItem,
+  NeedsYouCard,
+  OverviewHeader,
+  OverviewPanel,
+  OverviewRow,
+  OverviewRows,
+  PanelEmpty,
+  StatLinks,
+  StatusChip,
+} from "@/components/dashboard/overview/overview-ui";
+import { ServiceRequestNotice } from "@/components/service-requests/service-request-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
@@ -14,118 +27,53 @@ import { getClientServiceRequestPreview } from "@/lib/provider-service-requests/
 import { getClientProjects } from "@/lib/projects/service";
 import { getClientWorkroomPreview } from "@/lib/service-workrooms/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { Avatar } from "@/components/profile/avatar";
 
-function formatDateLabel(value: string | null) {
-  if (!value) {
-    return "No date set";
-  }
+const projectStatus: Record<string, { label: string; tone: ChipTone }> = {
+  published: { label: "Open", tone: "green" },
+  in_discussion: { label: "In discussion", tone: "amber" },
+  assigned: { label: "Assigned", tone: "blue" },
+};
 
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  }).format(new Date(value));
-}
+const requestStatus: Record<string, { label: string; tone: ChipTone }> = {
+  pending: { label: "Pending", tone: "neutral" },
+  accepted: { label: "Accepted", tone: "green" },
+  rejected: { label: "Declined", tone: "red" },
+  cancelled: { label: "Cancelled", tone: "neutral" },
+};
 
-function formatTimeAgo(value: string) {
-  const diffMs = Date.now() - new Date(value).getTime();
-  const diffHours = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60)));
-
-  if (diffHours < 24) {
-    return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-  }
-
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-}
-
-function statusLabel(status: string) {
-  switch (status) {
-    case "published":
-      return "Hiring";
-    case "in_discussion":
-      return "In Discussion";
-    case "assigned":
-      return "Assigned";
-    case "completed":
-      return "Completed";
-    case "cancelled":
-      return "Cancelled";
-    default:
-      return "Draft";
-  }
-}
-
-function statusClasses(status: string) {
-  switch (status) {
-    case "published":
-      return "bg-emerald-50 text-emerald-700";
-    case "in_discussion":
-      return "bg-amber-50 text-amber-700";
-    case "assigned":
-      return "bg-blue-50 text-blue-700";
-    case "completed":
-      return "bg-violet-50 text-violet-700";
-    case "cancelled":
-      return "bg-red-50 text-red-700";
-    default:
-      return "bg-zinc-100 text-zinc-700";
-  }
-}
+const moneyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
 
 function formatBudgetLabel(
   budgetType: string,
   budgetMin: number | null,
   budgetMax: number | null,
 ) {
-  const formatter = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-
-  if (budgetType === "fixed") {
-    return `Fixed: ${formatter.format(budgetMin ?? budgetMax ?? 0)}`;
-  }
-
   if (budgetType === "negotiable") {
     return "Negotiable";
   }
 
+  if (budgetType === "fixed") {
+    const amount = budgetMin ?? budgetMax;
+    return amount != null ? `${moneyFormatter.format(amount)} fixed` : "Fixed price";
+  }
+
   if (budgetMin != null && budgetMax != null) {
-    return `${formatter.format(budgetMin)} - ${formatter.format(budgetMax)}`;
+    return `${moneyFormatter.format(budgetMin)} – ${moneyFormatter.format(budgetMax)}`;
   }
 
   if (budgetMin != null) {
-    return `From ${formatter.format(budgetMin)}`;
+    return `From ${moneyFormatter.format(budgetMin)}`;
   }
 
   if (budgetMax != null) {
-    return `Up to ${formatter.format(budgetMax)}`;
+    return `Up to ${moneyFormatter.format(budgetMax)}`;
   }
 
   return "Budget not set";
-}
-
-function OverviewStat({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <article className="min-w-0 rounded-[1.5rem] border border-line bg-white p-5 shadow-[0_16px_40px_rgba(17,17,17,0.04)]">
-      <p className="break-words text-3xl font-semibold text-black sm:text-4xl">
-        {value}
-      </p>
-      <p className="mt-3 break-words text-sm font-semibold text-black">{label}</p>
-      <p className="mt-1 break-words text-xs leading-5 text-secondary">{detail}</p>
-    </article>
-  );
 }
 
 export default async function ClientDashboardPage({
@@ -172,12 +120,13 @@ export default async function ClientDashboardPage({
     activeProjectCountResult,
     draftProjectCountResult,
     reviewApplicationCountResult,
+    pendingRequestCountResult,
     unreadConversationCountResult,
   ] =
     await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, country, city")
+        .select("full_name, avatar_url, country, city")
         .eq("id", user.id)
         .single(),
       supabase
@@ -198,6 +147,7 @@ export default async function ClientDashboardPage({
       supabase.from("projects").select("id", { count: "exact", head: true }).eq("client_id", user.id).in("status", ["published", "in_discussion", "assigned"]),
       supabase.from("projects").select("id", { count: "exact", head: true }).eq("client_id", user.id).eq("status", "draft"),
       supabase.from("applications").select("id, project:projects!inner(client_id)", { count: "exact", head: true }).eq("project.client_id", user.id).in("status", ["pending", "viewed", "shortlisted"]),
+      supabase.from("provider_service_requests").select("id", { count: "exact", head: true }).eq("client_id", user.id).eq("status", "pending"),
       getUnreadConversationCount(supabase, user.id),
     ]);
 
@@ -225,7 +175,7 @@ export default async function ClientDashboardPage({
     throw new Error(workroomsResult.error);
   }
 
-  for (const result of [projectCountResult, activeProjectCountResult, draftProjectCountResult, reviewApplicationCountResult]) {
+  for (const result of [projectCountResult, activeProjectCountResult, draftProjectCountResult, reviewApplicationCountResult, pendingRequestCountResult]) {
     if (result.error) throw new Error(result.error.message);
   }
 
@@ -239,9 +189,6 @@ export default async function ClientDashboardPage({
   const conversations = conversationsResult.data ?? [];
   const serviceRequests = serviceRequestsResult.data ?? [];
   const workrooms = workroomsResult.data ?? [];
-  const projectCount = projectCountResult.count ?? 0;
-  const activeProjectCount = activeProjectCountResult.count ?? 0;
-  const draftProjectCount = draftProjectCountResult.count ?? 0;
   const reviewApplicationCount = reviewApplicationCountResult.count ?? 0;
   const unreadConversationCount = unreadConversationCountResult.data ?? 0;
   const projectIds = projects.map((project) => project.id);
@@ -249,7 +196,7 @@ export default async function ClientDashboardPage({
     projectIds.length > 0
       ? await supabase
           .from("applications")
-          .select("id, project_id, status, created_at")
+          .select("id, project_id")
           .in("project_id", projectIds)
       : { data: [], error: null };
 
@@ -258,305 +205,159 @@ export default async function ClientDashboardPage({
   }
 
   const applications = applicationsResult.data ?? [];
-  const activeProjects = projects;
   const isComplete = isClientProfileComplete(clientProfile);
+
+  const unreadNames = conversations
+    .filter((conversation) => conversation.unread_count > 0)
+    .map((conversation) => conversationPartner(conversation, user.id)?.full_name)
+    .filter((name): name is string => Boolean(name));
+  const needs: NeedsItem[] = [
+    ...(reviewApplicationCount > 0
+      ? [{
+          id: "proposals",
+          title: `${reviewApplicationCount} proposal${reviewApplicationCount === 1 ? "" : "s"} to review`,
+          detail: "New proposals on your active projects",
+          actionLabel: "Review proposals",
+          href: "/dashboard/client/projects",
+          icon: "proposals" as const,
+        }]
+      : []),
+    ...(unreadConversationCount > 0
+      ? [{
+          id: "unread",
+          title: `${unreadConversationCount} unread conversation${unreadConversationCount === 1 ? "" : "s"}`,
+          detail: unreadNames.length > 0 ? joinNames(unreadNames) : "Providers waiting for your reply",
+          actionLabel: "Reply",
+          href: "/dashboard/messages",
+          icon: "message" as const,
+        }]
+      : []),
+    ...(!isComplete
+      ? [{
+          id: "profile",
+          title: "Finish your profile",
+          detail: "Providers reply faster when they can see who they're working with.",
+          actionLabel: "Complete profile",
+          href: "/dashboard/client/profile",
+          icon: "profile" as const,
+        }]
+      : []),
+  ];
 
   return (
     <DashboardShell
-      title="Dashboard"
-      subtitle={`Welcome back, ${
-        profile.full_name.split(" ")[0] || "Client"
-      }. Here's what's happening today.`}
-      actionHref="/oglasi/novi"
-      actionLabel="Post a Project"
       navItems={[
         { href: "/dashboard/client", label: "Overview", active: true },
         {
           href: "/dashboard/client/projects",
           label: "Projects",
-          count: projectCount,
-        },
-        {
-          href: "/dashboard/client/service-requests",
-          label: "Service Requests",
-        },
-        {
-          href: "/dashboard/client/workrooms",
-          label: "Workrooms",
+          count: projectCountResult.count ?? 0,
         },
         {
           href: "/dashboard/messages",
           label: "Messages",
           count: unreadConversationCount,
         },
-        { href: "/dashboard/client/profile", label: "Profile" },
       ]}
     >
-      {!isComplete ? (
-        <section className="flex flex-col gap-3 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-semibold">
-            Complete your profile to improve project matching.
-          </p>
-          <Link href="/dashboard/client/profile" className="font-semibold underline">
-            Complete
-          </Link>
-        </section>
-      ) : null}
-
-      {reviewApplicationCount > 0 || unreadConversationCount > 0 ? (
-      <section className="rounded-lg border border-line bg-white p-5" aria-labelledby="client-attention-title">
-        <h2 id="client-attention-title" className="text-lg font-semibold text-black">Needs attention</h2>
-        <div className="mt-3 flex flex-wrap gap-3 text-sm">
-          {reviewApplicationCount > 0 ? <Link href="/dashboard/client/projects" className="rounded-lg border border-line px-4 py-3 font-semibold text-black hover:bg-zinc-50">
-            {reviewApplicationCount} proposal{reviewApplicationCount === 1 ? "" : "s"} to review
-          </Link> : null}
-          {unreadConversationCount > 0 ? <Link href="/dashboard/messages" className="rounded-lg border border-line px-4 py-3 font-semibold text-black hover:bg-zinc-50">
-            {unreadConversationCount} unread conversation{unreadConversationCount === 1 ? "" : "s"}
-          </Link> : null}
-        </div>
-      </section>
-      ) : null}
-
-      <section className="grid min-w-0 gap-4 md:grid-cols-3">
-        <OverviewStat
-          label="Active Projects"
-          value={String(activeProjectCount)}
-          detail={`${draftProjectCount} draft${draftProjectCount === 1 ? "" : "s"} still in progress`}
+      <div className="space-y-4 sm:space-y-6">
+        <OverviewHeader
+          name={profile.full_name}
+          avatarPath={profile.avatar_url}
+          action={{ href: "/oglasi/novi", label: "Post a project", icon: "plus" }}
         />
-        <OverviewStat
-          label="Applications to Review"
-          value={String(reviewApplicationCount)}
-          detail="Pending, viewed, or shortlisted proposals"
-        />
-        <OverviewStat
-          label="Unread Messages"
-          value={String(unreadConversationCount)}
-          detail="Conversations needing a reply"
-        />
-      </section>
 
-      <section className="min-w-0 rounded-[1.75rem] border border-line bg-white shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
-        <div className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
-          <h2 className="min-w-0 break-words text-xl font-semibold text-black">
-            Service Requests
-          </h2>
-          <Link
-            href="/dashboard/client/service-requests"
-            className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
-          >
-            View all requests
-          </Link>
-        </div>
-
-        <div className="mx-5 mt-4 space-y-3">
-          <ServiceRequestNotice status={serviceStatus} error={serviceError} />
-        </div>
-
-        <div className="space-y-4 p-5">
-          {serviceRequests.length > 0 ? (
-            serviceRequests.map((request) => (
-              <ServiceRequestCard
-                key={request.id}
-                request={request}
-                viewerRole="client"
-                context="client-home"
-                compact
-              />
-            ))
-          ) : (
-            <div className="rounded-3xl border border-dashed border-line p-8 text-sm leading-6 text-secondary">
-              No service requests yet. Browse Find Talent to request a provider
-              service.
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="min-w-0 rounded-[1.75rem] border border-line bg-white shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
-        <div className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
-          <h2 className="min-w-0 break-words text-xl font-semibold text-black">
-            Workrooms
-          </h2>
-          <Link
-            href="/dashboard/client/workrooms"
-            className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
-          >
-            View all workrooms
-          </Link>
-        </div>
-
-        <div className="space-y-4 p-5">
-          {workrooms.length > 0 ? (
-            workrooms.map((workroom) => (
-              <WorkroomCard
-                key={workroom.id}
-                workroom={workroom}
-                viewerRole="client"
-              />
-            ))
-          ) : (
-            <div className="rounded-3xl border border-dashed border-line p-8 text-sm leading-6 text-secondary">
-              Accepted service requests will appear here.
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 rounded-[1.75rem] border border-line bg-white shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
-          <div className="flex min-w-0 items-center justify-between gap-4 border-b border-line px-5 py-4">
-            <h2 className="min-w-0 break-words text-xl font-semibold text-black">
-              Active Projects
-            </h2>
-            <Link
-              href="/dashboard/client/projects"
-              className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
-            >
-              View All
-            </Link>
+        {serviceStatus || serviceError ? (
+          <div className="space-y-3">
+            <ServiceRequestNotice status={serviceStatus} error={serviceError} />
           </div>
+        ) : null}
 
-          <div className="divide-y divide-line">
-            {activeProjects.length > 0 ? (
-              activeProjects.map((project) => {
-                const applicationCount = applications.filter(
-                  (application) => application.project_id === project.id,
-                ).length;
+        <NeedsYouCard
+          items={needs}
+          caughtUpText="New proposals, requests and messages will show up here."
+        />
 
-                return (
-                  <article
-                    key={project.id}
-                    className="flex min-w-0 flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="break-words text-base font-semibold text-black">
-                          {project.title}
-                        </h3>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClasses(
-                            project.status,
-                          )}`}
-                        >
-                          {statusLabel(project.status)}
-                        </span>
-                      </div>
-                      <p className="mt-1 line-clamp-1 break-words text-sm text-secondary">
-                        {formatBudgetLabel(
-                          project.budget_type,
-                          project.budget_min,
-                          project.budget_max,
-                        )}{" "}
-                        · {formatDateLabel(project.deadline_date)}
-                      </p>
-                    </div>
+        <StatLinks
+          stats={[
+            { label: "Active projects", value: activeProjectCountResult.count ?? 0, href: "/dashboard/client/projects" },
+            { label: "Drafts", value: draftProjectCountResult.count ?? 0, href: "/dashboard/client/projects?status=draft" },
+            { label: "Requests awaiting reply", value: pendingRequestCountResult.count ?? 0, href: "/dashboard/client/service-requests?status=pending" },
+          ]}
+        />
 
-                    <div className="flex min-w-0 items-center justify-between gap-4 md:shrink-0 md:justify-start">
-                      <div className="text-right text-sm">
-                        <p className="font-semibold text-black">
-                          {applicationCount || "--"}
-                        </p>
-                        <p className="text-xs text-secondary">Applicants</p>
-                      </div>
-                      <Link
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-1 lg:gap-6">
+            <OverviewPanel
+              id="projects-heading"
+              title="Active projects"
+              viewAllHref={projects.length > 0 ? "/dashboard/client/projects" : undefined}
+            >
+              {projects.length > 0 ? (
+                <OverviewRows>
+                  {projects.map((project) => {
+                    const proposalCount = applications.filter(
+                      (application) => application.project_id === project.id,
+                    ).length;
+                    const status = projectStatus[project.status] ?? projectStatus.published;
+
+                    return (
+                      <OverviewRow
+                        key={project.id}
                         href={`/oglasi/${project.id}`}
-                        className="shrink-0 rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-                      >
-                        Review
-                      </Link>
-                    </div>
-                  </article>
-                );
-              })
-            ) : (
-              <div className="p-8 text-sm leading-6 text-secondary">
-                No active projects yet. Publish a brief to start receiving provider
-                interest.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <aside className="min-w-0 space-y-5">
-          <section className="min-w-0 rounded-[1.75rem] border border-line bg-white p-5 shadow-[0_16px_45px_rgba(17,17,17,0.05)]">
-            <div className="flex min-w-0 items-center justify-between gap-4">
-              <h2 className="min-w-0 break-words text-xl font-semibold text-black">
-                Recent Messages
-              </h2>
-              <Link
-                href="/dashboard/messages"
-                className="shrink-0 text-sm font-semibold text-black transition hover:opacity-70"
-              >
-                Open
-              </Link>
-            </div>
-            <div className="mt-5 space-y-4">
-              {conversations.length > 0 ? (
-                conversations.map((conversation) => {
-                  const otherParty =
-                    conversation.provider_id === user.id
-                      ? conversation.client
-                      : conversation.provider;
-
-                  return (
-                    <Link
-                      key={conversation.id}
-                      href={`/dashboard/messages?conversation=${conversation.id}`}
-                      className="block min-w-0 rounded-2xl border border-line p-4 transition hover:bg-black/3"
-                    >
-                      <div className="flex min-w-0 items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-start gap-3">
-                          <Avatar name={otherParty?.full_name ?? "Marketplace member"} avatarPath={otherParty?.avatar_url} size="md" />
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-black">
-                              {otherParty?.full_name ?? "Marketplace conversation"}
-                            </p>
-                            <p className="mt-1 line-clamp-2 text-sm leading-5 text-secondary">
-                              {conversation.last_message?.message_text ??
-                                "No messages yet."}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="shrink-0 text-xs text-secondary">
-                          {formatTimeAgo(
-                            conversation.last_message?.created_at ??
-                              conversation.updated_at,
-                          )}
-                        </span>
-                      </div>
-                    </Link>
-                  );
-                })
+                        title={project.title}
+                        detail={`${formatBudgetLabel(project.budget_type, project.budget_min, project.budget_max)} · ${proposalCount} proposal${proposalCount === 1 ? "" : "s"}`}
+                        chip={<StatusChip label={status.label} tone={status.tone} />}
+                      />
+                    );
+                  })}
+                </OverviewRows>
               ) : (
-                <p className="rounded-2xl border border-dashed border-line p-4 text-sm text-secondary">
-                  No conversations yet.
-                </p>
+                <PanelEmpty
+                  text="No active projects. Post a brief and providers from every trade can send you proposals."
+                  link={{ href: "/oglasi/novi", label: "Post a project" }}
+                />
               )}
-            </div>
-          </section>
+            </OverviewPanel>
 
-          <section
-            className={`min-w-0 rounded-[1.75rem] border p-5 ${
-              isComplete
-                ? "border-green-200 bg-green-50"
-                : "border-amber-200 bg-amber-50"
-            }`}
-          >
-            <p className="text-sm font-semibold text-black">Profile Status</p>
-            <p className="mt-2 text-sm leading-6 text-secondary">
-              {isComplete
-                ? "Your client profile is complete."
-                : "Complete your profile so providers have the context they need."}
-            </p>
-            <Link
-              href="/dashboard/client/profile"
-              className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+            <OverviewPanel
+              id="requests-heading"
+              title="Service requests sent"
+              viewAllHref={serviceRequests.length > 0 ? "/dashboard/client/service-requests" : undefined}
             >
-              Manage profile
-            </Link>
-          </section>
-        </aside>
-      </section>
+              {serviceRequests.length > 0 ? (
+                <OverviewRows>
+                  {serviceRequests.map((request) => {
+                    const status = requestStatus[request.status] ?? requestStatus.pending;
+                    const providerName = request.provider?.full_name ?? "Provider";
+
+                    return (
+                      <OverviewRow
+                        key={request.id}
+                        href={`/dashboard/service-requests/${request.id}`}
+                        person={{ name: providerName, avatarPath: request.provider?.avatar_url ?? null }}
+                        title={request.service?.title ?? "Service request"}
+                        detail={providerName}
+                        chip={<StatusChip label={status.label} tone={status.tone} />}
+                      />
+                    );
+                  })}
+                </OverviewRows>
+              ) : (
+                <PanelEmpty
+                  text="No service requests yet. Find a provider and request one of their services."
+                  link={{ href: "/find-talent", label: "Find talent" }}
+                />
+              )}
+            </OverviewPanel>
+          </div>
+
+          <aside aria-label="Workrooms and messages" className="flex min-w-0 flex-col gap-4 lg:w-80 lg:shrink-0 lg:gap-6">
+            <WorkroomsPanel workrooms={workrooms} role="client" />
+            <MessagesPanel conversations={conversations} userId={user.id} role="client" />
+          </aside>
+        </div>
+      </div>
     </DashboardShell>
   );
 }

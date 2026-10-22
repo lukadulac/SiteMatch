@@ -94,3 +94,29 @@ select:autofill {
   background-color: #ffffff !important;
   transition: background-color 9999s ease-out 0s;
 }
+
+/* Brand accent: the violet to pink gradient as a hover border on cards. */
+@utility brand-hover-border {
+  &:hover,
+  &:focus-visible {
+    border-color: transparent;
+    background:
+      linear-gradient(#ffffff, #ffffff) padding-box,
+      linear-gradient(135deg, #8b5cf6, #a855f7, #ec4899) border-box;
+    outline: none;
+  }
+}
+
+/* Brand accent: a gradient underline that grows in on hover. It sits under
+   the text (content box), so the link can keep a tall padded tap area. */
+@utility brand-underline {
+  background: linear-gradient(90deg, #8b5cf6, #a855f7, #ec4899) 0 100% / 0 2px no-repeat;
+  background-origin: content-box;
+  transition: background-size 200ms ease;
+
+  &:hover,
+  &:focus-visible {
+    background-size: 100% 2px;
+    outline: none;
+  }
+}
