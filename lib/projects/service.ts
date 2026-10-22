@@ -86,9 +86,15 @@ export type ProviderProjectSummary = Pick<
 	| "updated_at"
 >;
 
+type NamedTag = { id: string; name: string };
+
 type ProviderProjectDetail = Database["public"]["Tables"]["projects"]["Row"] & {
 	goal_ids: string[];
 	feature_ids: string[];
+	/** Readable names for the ids above; empty when the viewer may not read the taxonomies. */
+	goals: NamedTag[];
+	features: NamedTag[];
+	service_type_name: string | null;
 };
 
 type ClientProjectApplicationSummary = Pick<
@@ -722,15 +728,23 @@ export async function getPublicPublishedProjectById(
 	const [
 		{ data: goals, error: goalsError },
 		{ data: features, error: featuresError },
+		{ data: serviceType },
 	] = await Promise.all([
 		supabase
 			.from("project_request_goals")
-			.select("goal_id")
+			.select("goal_id, project_goals(name)")
 			.eq("project_id", projectId),
 		supabase
 			.from("project_request_features")
-			.select("feature_id")
+			.select("feature_id, feature_tags(name)")
 			.eq("project_id", projectId),
+		project.service_type_id
+			? supabase
+					.from("service_types")
+					.select("name")
+					.eq("id", project.service_type_id)
+					.maybeSingle()
+			: Promise.resolve({ data: null }),
 	]);
 
 	if (goalsError) {
@@ -746,6 +760,13 @@ export async function getPublicPublishedProjectById(
 			...project,
 			goal_ids: (goals ?? []).map((item) => item.goal_id),
 			feature_ids: (features ?? []).map((item) => item.feature_id),
+			goals: (goals ?? []).flatMap((item) =>
+				item.project_goals ? [{ id: item.goal_id, name: item.project_goals.name }] : [],
+			),
+			features: (features ?? []).flatMap((item) =>
+				item.feature_tags ? [{ id: item.feature_id, name: item.feature_tags.name }] : [],
+			),
+			service_type_name: serviceType?.name ?? null,
 		},
 	};
 }
