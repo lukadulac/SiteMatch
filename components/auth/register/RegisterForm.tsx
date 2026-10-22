@@ -113,7 +113,9 @@ export default function RegisterForm({ next }: { next?: string | null }) {
 			Join Work<span className="bg-linear-to-r from-violet-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">Bridge</span>
 		</h1>
 		<p className="text-center mb-4 mt-2">Create your account and get started.</p>
-		<form onSubmit={handleSubmit}>
+		{/* method="post" keeps a submit made before hydration from putting the
+		    password in the URL as a GET query. */}
+		<form method="post" onSubmit={handleSubmit}>
 			{next ? <input type="hidden" name="next" value={next} /> : null}
 			<RoleSelector
 				selectedRole={selectedRole}

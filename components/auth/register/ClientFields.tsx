@@ -111,7 +111,7 @@ export default function ClientFields({ errors }: ClientFieldsProps) {
 			</div>
 
 			<fieldset className="mt-4">
-				<legend className="flex w-full justify-between gap-2 font-semibold">Interested solution types <span className="text-xs font-normal text-secondary">Optional</span></legend>
+				<legend className="flex w-full justify-between gap-2 font-semibold">Services you need <span className="text-xs font-normal text-secondary">Optional</span></legend>
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 mt-2">
 					{clientSolutionTypes.map((type) => (
 						<label
@@ -136,14 +136,14 @@ export default function ClientFields({ errors }: ClientFieldsProps) {
 
 			{selectedSolutions.includes("other") ? (
 				<div className="flex flex-col gap-2 my-2">
-					<FieldLabel htmlFor="interested_solution_other_text" required>Other solution type</FieldLabel>
+					<FieldLabel htmlFor="interested_solution_other_text" required>Other service</FieldLabel>
 					<input
 						id="interested_solution_other_text"
 						name="interested_solution_other_text"
 						type="text"
 						className={fieldClass(fieldError(errors, "interested_solution_other_text"))}
 						required
-						placeholder="Tell us your other interested solution type"
+						placeholder="Describe the service you need"
 					/>
 					<FieldError name="interested_solution_other_text" errors={errors} />
 				</div>

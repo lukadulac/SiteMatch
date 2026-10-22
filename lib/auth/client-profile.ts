@@ -38,15 +38,21 @@ export const clientBusinessTypes = [
 ] as const;
 
 export const clientSolutionTypes = [
-  "web_presentation",
-  "business_website",
-  "ecommerce_store",
-  "web_application",
-  "portfolio",
-  "booking_platform",
-  "Web_design",
-  "Video_Editing",
-  "Digital_Markteing",
+  "construction_renovation",
+  "home_services",
+  "design_creative",
+  "tech_it",
+  "marketing_sales",
+  "writing_translation",
+  "finance_accounting",
+  "legal",
+  "business_consulting",
+  "education_tutoring",
+  "health_wellness",
+  "beauty_personal_care",
+  "events_hospitality",
+  "photo_video",
+  "transport_logistics",
   "other",
 ] as const;
 
@@ -71,15 +77,21 @@ export const clientSolutionTypeLabels: Record<
   (typeof clientSolutionTypes)[number],
   string
 > = {
-  web_presentation: "Web presentation",
-  business_website: "Business website",
-  ecommerce_store: "E-commerce store",
-  web_application: "Web application",
-  portfolio: "Portfolio",
-  booking_platform: "Booking platform",
-  Web_design: "Web design",
-  Video_Editing: "Video editing",
-  Digital_Markteing: "Digital marketing",
+  construction_renovation: "Construction & renovation",
+  home_services: "Home services & repairs",
+  design_creative: "Design & creative",
+  tech_it: "Tech & IT",
+  marketing_sales: "Marketing & sales",
+  writing_translation: "Writing & translation",
+  finance_accounting: "Finance & accounting",
+  legal: "Legal",
+  business_consulting: "Business consulting",
+  education_tutoring: "Education & tutoring",
+  health_wellness: "Health & wellness",
+  beauty_personal_care: "Beauty & personal care",
+  events_hospitality: "Events & hospitality",
+  photo_video: "Photo & video",
+  transport_logistics: "Transport & logistics",
   other: "Other",
 };
 
@@ -101,7 +113,7 @@ export const clientProfileInputSchema = z
     ),
     interested_solution_types: z
       .array(clientSolutionTypeSchema)
-      .max(clientSolutionTypes.length, "Choose each solution type only once."),
+      .max(clientSolutionTypes.length, "Choose each service only once."),
     interested_solution_other_text: optionalText(120),
   })
   .superRefine((value, ctx) => {
@@ -128,7 +140,7 @@ export const clientProfileInputSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["interested_solution_other_text"],
-        message: "Describe the other digital solution type.",
+        message: "Describe the other service you need.",
       });
     }
 
@@ -139,7 +151,7 @@ export const clientProfileInputSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["interested_solution_other_text"],
-        message: "Extra solution text is only allowed when Other is selected.",
+        message: "Extra service text is only allowed when Other is selected.",
       });
     }
   });

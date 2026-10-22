@@ -11,7 +11,7 @@ function baseClientProfile(overrides: Record<string, unknown> = {}) {
 		business_type: "local_service",
 		project_idea:
 			"We want a booking site for our two salon locations in Novi Sad.",
-		interested_solution_types: ["business_website"],
+		interested_solution_types: ["tech_it"],
 		...overrides,
 	};
 }
@@ -60,6 +60,21 @@ describe("clientProfileInputSchema", () => {
 		).toHaveProperty("interested_solution_types");
 	});
 
+	it("accepts services from any industry and rejects the old web-only keys", () => {
+		expect(
+			clientProfileInputSchema.safeParse(
+				baseClientProfile({
+					interested_solution_types: ["construction_renovation", "legal", "transport_logistics"],
+				}),
+			).success,
+		).toBe(true);
+		expect(
+			fieldErrors(
+				baseClientProfile({ interested_solution_types: ["business_website"] }),
+			),
+		).toHaveProperty("interested_solution_types");
+	});
+
 	describe("the 'other' business type pairing", () => {
 		it("requires custom text when 'other' is selected", () => {
 			expect(
@@ -103,7 +118,7 @@ describe("clientProfileInputSchema", () => {
 			expect(
 				fieldErrors(
 					baseClientProfile({
-						interested_solution_types: ["portfolio"],
+						interested_solution_types: ["design_creative"],
 						interested_solution_other_text: "Something else",
 					}),
 				),
@@ -114,7 +129,7 @@ describe("clientProfileInputSchema", () => {
 			expect(
 				clientProfileInputSchema.safeParse(
 					baseClientProfile({
-						interested_solution_types: ["portfolio", "other"],
+						interested_solution_types: ["design_creative", "other"],
 						interested_solution_other_text: "Interactive kiosk",
 					}),
 				).success,
@@ -163,13 +178,13 @@ describe("parseClientProfileForm", () => {
 				business_type: "local_service",
 				project_idea:
 					"We want a booking site for our two salon locations in Novi Sad.",
-				interested_solution_types: ["business_website", "portfolio"],
+				interested_solution_types: ["tech_it", "design_creative"],
 			}),
 		);
 
 		expect(parsed.interested_solution_types).toEqual([
-			"business_website",
-			"portfolio",
+			"tech_it",
+			"design_creative",
 		]);
 	});
 

@@ -106,7 +106,7 @@ function registerForm(overrides: Record<string, string | string[]> = {}) {
 		business_name: "Dulac Studio",
 		business_type: "local_service",
 		project_idea: "We want a booking site for our two salon locations.",
-		interested_solution_types: ["business_website"],
+		interested_solution_types: ["tech_it"],
 		...overrides,
 	});
 }
@@ -313,6 +313,7 @@ describe("registerAction", () => {
 		);
 
 		expect(state.fieldErrors).toHaveProperty("role");
+		expect(state.formError).toBe("Please fix the highlighted fields: Account type.");
 	});
 
 	it("rejects an unknown role", async () => {
