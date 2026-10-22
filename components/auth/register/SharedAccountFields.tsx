@@ -1,8 +1,4 @@
-import {
-	getRegisterFieldValue,
-	type RegisterFieldErrors,
-	type RegisterFormFields,
-} from "@/components/auth/register/RegisterForm";
+import type { RegisterFieldErrors } from "@/components/auth/register/RegisterForm";
 import { FieldError, FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 import { AvatarPicker } from "@/components/profile/avatar-picker";
 
@@ -16,7 +12,6 @@ export type RegistrationAvatarState = {
 
 type SharedAccountFieldsProps = {
 	errors?: RegisterFieldErrors;
-	fields?: RegisterFormFields;
 	avatar: RegistrationAvatarState;
 };
 
@@ -29,7 +24,7 @@ const accountFields = [
 	{ name: "password", label: "Password", type: "password", autoComplete: "new-password", placeholder: "At least 8 characters", required: true },
 ] as const;
 
-export default function SharedAccountFields({ errors, fields, avatar }: SharedAccountFieldsProps) {
+export default function SharedAccountFields({ errors, avatar }: SharedAccountFieldsProps) {
 	return (
 		<section className="p-2">
 			<h3 className="font-semibold">Personal information</h3>
@@ -50,7 +45,6 @@ export default function SharedAccountFields({ errors, fields, avatar }: SharedAc
 								required={field.required}
 								aria-invalid={Boolean(error)}
 								aria-describedby={error ? `${field.name}-error` : undefined}
-								defaultValue={field.name === "password" ? undefined : getRegisterFieldValue(fields, field.name)}
 							/>
 							<FieldError name={field.name} errors={errors} />
 						</div>

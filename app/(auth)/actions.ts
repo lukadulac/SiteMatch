@@ -167,13 +167,14 @@ function getStringValue(formData: FormData, key: string) {
   return typeof value === "string" ? value : "";
 }
 
-function collectRegisterFields(formData: FormData) {
+function collectRegisterInput(formData: FormData) {
   return {
     full_name: getStringValue(formData, "full_name"),
     email: getStringValue(formData, "email"),
     phone: getStringValue(formData, "phone"),
     country: getStringValue(formData, "country"),
     city: getStringValue(formData, "city"),
+    password: getStringValue(formData, "password"),
     role: getStringValue(formData, "role"),
     business_name: getStringValue(formData, "business_name"),
     business_tax_id: getStringValue(formData, "business_tax_id"),
@@ -194,14 +195,8 @@ function collectRegisterFields(formData: FormData) {
       "service_category_other_text",
     ),
     about: getStringValue(formData, "about"),
-    interested_solution_types: formData
-      .getAll("interested_solution_types")
-      .filter((value): value is string => typeof value === "string")
-      .join("||"),
-    service_categories: formData
-      .getAll("service_categories")
-      .filter((value): value is string => typeof value === "string")
-      .join("||"),
+    interested_solution_types: formData.getAll("interested_solution_types"),
+    service_categories: formData.getAll("service_categories"),
   };
 }
 
@@ -275,8 +270,8 @@ function describeInvalidFields(
 }
 
 function validationError(
-  fields: Record<string, string>,
   fieldErrors: Record<string, string[] | undefined>,
+  fields?: Record<string, string>,
 ): AuthActionState {
   return {
     formError: describeInvalidFields(fieldErrors),
@@ -328,30 +323,23 @@ export async function registerAction(
   _previousState: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
-  const fields = collectRegisterFields(formData);
-  const registerInput = {
-    ...fields,
-    password: getStringValue(formData, "password"),
-    years_of_experience: fields.years_of_experience,
-    interested_solution_types: formData.getAll("interested_solution_types"),
-    service_categories: formData.getAll("service_categories"),
-  };
+  const registerInput = collectRegisterInput(formData);
 
   const parsed =
-    fields.role === "client"
+    registerInput.role === "client"
       ? clientRegisterSchema.safeParse(registerInput)
-      : fields.role === "provider"
+      : registerInput.role === "provider"
         ? providerRegisterSchema.safeParse(registerInput)
         : null;
 
   if (!parsed) {
-    return validationError(fields, {
+    return validationError({
       role: ["Choose whether you want to hire talent or find work."],
     });
   }
 
   if (!parsed.success) {
-    return validationError(fields, parsed.error.flatten().fieldErrors);
+    return validationError(parsed.error.flatten().fieldErrors);
   }
 
   const avatarEntry = formData.get("avatar");
@@ -361,7 +349,7 @@ export async function registerAction(
     const validAvatar = await validateAvatarFile(avatarEntry, MAX_REGISTRATION_AVATAR_BYTES);
 
     if ("error" in validAvatar) {
-      return validationError(fields, { avatar: [validAvatar.error] });
+      return validationError({ avatar: [validAvatar.error] });
     }
 
     avatar = validAvatar;
@@ -394,7 +382,6 @@ export async function registerAction(
           : "We could not create your account. Please try again.",
       formSuccess: undefined,
       fieldErrors: {},
-      fields,
     };
   }
 
@@ -450,7 +437,6 @@ export async function registerAction(
         formError: getSignUpErrorMessage(signUpError?.code),
         formSuccess: undefined,
         fieldErrors: {},
-        fields,
       };
     }
 
@@ -501,7 +487,6 @@ export async function registerAction(
       formError: "We could not finish creating your account. Please try again.",
       formSuccess: undefined,
       fieldErrors: {},
-      fields,
     };
   }
 
@@ -513,7 +498,6 @@ export async function registerAction(
     formError: "We could not determine where to send you after signup.",
     formSuccess: undefined,
     fieldErrors: {},
-    fields,
   };
 }
 
@@ -532,7 +516,7 @@ export async function loginAction(
   });
 
   if (!parsed.success) {
-    return validationError(fields, parsed.error.flatten().fieldErrors);
+    return validationError(parsed.error.flatten().fieldErrors, fields);
   }
 
   const supabase = await createSupabaseServerClient();

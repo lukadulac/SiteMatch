@@ -596,20 +596,19 @@ describe("registerAction", () => {
 		expect(consoleError).toHaveBeenCalled();
 	});
 
-	it("keeps the submitted values so the form can be re-rendered", async () => {
+	it("does not send the submitted values back", async () => {
 		arrangeSupabase();
 
-		const state = await registerAction(
+		const invalid = await registerAction(
 			initialAuthActionState,
 			registerForm({ project_idea: "too short" }),
 		);
+		arrangeSupabase({ signUp: { error: { message: "User already registered" } } });
+		const failed = await registerAction(initialAuthActionState, registerForm());
 
-		expect(state.fields).toMatchObject({
-			full_name: "Ana Petrovic",
-			email: "ana@example.com",
-			business_name: "Dulac Studio",
-		});
-		expect(state.fields).not.toHaveProperty("password");
+		expect(invalid.fieldErrors).toHaveProperty("project_idea");
+		expect(invalid.fields).toBeUndefined();
+		expect(failed.fields).toBeUndefined();
 	});
 });
 

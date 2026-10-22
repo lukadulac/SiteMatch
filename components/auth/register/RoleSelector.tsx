@@ -27,7 +27,7 @@ export default function RoleSelector({
 							: "border-gray-400 hover:border-muted-foreground/50"
 					}`}
 				>
-					<input type="radio" name="role" value="client" checked={isClientSelected} onChange={() => onRoleChange("client")} className="sr-only peer" required />
+					<input type="radio" name="role" value="client" checked={isClientSelected} onChange={() => onRoleChange("client")} className="sr-only peer" />
 					<div className="mb-3 flex items-start justify-between">
 						<div
 							className={`rounded-lg p-3 ${
@@ -77,7 +77,7 @@ export default function RoleSelector({
 							: "border-gray-400 hover:border-muted-foreground/50"
 					}`}
 				>
-					<input type="radio" name="role" value="provider" checked={isProviderSelected} onChange={() => onRoleChange("provider")} className="sr-only peer" required />
+					<input type="radio" name="role" value="provider" checked={isProviderSelected} onChange={() => onRoleChange("provider")} className="sr-only peer" />
 					<div className="mb-3 flex items-start justify-between">
 						<div
 							className={`rounded-lg p-3 ${

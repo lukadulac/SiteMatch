@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { startTransition, useActionState, useEffect, useState, type SubmitEvent } from "react";
 import { initialAuthActionState } from "@/app/(auth)/action-state";
 import { registerAction } from "@/app/(auth)/actions";
 import ClientFields from "@/components/auth/register/ClientFields";
@@ -17,34 +16,13 @@ import { AvatarResizeError, resizeAvatar } from "@/lib/profiles/resize-avatar";
 export type RegisterRole = "client" | "provider";
 
 export type RegisterFieldErrors = Record<string, string[] | undefined>;
-export type RegisterFormFields = Record<string, string>;
-
-export const MULTI_VALUE_SEPARATOR = "||";
 
 const submitLabelByRole: Record<RegisterRole, string> = {
 	client: "Create client account",
 	provider: "Create provider account",
 };
 
-export function getRegisterFieldValue(
-	fields: RegisterFormFields | undefined,
-	name: string,
-) {
-	return fields?.[name] ?? "";
-}
-
-export function getRegisterFieldValues(
-	fields: RegisterFormFields | undefined,
-	name: string,
-) {
-	const value = getRegisterFieldValue(fields, name);
-
-	return value === "" ? [] : value.split(MULTI_VALUE_SEPARATOR);
-}
-
-function RegisterSubmitButton({ label }: { label: string }) {
-	const { pending } = useFormStatus();
-
+function RegisterSubmitButton({ label, pending }: { label: string; pending: boolean }) {
 	return (
 		<button
 			className="w-full cursor-pointer rounded-2xl bg-linear-to-r from-violet-500 via-purple-500 to-pink-500 p-4 text-2xl text-white disabled:cursor-not-allowed disabled:opacity-70"
@@ -109,12 +87,22 @@ function useRegistrationAvatar() {
 }
 
 export default function RegisterForm({ next }: { next?: string | null }) {
-	const [state, formAction] = useActionState(
+	const [state, formAction, isPending] = useActionState(
 		registerAction,
 		initialAuthActionState,
 	);
 	const [selectedRole, setSelectedRole] = useState<RegisterRole | null>(null);
 	const avatar = useRegistrationAvatar();
+
+	// Submitting through onSubmit rather than the form's action keeps React from
+	// resetting the form afterwards, which would clear the password and uncheck
+	// the controlled role radio while the page still shows it as selected.
+	function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+		event.preventDefault();
+		const formData = setAvatarFormField(new FormData(event.currentTarget), avatar.blob);
+		startTransition(() => formAction(formData));
+	}
+
 	if (state.verificationRequired) {
 		return <VerifyEmailForm email={state.fields?.email} next={next} registered />;
 	}
@@ -125,7 +113,7 @@ export default function RegisterForm({ next }: { next?: string | null }) {
 			Join Work<span className="bg-linear-to-r from-violet-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">Bridge</span>
 		</h1>
 		<p className="text-center mb-4 mt-2">Create your account and get started.</p>
-		<form action={(formData) => formAction(setAvatarFormField(formData, avatar.blob))}>
+		<form onSubmit={handleSubmit}>
 			{next ? <input type="hidden" name="next" value={next} /> : null}
 			<RoleSelector
 				selectedRole={selectedRole}
@@ -133,26 +121,12 @@ export default function RegisterForm({ next }: { next?: string | null }) {
 				error={state.fieldErrors?.role?.[0]}
 			/>
 
-			<SharedAccountFields errors={state.fieldErrors} fields={state.fields} avatar={avatar.field} />
+			<SharedAccountFields errors={state.fieldErrors} avatar={avatar.field} />
 
 			{selectedRole === "client" ? (
-				<ClientFields
-					errors={state.fieldErrors}
-					fields={state.fields}
-					selectedSolutionTypes={getRegisterFieldValues(
-						state.fields,
-						"interested_solution_types",
-					)}
-				/>
+				<ClientFields errors={state.fieldErrors} />
 			) : selectedRole === "provider" ? (
-				<ProviderFields
-					errors={state.fieldErrors}
-					fields={state.fields}
-					selectedServiceCategories={getRegisterFieldValues(
-						state.fields,
-						"service_categories",
-					)}
-				/>
+				<ProviderFields errors={state.fieldErrors} />
 			) : null}
 
 			{state.formError ? (
@@ -168,7 +142,10 @@ export default function RegisterForm({ next }: { next?: string | null }) {
 			) : null}
 
 			<div className="my-2 w-full">
-				<RegisterSubmitButton label={selectedRole ? submitLabelByRole[selectedRole] : "Create account"} />
+				<RegisterSubmitButton
+					label={selectedRole ? submitLabelByRole[selectedRole] : "Create account"}
+					pending={isPending}
+				/>
 				<p className="mt-4 text-center text-xl text-muted-foreground">
 					Already have an account?{" "}
 					<Link href={getLoginHref(next)} className="font-semibold text-black">

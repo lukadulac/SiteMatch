@@ -6,30 +6,16 @@ import {
 	providerTypeLabels,
 	providerTypes,
 } from "@/lib/auth/provider-profile";
-import {
-	getRegisterFieldValue,
-	type RegisterFieldErrors,
-	type RegisterFormFields,
-} from "@/components/auth/register/RegisterForm";
+import type { RegisterFieldErrors } from "@/components/auth/register/RegisterForm";
 import { FieldError, FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 
 type ProviderFieldsProps = {
 	errors?: RegisterFieldErrors;
-	fields?: RegisterFormFields;
-	selectedServiceCategories: string[];
 };
 
-export default function ProviderFields({
-	errors,
-	fields,
-	selectedServiceCategories,
-}: ProviderFieldsProps) {
-	const [providerType, setProviderType] = useState(
-		getRegisterFieldValue(fields, "provider_type"),
-	);
-	const [selectedCategories, setSelectedCategories] = useState<string[]>(
-		selectedServiceCategories,
-	);
+export default function ProviderFields({ errors }: ProviderFieldsProps) {
+	const [providerType, setProviderType] = useState("");
+	const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
 	function handleServiceCategoryChange(category: string, checked: boolean) {
 		setSelectedCategories((current) => {
@@ -82,7 +68,6 @@ export default function ProviderFields({
 							type="text"
 							className={fieldClass(fieldError(errors, "tax_id"))}
 							placeholder="xxxxxxxx"
-							defaultValue={getRegisterFieldValue(fields, "tax_id")}
 						/>
 						<FieldError name="tax_id" errors={errors} />
 					</div>
@@ -94,7 +79,6 @@ export default function ProviderFields({
 					<select
 						id="years_of_experience"
 						name="years_of_experience"
-						defaultValue={getRegisterFieldValue(fields, "years_of_experience")}
 						className={fieldClass(fieldError(errors, "years_of_experience"))}
 					>
 						<option value="">
@@ -119,7 +103,6 @@ export default function ProviderFields({
 						autoComplete="url"
 						className={fieldClass(fieldError(errors, "portfolio_url"))}
 						placeholder="https://yourportfolio.com"
-						defaultValue={getRegisterFieldValue(fields, "portfolio_url")}
 					/>
 					<FieldError name="portfolio_url" errors={errors} />
 				</div>
@@ -135,7 +118,6 @@ export default function ProviderFields({
 					autoComplete="url"
 					className={fieldClass(fieldError(errors, "social_link"))}
 					placeholder="https://linkedin.com/in/yourprofile"
-					defaultValue={getRegisterFieldValue(fields, "social_link")}
 				/>
 				<FieldError name="social_link" errors={errors} />
 			</div>
@@ -174,10 +156,6 @@ export default function ProviderFields({
 						className={fieldClass(fieldError(errors, "service_category_other_text"))}
 						required
 						placeholder="Tell us your service category"
-						defaultValue={getRegisterFieldValue(
-							fields,
-							"service_category_other_text",
-						)}
 					/>
 					<FieldError name="service_category_other_text" errors={errors} />
 				</div>
@@ -191,7 +169,6 @@ export default function ProviderFields({
 					rows={5}
 					className={fieldClass(fieldError(errors, "about"))}
 					placeholder="Tell us about your experience, skills, and what makes you unique..."
-					defaultValue={getRegisterFieldValue(fields, "about")}
 				/>
 				<FieldError name="about" errors={errors} />
 			</div>
