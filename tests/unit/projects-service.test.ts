@@ -29,7 +29,7 @@ const COMPLETE_CLIENT_PROFILE = {
 		business_type: "local_service",
 		business_type_text: null,
 		project_idea: "A booking site for two salon locations.",
-		interested_solution_types: ["business_website"],
+		interested_solution_types: ["tech_it"],
 		interested_solution_other_text: null,
 	},
 };

@@ -36,8 +36,8 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 		<section className="p-2">
 			<h3 className="font-semibold">Provider details</h3>
 			<hr className="border-gray-400 mx-auto my-2" />
-			<div className="flex flex-col gap-2 md:flex-row">
-				<div className="flex flex-col my-2">
+			<div className="grid gap-4 md:grid-cols-2">
+				<div className="flex min-w-0 flex-col gap-2">
 					<FieldLabel htmlFor="provider_type" required>Provider type</FieldLabel>
 					<select
 						id="provider_type"
@@ -60,7 +60,7 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 				</div>
 
 				{shouldShowTaxId ? (
-					<div className="flex flex-col">
+					<div className="flex min-w-0 flex-col gap-2">
 						<FieldLabel htmlFor="tax_id">Business registration ID</FieldLabel>
 						<input
 							id="tax_id"
@@ -72,9 +72,8 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 						<FieldError name="tax_id" errors={errors} />
 					</div>
 				) : null}
-			</div>
-			<div className="flex flex-col gap-2  md:flex-row">
-				<div className="flex flex-col my-2">
+
+				<div className="flex min-w-0 flex-col gap-2">
 					<FieldLabel htmlFor="years_of_experience">Years of experience</FieldLabel>
 					<select
 						id="years_of_experience"
@@ -93,7 +92,7 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 					<FieldError name="years_of_experience" errors={errors} />
 				</div>
 
-				<div className="flex flex-col gap-2">
+				<div className="flex min-w-0 flex-col gap-2">
 					<FieldLabel htmlFor="portfolio_url">Portfolio URL</FieldLabel>
 					<input
 						id="portfolio_url"
@@ -106,20 +105,20 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 					/>
 					<FieldError name="portfolio_url" errors={errors} />
 				</div>
-			</div>
 
-			<div className="flex flex-col gap-2 my-4">
-				<FieldLabel htmlFor="social_link">Social link</FieldLabel>
-				<input
-					id="social_link"
-					name="social_link"
-					type="text"
-					inputMode="url"
-					autoComplete="url"
-					className={fieldClass(fieldError(errors, "social_link"))}
-					placeholder="https://linkedin.com/in/yourprofile"
-				/>
-				<FieldError name="social_link" errors={errors} />
+				<div className="flex min-w-0 flex-col gap-2">
+					<FieldLabel htmlFor="social_link">Social link</FieldLabel>
+					<input
+						id="social_link"
+						name="social_link"
+						type="text"
+						inputMode="url"
+						autoComplete="url"
+						className={fieldClass(fieldError(errors, "social_link"))}
+						placeholder="https://linkedin.com/in/yourprofile"
+					/>
+					<FieldError name="social_link" errors={errors} />
+				</div>
 			</div>
 
 			<fieldset className="mt-4">

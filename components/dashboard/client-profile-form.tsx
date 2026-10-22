@@ -318,7 +318,7 @@ export function ClientProfileForm({
 
         <fieldset className="mt-4">
           <h3 className="font-semibold">
-            Interested solution types
+            Services you need
             <span className="ml-1 text-red-600">*</span>
           </h3>
           <div className="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -353,7 +353,7 @@ export function ClientProfileForm({
 
         {selectedSolutionTypes.includes("other") ? (
           <InputField
-            label="Other solution type"
+            label="Other service"
             name="interested_solution_other_text"
             defaultValue={fieldValue(
               state,
@@ -361,7 +361,7 @@ export function ClientProfileForm({
               "interested_solution_other_text",
             )}
             error={fieldError(state, "interested_solution_other_text")}
-            placeholder="Tell us your other interested solution type"
+            placeholder="Describe the service you need"
             required
           />
         ) : null}

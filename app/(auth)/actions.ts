@@ -231,7 +231,7 @@ async function storeRegistrationAvatar(userId: string, avatar: ValidAvatarFile) 
 }
 
 const registerFieldLabels: Record<string, string> = {
-  role: "I want to",
+  role: "Account type",
   full_name: "Full name",
   email: "Email",
   phone: "Phone",
@@ -244,8 +244,8 @@ const registerFieldLabels: Record<string, string> = {
   business_type: "Business type",
   business_type_text: "Other business type",
   project_idea: "Project idea",
-  interested_solution_types: "Interested solution types",
-  interested_solution_other_text: "Other solution type",
+  interested_solution_types: "Services you need",
+  interested_solution_other_text: "Other service",
   provider_type: "Provider type",
   tax_id: "Business registration ID",
   years_of_experience: "Years of experience",

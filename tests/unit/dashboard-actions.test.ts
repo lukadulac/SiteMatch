@@ -57,7 +57,7 @@ function clientProfileForm(
 		business_name: "Dulac Studio",
 		business_type: "local_service",
 		project_idea: "We want a booking site for our two salon locations.",
-		interested_solution_types: ["business_website"],
+		interested_solution_types: ["tech_it"],
 		...overrides,
 	});
 }
@@ -158,7 +158,7 @@ describe("updateClientProfileAction", () => {
 		expect(stub.callsFor("client_profiles.upsert")[0]?.payload).toMatchObject({
 			user_id: "user-1",
 			business_name: "Dulac Studio",
-			interested_solution_types: ["business_website"],
+			interested_solution_types: ["tech_it"],
 		});
 	});
 

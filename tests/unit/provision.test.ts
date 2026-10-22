@@ -158,7 +158,7 @@ describe("ensureUserProfile", () => {
 					business_name: "Dulac Studio",
 					business_type: "local_service",
 					project_idea: "A booking site.",
-					interested_solution_types: ["business_website", "", "portfolio"],
+					interested_solution_types: ["tech_it", "", "design_creative"],
 				}),
 			);
 
@@ -166,7 +166,7 @@ describe("ensureUserProfile", () => {
 				user_id: USER_ID,
 				business_name: "Dulac Studio",
 				business_type: "local_service",
-				interested_solution_types: ["business_website", "portfolio"],
+				interested_solution_types: ["tech_it", "design_creative"],
 			});
 		});
 
@@ -196,7 +196,7 @@ describe("ensureUserProfile", () => {
 
 			await ensureUserProfile(
 				stub.client,
-				user({ role: "client", interested_solution_types: "business_website" }),
+				user({ role: "client", interested_solution_types: "tech_it" }),
 			);
 
 			expect(stub.callsFor("client_profiles.upsert")[0]?.payload).toMatchObject({
