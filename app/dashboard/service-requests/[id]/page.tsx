@@ -15,6 +15,12 @@ import { priceTypeLabel } from "@/lib/provider-services/formatters";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Avatar } from "@/components/profile/avatar";
 
+const serviceListingLabels: Record<string, string> = {
+	draft: "Draft",
+	published: "Published",
+	paused: "Paused",
+};
+
 type ServiceRequestDetailPageProps = {
 	params: Promise<{ id: string }>;
 	searchParams?: Promise<{
@@ -122,7 +128,7 @@ export default async function ServiceRequestDetailPage({
 			: "/dashboard/provider/service-requests";
 	const service = request.service;
 	const detailItems = [
-		["Status", service ? service.status : "Service unavailable"],
+		["Service listing", service ? serviceListingLabels[service.status] : "No longer available"],
 		["Pricing", service ? formatPrice({
 			priceType: service.price_type,
 			startingPrice: service.starting_price,
