@@ -6,6 +6,12 @@ import { withdrawProjectApplicationForProvider } from "@/lib/projects/service";
 import { z } from "zod";
 import type { DashboardActionState } from "@/app/dashboard/action-state";
 import { clientProfileInputSchema } from "@/lib/auth/client-profile";
+import {
+	PLACE_NAME_MAX_LENGTH,
+	PLACE_NAME_MIN_LENGTH,
+	placeNameMessage,
+	placeNamePattern,
+} from "@/lib/auth/place-name";
 import { providerProfileInputSchema } from "@/lib/auth/provider-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
@@ -125,7 +131,6 @@ const optionalUrl = z
 	.nullable();
 
 const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
-const placeNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
 const companySizePattern = /^[\p{L}\p{M}\d+,/()\- ]+$/u;
 const phonePattern = /^\+?[0-9().\-\s]{7,20}$/;
 
@@ -157,18 +162,16 @@ const profileSchema = z.object({
 		}
 	}),
 	country: optionalText("Country", {
-		min: 2,
-		max: 56,
+		min: PLACE_NAME_MIN_LENGTH,
+		max: PLACE_NAME_MAX_LENGTH,
 		pattern: placeNamePattern,
-		patternMessage:
-			"Country can only contain letters, spaces, apostrophes, periods, and hyphens.",
+		patternMessage: placeNameMessage("Country"),
 	}),
 	city: optionalText("City", {
-		min: 2,
-		max: 56,
+		min: PLACE_NAME_MIN_LENGTH,
+		max: PLACE_NAME_MAX_LENGTH,
 		pattern: placeNamePattern,
-		patternMessage:
-			"City can only contain letters, spaces, apostrophes, periods, and hyphens.",
+		patternMessage: placeNameMessage("City"),
 	}),
 });
 

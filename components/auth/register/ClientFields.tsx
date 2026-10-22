@@ -6,7 +6,7 @@ import {
 	clientSolutionTypes,
 } from "@/lib/auth/client-profile";
 import type { RegisterFieldErrors } from "@/components/auth/register/RegisterForm";
-import { FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
+import { FieldError, FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 
 type ClientFieldsProps = {
 	errors?: RegisterFieldErrors;
@@ -46,9 +46,7 @@ export default function ClientFields({ errors }: ClientFieldsProps) {
 						aria-invalid={Boolean(getError(errors, "business_name"))}
 						placeholder="Your Company Inc."
 					/>
-					{getError(errors, "business_name") ? (
-						<p>{getError(errors, "business_name")}</p>
-					) : null}
+					<FieldError name="business_name" errors={errors} />
 				</div>
 
 				<div className="flex flex-col gap-2 my-2 w-full md:max-w-[50%]">
@@ -60,9 +58,7 @@ export default function ClientFields({ errors }: ClientFieldsProps) {
 						className={fieldClass(fieldError(errors, "business_tax_id"))}
 						placeholder="123456"
 					/>
-					{getError(errors, "business_tax_id") ? (
-						<p>{getError(errors, "business_tax_id")}</p>
-					) : null}
+					<FieldError name="business_tax_id" errors={errors} />
 				</div>
 			</div>
 
@@ -84,9 +80,7 @@ export default function ClientFields({ errors }: ClientFieldsProps) {
 						</option>
 					))}
 				</select>
-				{getError(errors, "business_type") ? (
-					<p>{getError(errors, "business_type")}</p>
-				) : null}
+				<FieldError name="business_type" errors={errors} />
 			</div>
 
 			{businessType === "other" ? (
@@ -100,9 +94,7 @@ export default function ClientFields({ errors }: ClientFieldsProps) {
 						required
 						placeholder="Describe your business type"
 					/>
-					{getError(errors, "business_type_text") ? (
-						<p>{getError(errors, "business_type_text")}</p>
-					) : null}
+					<FieldError name="business_type_text" errors={errors} />
 				</div>
 			) : null}
 
@@ -115,9 +107,7 @@ export default function ClientFields({ errors }: ClientFieldsProps) {
 					className={fieldClass(fieldError(errors, "project_idea"))}
 					placeholder="Tell us about your project and what you're looking to build..."
 				/>
-				{getError(errors, "project_idea") ? (
-					<p>{getError(errors, "project_idea")}</p>
-				) : null}
+				<FieldError name="project_idea" errors={errors} />
 			</div>
 
 			<fieldset className="mt-4">
@@ -141,9 +131,7 @@ export default function ClientFields({ errors }: ClientFieldsProps) {
 						</label>
 					))}
 				</div>
-				{getError(errors, "interested_solution_types") ? (
-					<p>{getError(errors, "interested_solution_types")}</p>
-				) : null}
+				<FieldError name="interested_solution_types" errors={errors} />
 			</fieldset>
 
 			{selectedSolutions.includes("other") ? (
@@ -157,9 +145,7 @@ export default function ClientFields({ errors }: ClientFieldsProps) {
 						required
 						placeholder="Tell us your other interested solution type"
 					/>
-					{getError(errors, "interested_solution_other_text") ? (
-						<p>{getError(errors, "interested_solution_other_text")}</p>
-					) : null}
+					<FieldError name="interested_solution_other_text" errors={errors} />
 				</div>
 			) : null}
 		</section>

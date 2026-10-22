@@ -290,6 +290,44 @@ describe("getPublicPublishedProjectById", () => {
 		expect(result.data?.goal_ids).toEqual(["goal-1"]);
 		expect(result.data?.feature_ids).toEqual(["feature-1"]);
 	});
+
+	it("names the goals, features and service type", async () => {
+		const stub = createSupabaseStub({
+			"projects.select": { data: listing({ service_type_id: "type-1" }) },
+			"project_request_goals.select": {
+				data: [
+					{ goal_id: "goal-1", project_goals: { name: "Generate leads" } },
+					{ goal_id: "goal-2", project_goals: null },
+				],
+			},
+			"project_request_features.select": {
+				data: [{ feature_id: "feature-1", feature_tags: { name: "Online booking" } }],
+			},
+			"service_types.select": { data: { name: "Web development" } },
+		});
+
+		const result = await getPublicPublishedProjectById(stub.client, PROJECT_ID);
+
+		// A goal whose name the viewer cannot read is left out rather than shown blank.
+		expect(result.data?.goals).toEqual([{ id: "goal-1", name: "Generate leads" }]);
+		expect(result.data?.features).toEqual([
+			{ id: "feature-1", name: "Online booking" },
+		]);
+		expect(result.data?.service_type_name).toBe("Web development");
+	});
+
+	it("has no service type name when the brief has no service type", async () => {
+		const stub = createSupabaseStub({
+			"projects.select": { data: listing({ service_type_id: null }) },
+			"project_request_goals.select": { data: [] },
+			"project_request_features.select": { data: [] },
+		});
+
+		const result = await getPublicPublishedProjectById(stub.client, PROJECT_ID);
+
+		expect(result.data?.service_type_name).toBeNull();
+		expect(stub.calls.some((call) => call.table === "service_types")).toBe(false);
+	});
 });
 
 describe("provider-scoped wrappers", () => {

@@ -7,15 +7,11 @@ import {
 	providerTypes,
 } from "@/lib/auth/provider-profile";
 import type { RegisterFieldErrors } from "@/components/auth/register/RegisterForm";
-import { FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
+import { FieldError, FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 
 type ProviderFieldsProps = {
 	errors?: RegisterFieldErrors;
 };
-
-function getError(errors: RegisterFieldErrors | undefined, name: string) {
-	return errors?.[name]?.[0];
-}
 
 export default function ProviderFields({ errors }: ProviderFieldsProps) {
 	const [providerType, setProviderType] = useState("");
@@ -60,9 +56,7 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 							</option>
 						))}
 					</select>
-					{getError(errors, "provider_type") ? (
-						<p>{getError(errors, "provider_type")}</p>
-					) : null}
+					<FieldError name="provider_type" errors={errors} />
 				</div>
 
 				{shouldShowTaxId ? (
@@ -75,9 +69,7 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 							className={fieldClass(fieldError(errors, "tax_id"))}
 							placeholder="xxxxxxxx"
 						/>
-						{getError(errors, "tax_id") ? (
-							<p>{getError(errors, "tax_id")}</p>
-						) : null}
+						<FieldError name="tax_id" errors={errors} />
 					</div>
 				) : null}
 			</div>
@@ -98,9 +90,7 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 							</option>
 						))}
 					</select>
-					{getError(errors, "years_of_experience") ? (
-						<p>{getError(errors, "years_of_experience")}</p>
-					) : null}
+					<FieldError name="years_of_experience" errors={errors} />
 				</div>
 
 				<div className="flex flex-col gap-2">
@@ -108,13 +98,13 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 					<input
 						id="portfolio_url"
 						name="portfolio_url"
-						type="url"
+						type="text"
+						inputMode="url"
+						autoComplete="url"
 						className={fieldClass(fieldError(errors, "portfolio_url"))}
 						placeholder="https://yourportfolio.com"
 					/>
-					{getError(errors, "portfolio_url") ? (
-						<p>{getError(errors, "portfolio_url")}</p>
-					) : null}
+					<FieldError name="portfolio_url" errors={errors} />
 				</div>
 			</div>
 
@@ -123,13 +113,13 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 				<input
 					id="social_link"
 					name="social_link"
-					type="url"
+					type="text"
+					inputMode="url"
+					autoComplete="url"
 					className={fieldClass(fieldError(errors, "social_link"))}
 					placeholder="https://linkedin.com/in/yourprofile"
 				/>
-				{getError(errors, "social_link") ? (
-					<p>{getError(errors, "social_link")}</p>
-				) : null}
+				<FieldError name="social_link" errors={errors} />
 			</div>
 
 			<fieldset className="mt-4">
@@ -153,9 +143,7 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 						</label>
 					))}
 				</div>
-				{getError(errors, "service_categories") ? (
-					<p>{getError(errors, "service_categories")}</p>
-				) : null}
+				<FieldError name="service_categories" errors={errors} />
 			</fieldset>
 
 			{selectedCategories.includes("other") ? (
@@ -169,9 +157,7 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 						required
 						placeholder="Tell us your service category"
 					/>
-					{getError(errors, "service_category_other_text") ? (
-						<p>{getError(errors, "service_category_other_text")}</p>
-					) : null}
+					<FieldError name="service_category_other_text" errors={errors} />
 				</div>
 			) : null}
 
@@ -184,7 +170,7 @@ export default function ProviderFields({ errors }: ProviderFieldsProps) {
 					className={fieldClass(fieldError(errors, "about"))}
 					placeholder="Tell us about your experience, skills, and what makes you unique..."
 				/>
-				{getError(errors, "about") ? <p>{getError(errors, "about")}</p> : null}
+				<FieldError name="about" errors={errors} />
 			</div>
 		</section>
 	);
