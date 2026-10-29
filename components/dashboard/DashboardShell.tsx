@@ -1,50 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { WorkspaceRow } from "@/components/header/nav-row";
+import {
+  completeDashboardNavigation,
+  type DashboardNavItem,
+} from "@/lib/navigation/menu-items";
 
-export type DashboardNavItem = {
-  href: string;
-  label: string;
-  count?: number;
-  active?: boolean;
-};
-
-const roleNavigation: Record<"client" | "provider", DashboardNavItem[]> = {
-  client: [
-    { href: "/dashboard/client", label: "Overview" },
-    { href: "/dashboard/client/projects", label: "Projects" },
-    { href: "/dashboard/client/service-requests", label: "Service Requests" },
-    { href: "/dashboard/client/workrooms", label: "Workrooms" },
-    { href: "/dashboard/messages", label: "Messages" },
-    { href: "/dashboard/client/profile", label: "Profile" },
-  ],
-  provider: [
-    { href: "/dashboard/provider", label: "Overview" },
-    { href: "/dashboard/provider/applications", label: "Applications" },
-    { href: "/dashboard/provider/services", label: "Services" },
-    { href: "/dashboard/provider/service-requests", label: "Service Requests" },
-    { href: "/dashboard/provider/workrooms", label: "Workrooms" },
-    { href: "/dashboard/messages", label: "Messages" },
-    { href: "/dashboard/provider/profile", label: "Profile" },
-  ],
-};
-
-export function completeDashboardNavigation(items: DashboardNavItem[]) {
-  const role = items[0]?.href === "/dashboard/client"
-    ? "client"
-    : items[0]?.href === "/dashboard/provider"
-      ? "provider"
-      : null;
-
-  if (!role) {
-    return items;
-  }
-
-  const overrides = new Map(items.map((item) => [item.href, item]));
-  return roleNavigation[role].map((item) => ({
-    ...item,
-    ...overrides.get(item.href),
-  }));
-}
+export { completeDashboardNavigation, type DashboardNavItem };
 
 type DashboardShellProps = {
   /** Leave out when the page renders its own heading, as the workroom detail does. */
@@ -69,36 +31,7 @@ export function DashboardShell({
   return (
     <div className="grid min-w-0 gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
       <aside className="min-w-0 max-w-full lg:sticky lg:top-28 lg:self-start">
-        <nav aria-label="Dashboard navigation" className="max-w-full overflow-hidden">
-          <ul className="flex max-w-full gap-1 overflow-x-auto overscroll-x-contain rounded-lg border border-line bg-white p-2 lg:flex-col lg:overflow-visible">
-            {navigation.map((item) => (
-              <li key={item.href} className="shrink-0 lg:shrink">
-                <Link
-                  href={item.href}
-                  aria-current={item.active ? "page" : undefined}
-                  className={`flex min-h-10 items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-semibold transition sm:min-h-11 sm:px-4 sm:py-2.5 lg:w-full ${
-                    item.active
-                      ? "bg-black text-white"
-                      : "text-secondary hover:bg-black/4 hover:text-black"
-                  }`}
-                >
-                  <span className="whitespace-nowrap">{item.label}</span>
-                    {item.count ? (
-                    <span
-                      className={`inline-flex min-w-6 shrink-0 items-center justify-center rounded-full px-2 py-0.5 text-xs ${
-                        item.active
-                          ? "bg-white/20 text-white"
-                          : "bg-zinc-100 text-black"
-                      }`}
-                    >
-                      {item.count}
-                    </span>
-                  ) : null}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <DashboardSidebar label="Your workspace" items={navigation} />
       </aside>
 
       <div className="min-w-0 max-w-full space-y-6 overflow-hidden">
@@ -170,5 +103,32 @@ export function DashboardPanel({
       </div>
       {children}
     </section>
+  );
+}
+
+type DashboardSidebarProps = {
+  label: string;
+  items: DashboardNavItem[];
+};
+
+/**
+ * Workspace links in the drawer's row style: a scrolling strip below `lg`, a labelled
+ * column beside the page from `lg` up.
+ */
+export function DashboardSidebar({ label, items }: DashboardSidebarProps) {
+  return (
+    <nav aria-label={label} className="max-w-full overflow-hidden rounded-lg border border-line bg-white p-1">
+      <p className="hidden px-4 pt-3 pb-1 text-xs leading-4 font-semibold tracking-[0.06em] text-zinc-600 uppercase lg:block">
+        {label}
+      </p>
+      {/* The padding keeps focus rings inside the scrolling strip. */}
+      <ul className="flex max-w-full gap-1 overflow-x-auto overscroll-x-contain p-1 lg:flex-col lg:gap-0.5 lg:overflow-visible">
+        {items.map((item) => (
+          <li key={item.href} className="shrink-0 lg:shrink">
+            <WorkspaceRow {...item} dense />
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }

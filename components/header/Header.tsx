@@ -1,323 +1,98 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu } from "lucide-react";
+import { createPortal } from "react-dom";
 
-import { logoutAction } from "@/app/(auth)/actions";
-import { headerTheme } from "@/theme/header-theme";
-
-const CLOSE_ANIMATION_MS = 260;
+import type { HeaderUser } from "@/lib/navigation/header-state";
+import { getBrowseItems } from "@/lib/navigation/menu-items";
+import { DesktopActions } from "./desktop-actions";
+import { Logo } from "./logo";
+import { MobileMenu } from "./mobile-menu";
+import { useMobileMenu } from "./use-mobile-menu";
 
 type HeaderProps = {
-	isAuthenticated?: boolean;
-	profileHref?: string;
-	profileLabel?: string;
+	user: HeaderUser | null;
 };
 
-export default function Header({
-	isAuthenticated = false,
-	profileHref = "/dashboard",
-	profileLabel = "Profile",
-}: HeaderProps) {
-	const [isOpen, setIsOpen] = useState(false);
-	const [isMenuMounted, setIsMenuMounted] = useState(false);
-	const menuRef = useRef<HTMLDivElement>(null);
-	const buttonRef = useRef<HTMLButtonElement>(null);
-
-	const openMenu = () => {
-		setIsMenuMounted(true);
-		requestAnimationFrame(() => {
-			setIsOpen(true);
-		});
-	};
-
-	const closeMenu = () => {
-		setIsOpen(false);
-	};
-
-	const toggleMenu = () => {
-		if (isOpen) {
-			closeMenu();
-			return;
-		}
-
-		openMenu();
-	};
-
-	useEffect(() => {
-		if (isOpen || !isMenuMounted) {
-			return;
-		}
-
-		const closeTimer = window.setTimeout(() => {
-			setIsMenuMounted(false);
-		}, CLOSE_ANIMATION_MS);
-
-		return () => {
-			window.clearTimeout(closeTimer);
-		};
-	}, [isMenuMounted, isOpen]);
-
-	useEffect(() => {
-		const mediaQuery = window.matchMedia("(min-width: 1024px)");
-
-		const handleChange = (event: MediaQueryListEvent) => {
-			if (event.matches) {
-				closeMenu();
-			}
-		};
-
-		mediaQuery.addEventListener("change", handleChange);
-
-		return () => {
-			mediaQuery.removeEventListener("change", handleChange);
-		};
-	}, []);
-
-	useEffect(() => {
-		if (!isMenuMounted) {
-			return;
-		}
-
-		const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-			const target = event.target as Node | null;
-
-			if (!target) {
-				return;
-			}
-
-			if (menuRef.current?.contains(target) || buttonRef.current?.contains(target)) {
-				return;
-			}
-
-			closeMenu();
-		};
-
-		document.addEventListener("mousedown", handlePointerDown, true);
-		document.addEventListener("touchstart", handlePointerDown, true);
-
-		return () => {
-			document.removeEventListener("mousedown", handlePointerDown, true);
-			document.removeEventListener("touchstart", handlePointerDown, true);
-		};
-	}, [isMenuMounted]);
+export default function Header({ user }: HeaderProps) {
+	const pathname = usePathname();
+	const { isMounted, isOpen, dataState, open, close, triggerRef, drawerRef, closeButtonRef } =
+		useMobileMenu();
+	const browseItems = getBrowseItems(pathname);
+	const hasActivity = Boolean(
+		user && user.counts.unreadMessages + user.counts.pendingServiceRequests > 0,
+	);
 
 	return (
-		<header
-			className="sticky top-0 z-50 border-b bg-white lg:relative"
-			style={{ borderColor: headerTheme.border }}
-		>
-			<div className="mx-auto flex max-w-300 items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-				<Link href="/" className="shrink-0" onClick={closeMenu}>
-					<Image
-						src="/images/workbridge-logo.png"
-						alt="WorkBridge"
-						className="h-12 w-auto object-contain sm:h-14"
-						style={{width: "auto"}}
-						width={240}
-						height={80}
-						priority
-					/>
-				</Link>
+		<header className="sticky top-0 z-50 border-b border-black/8 bg-white pt-[env(safe-area-inset-top)] lg:relative">
+			<div className="mx-auto flex h-14 max-w-300 items-center gap-8 pr-1.5 pl-4 sm:h-16 sm:px-6 lg:px-8">
+				<Logo />
 
-				<nav className="hidden lg:block" aria-label="Desktop navigation">
-					<ul className="flex items-center gap-6">
-						<li>
-							<Link
-								href="/find-talent"
-								className="text-[16px] font-semibold transition hover:opacity-70"
-								style={{ color: headerTheme.muted }}
-							>
-								Find Talent
-							</Link>
-						</li>
-						<li>
-							<Link
-								href="/jobs"
-								className="text-[16px] font-semibold transition hover:opacity-70"
-								style={{ color: headerTheme.muted }}
-							>
-								Find Work
-							</Link>
-						</li>
+				<nav aria-label="Main" className="hidden self-stretch lg:flex">
+					<ul className="flex gap-2">
+						{browseItems.map((item) => (
+							<li key={item.href} className="flex">
+								<Link
+									href={item.href}
+									aria-current={item.active ? "page" : undefined}
+									className={`relative flex items-center px-3 text-[15px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-inset ${
+										item.active ? "font-semibold text-[#111]" : "font-medium text-zinc-600 hover:text-[#111]"
+									}`}
+								>
+									{item.label}
+									{item.active ? (
+										<span
+											aria-hidden="true"
+											className="absolute right-3 -bottom-px left-3 h-0.5 rounded-full bg-violet-600"
+										/>
+									) : null}
+								</Link>
+							</li>
+						))}
 					</ul>
 				</nav>
 
-				<div className="hidden items-center gap-4 lg:flex">
-					{isAuthenticated ? (
-						<>
-							<Link
-								href={profileHref}
-								className="rounded-full px-6 py-3 text-[16px] font-semibold text-white transition hover:opacity-90"
-								style={{
-									background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
-								}}
-							>
-								{profileLabel}
-							</Link>
-							<form action={logoutAction}>
-								<button
-									type="submit"
-									className="text-[16px] font-semibold transition hover:opacity-70"
-									style={{ color: headerTheme.text }}
-								>
-									Log out
-								</button>
-							</form>
-						</>
-					) : (
-						<>
-							<Link
-								href="/login"
-								className="text-[16px] font-semibold transition hover:opacity-70"
-								style={{ color: headerTheme.text }}
-							>
-								Log In
-							</Link>
-							<Link
-								href="/register"
-								className="rounded-full px-6 py-3 text-[16px] font-semibold text-white transition hover:opacity-90"
-								style={{
-									background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
-								}}
-							>
-								Sign Up
-							</Link>
-						</>
-					)}
-				</div>
+				<DesktopActions user={user} />
 
 				<button
-					ref={buttonRef}
+					ref={triggerRef}
 					type="button"
-					onClick={toggleMenu}
-					className="relative flex h-10 w-10 items-center justify-center rounded-md lg:hidden"
+					onClick={open}
 					aria-expanded={isOpen}
-					aria-label={isOpen ? "Close menu" : "Open menu"}
+					aria-controls="mobile-menu"
+					aria-label={hasActivity ? "Open menu, new activity" : "Open menu"}
+					className="relative ml-auto grid size-11 place-items-center rounded-lg text-[#111] transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 lg:hidden"
 				>
-					<Image
-						src="/icons/mobile-menu-icon.svg"
-						alt=""
+					<Menu
 						aria-hidden="true"
-						className={`absolute h-5 w-5 transition-all duration-300 ${
-							isOpen ? "rotate-90 scale-75 opacity-0" : "rotate-0 scale-100 opacity-100"
+						className={`size-6 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none ${
+							isOpen ? "rotate-90 opacity-0 motion-reduce:rotate-0" : ""
 						}`}
-						style={{ pointerEvents: "none" }}
-						width={20}
-						height={20}
 					/>
-					<Image
-						src="/icons/close-icon.svg"
-						alt=""
-						aria-hidden="true"
-						className={`absolute h-5 w-5 transition-all duration-300 ${
-							isOpen ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-75 opacity-0"
-						}`}
-						style={{ pointerEvents: "none" }}
-						width={20}
-						height={20}
-					/>
+					{hasActivity && !isOpen ? (
+						<span
+							aria-hidden="true"
+							className="absolute top-[9px] right-2 size-2 rounded-full bg-violet-600 ring-2 ring-white"
+						/>
+					) : null}
 				</button>
 			</div>
 
-			{isMenuMounted ? (
-				<div
-					ref={menuRef}
-					className={`absolute inset-x-0 top-full border-t bg-white transition-all duration-300 ease-in-out lg:hidden ${
-						isOpen ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
-					}`}
-					style={{ borderColor: headerTheme.border }}
-				>
-					<nav className="mx-auto max-w-300 px-4 py-4 sm:px-6" aria-label="Mobile navigation">
-						<ul className="space-y-1">
-							<li>
-								<Link
-									href="/find-talent"
-									onClick={closeMenu}
-									className="block py-2 text-[16px] font-semibold"
-									style={{ color: headerTheme.muted }}
-								>
-									Find Talent
-								</Link>
-							</li>
-							<li>
-								<Link
-									href="/jobs"
-									onClick={closeMenu}
-									className="block py-2 text-[16px] font-semibold"
-									style={{ color: headerTheme.muted }}
-								>
-									Find Work
-								</Link>
-							</li>
-							{isAuthenticated ? (
-								<>
-									{profileLabel !== "Dashboard" ? <li className="pt-3">
-										<Link
-											href="/dashboard"
-											onClick={closeMenu}
-											className="block py-2 text-[16px] font-semibold"
-											style={{ color: headerTheme.text }}
-										>
-											Dashboard
-										</Link>
-									</li> : null}
-									<li>
-										<Link
-											href={profileHref}
-											onClick={closeMenu}
-											className="block rounded-full px-6 py-3 text-center text-[16px] font-semibold text-white"
-											style={{
-												background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
-											}}
-										>
-											{profileLabel}
-										</Link>
-									</li>
-									<li>
-										<form action={logoutAction}>
-											<button
-												type="submit"
-												onClick={closeMenu}
-												className="block py-2 text-[16px] font-semibold"
-												style={{ color: headerTheme.text }}
-											>
-												Log out
-											</button>
-										</form>
-									</li>
-								</>
-							) : (
-								<>
-									<li className="pt-3">
-										<Link
-											href="/login"
-											onClick={closeMenu}
-											className="block py-2 text-[16px] font-semibold"
-											style={{ color: headerTheme.text }}
-										>
-											Log In
-										</Link>
-									</li>
-									<li>
-										<Link
-											href="/register"
-											onClick={closeMenu}
-											className="block rounded-full px-6 py-3 text-center text-[16px] font-semibold text-white"
-											style={{
-												background: `linear-gradient(to right, ${headerTheme.gradientFrom}, ${headerTheme.gradientTo})`,
-											}}
-										>
-											Sign Up
-										</Link>
-									</li>
-								</>
-							)}
-						</ul>
-					</nav>
-				</div>
-			) : null}
+			{isMounted
+				? createPortal(
+						<MobileMenu
+							user={user}
+							pathname={pathname}
+							dataState={dataState}
+							onClose={close}
+							drawerRef={drawerRef}
+							closeButtonRef={closeButtonRef}
+						/>,
+						document.body,
+					)
+				: null}
 		</header>
 	);
 }
