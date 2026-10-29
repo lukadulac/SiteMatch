@@ -18,7 +18,7 @@ export default async function AdminLayout({
 
 	return (
 		<div className="min-w-0 space-y-7 py-4">
-			<div className="grid min-w-0 gap-7 lg:grid-cols-[185px_minmax(0,1fr)]">
+			<div className="grid min-w-0 gap-7 lg:grid-cols-[220px_minmax(0,1fr)]">
 				<AdminNavigation />
 				<div className="min-w-0">{children}</div>
 			</div>
