@@ -181,6 +181,8 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** `app/auth/recovery/route.ts` accepts only `type=recovery` with a `token_hash`, calls `verifyOtp({ type: "recovery" })`, keeps the session, sets a short-lived httpOnly marker cookie and redirects to `/reset-password`. Mirror the hardening in `app/auth/confirm/route.ts`. Add `supabase/templates/recovery.html` (appends `&token_hash={{ .TokenHash }}&type=recovery` to `{{ .RedirectTo }}`) and document it.
 
+**Status:** Done on `fix/pre-launch-blockers`. `app/auth/recovery/route.ts` accepts only `type=recovery` with a token hash, keeps the recovery session and sets the httpOnly `wb_recovery` marker (the user's id, path `/reset-password`, 15 minutes). Template in `supabase/templates/recovery.html`, local config in `supabase/config.toml`. Checked end to end on the local stack with Mailpit; a reused link lands on `/forgot-password?error=link`.
+
 **Acceptance criteria:**
 - [ ] Valid link lands on `/reset-password` with a recovery session and marker cookie
 - [ ] Expired, used or malformed link goes to `/forgot-password?error=link` with nothing forwarded
@@ -200,6 +202,8 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 **Module:** `password-reset` ([spec](../spec/password-reset.md))
 
 **Description:** `/reset-password` shows new/confirm password fields only with the recovery marker cookie, else redirects to `/forgot-password`. Action calls `supabase.auth.updateUser({ password })`, signs out every session, redirects to `/login?reset=1`. Move the inline 8-character rule from `app/(auth)/actions.ts` into `lib/auth/password.ts`.
+
+**Status:** Done on `fix/pre-launch-blockers`. `/reset-password` renders only with a marker that matches the signed-in recovery user. The action saves the password, signs out every session and redirects to `/login?reset=1`; the 8-character rule lives in `lib/auth/password.ts`. Checked end to end: the old password fails, the new one works.
 
 **Acceptance criteria:**
 - [ ] After a reset the new password signs in and the old one fails
@@ -600,6 +604,8 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 **Module:** `account` ([spec](../spec/account.md))
 
 **Description:** Delete from settings after retyping the email and a recent sign-in. A security-definer RPC anonymises the profile ("Deleted user", unique placeholder email, phone and city cleared), unpublishes services, cancels open briefs (`cancel_project`) and withdraws pending applications; messages and reviews stay as "Deleted user". The server action then deletes the auth user with the service-role client from Task 15 and signs out. The migration drops the `profiles.id` → `auth.users` foreign key (`on delete cascade`) so the anonymised profile, and everything that cascades from it, outlives the login.
+
+**Status:** Done on `fix/pre-launch-blockers`, ahead of Tasks 6, 15 and 22 (needed for launch). Instead of dropping the `profiles.id` foreign key, it follows the existing admin deletion: `delete_own_account` anonymises in one transaction without blocking the email, then the service-role client soft-deletes the auth user (which frees the email) and records `auth_deleted_at`. Retyped email plus the current password stand in for "recent sign-in". pgTAP in `supabase/tests/database/account-deletion.test.sql`; checked end to end on the local stack, including re-registering the same email.
 
 **Acceptance criteria:**
 - [ ] User cannot log in afterwards, the email can register again, and no personal data shows on any public page

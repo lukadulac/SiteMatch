@@ -8,7 +8,7 @@ import {
 import { createSupabaseStub } from "../helpers/supabase-stub";
 
 const PROVIDER_ID = "provider-1";
-const PROJECT_ID = "project-1";
+const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 
 function listing(overrides: Record<string, unknown> = {}) {
 	return {
@@ -270,6 +270,13 @@ describe("getPublicPublishedProjects filtering", () => {
 });
 
 describe("getPublicPublishedProjectById", () => {
+	it("treats a malformed id as a missing brief without querying", async () => {
+		const stub = createSupabaseStub();
+
+		expect((await getPublicPublishedProjectById(stub.client, "not-a-uuid")).error).toBe("Project not found.");
+		expect(stub.callKeys()).toEqual([]);
+	});
+
 	it("reports a missing listing", async () => {
 		const stub = createSupabaseStub({ "projects.select": { data: null } });
 

@@ -1,8 +1,13 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { z } from "zod";
 import type { AuthActionState } from "@/app/(auth)/action-state";
-import { confirmationEmailSchema } from "@/lib/auth/email-verification";
+import { confirmationEmailSchema, getVerificationReturnPath } from "@/lib/auth/email-verification";
+import { passwordSchema } from "@/lib/auth/password";
+import { RECOVERY_COOKIE, RECOVERY_COOKIE_PATH } from "@/lib/auth/recovery-cookie";
+import { getLoginHref } from "@/lib/auth/return-url";
 import { getPasswordRecoveryUrl } from "@/lib/auth/site-url";
 import { AUTH_RATE_LIMITS, createRateLimitKey, getRequestIp, recordAuthRateLimitAttempt } from "@/lib/auth/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -38,4 +43,54 @@ export async function requestPasswordResetAction(
   } catch {
     return { formError: "Password reset is temporarily unavailable. Please try again later.", fieldErrors: {}, fields };
   }
+}
+
+const newPasswordSchema = z
+  .object({ password: passwordSchema, confirmPassword: z.string() })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match.",
+  });
+
+/**
+ * Sets the new password for the recovery session that /auth/recovery opened, then signs
+ * out every session so a stolen one stops working, and sends the user to sign in again.
+ */
+export async function resetPasswordAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const parsed = newPasswordSchema.safeParse({
+    password: formData.get("password") ?? "",
+    confirmPassword: formData.get("confirmPassword") ?? "",
+  });
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors, fields: {} };
+  }
+
+  const cookieStore = await cookies();
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const marker = cookieStore.get(RECOVERY_COOKIE)?.value;
+
+  if (!user || !marker || marker !== user.id) {
+    redirect("/forgot-password?error=link");
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    if (error.code === "same_password") {
+      return { fieldErrors: { password: ["Choose a password you have not used before."] }, fields: {} };
+    }
+    if (error.code === "weak_password") {
+      return { fieldErrors: { password: ["Choose a stronger password."] }, fields: {} };
+    }
+    return { formError: "Your password could not be changed. Request a new reset link and try again.", fieldErrors: {}, fields: {} };
+  }
+
+  cookieStore.delete({ name: RECOVERY_COOKIE, path: RECOVERY_COOKIE_PATH });
+  await supabase.auth.signOut({ scope: "global" });
+
+  const login = getLoginHref(getVerificationReturnPath(formData.get("next")));
+  redirect(`${login}${login.includes("?") ? "&" : "?"}reset=1`);
 }

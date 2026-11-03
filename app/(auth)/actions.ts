@@ -34,11 +34,7 @@ import {
 } from "@/lib/profiles/avatar";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-const passwordSchema = z
-  .string()
-  .min(8, "Password must be at least 8 characters long.")
-  .max(72, "Password must be 72 characters or fewer.");
+import { passwordSchema } from "@/lib/auth/password";
 
 const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
 const phonePattern = /^\+?[0-9().\-\s]{7,20}$/;

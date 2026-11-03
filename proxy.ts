@@ -1,5 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDashboardPath, isAppRole } from "@/lib/auth/roles";
+import { buildContentSecurityPolicy, createNonce } from "@/lib/security/content-security-policy";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { isAccountEnabled } from "@/lib/auth/account-access";
 import {
@@ -18,9 +19,37 @@ function redirectWithCookies(
   return applySupabaseCookies(source, response);
 }
 
+function isGuardedPath(pathname: string) {
+  return pathname === "/dashboard" || pathname.startsWith("/dashboard/") || pathname.startsWith("/oglasi/novi");
+}
+
+/**
+ * Runs on every page: sets this request's Content-Security-Policy nonce (Next reads it
+ * from the request header and stamps it on its own scripts), then applies the role
+ * guards to the dashboard and the brief form.
+ */
 export async function proxy(request: NextRequest) {
+  const nonce = createNonce();
+  const contentSecurityPolicy = buildContentSecurityPolicy(nonce, {
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    isDev: process.env.NODE_ENV === "development",
+  });
+  const headers = new Headers(request.headers);
+  headers.set("x-nonce", nonce);
+  headers.set("Content-Security-Policy", contentSecurityPolicy);
+  const forwarded = new NextRequest(request, { headers });
+
+  const response = isGuardedPath(request.nextUrl.pathname)
+    ? await guardRoute(forwarded)
+    : NextResponse.next({ request: forwarded });
+  response.headers.set("Content-Security-Policy", contentSecurityPolicy);
+
+  return response;
+}
+
+async function guardRoute(request: NextRequest) {
   if (!hasSupabaseEnv()) {
-    return NextResponse.next();
+    return NextResponse.next({ request });
   }
 
   const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
@@ -86,5 +115,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/oglasi/novi/:path*"],
+  // Every page, so each gets the CSP. Static files and API routes (JSON, no scripts) skip it.
+  // Prefetches are not skipped: they must pass the dashboard guards too.
+  matcher: ["/((?!api/|_next/static|_next/image|images/|icons/|favicon.ico|manifest.webmanifest).*)"],
 };

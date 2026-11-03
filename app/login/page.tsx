@@ -5,11 +5,13 @@ type LoginPageProps = {
 	searchParams: Promise<{
 		next?: string | string[];
 		confirmed?: string | string[];
+		reset?: string | string[];
+		deleted?: string | string[];
 	}>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-	const { next, confirmed } = await searchParams;
+	const { next, confirmed, reset, deleted } = await searchParams;
 	const safeNext = getSafeReturnPath(next);
 
 	return (
@@ -26,6 +28,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
 			<section>
 				{confirmed === "1" ? <p role="status" className="mx-auto my-4 max-w-112.5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">Your email is confirmed. Sign in to continue.</p> : null}
+				{reset === "1" ? <p role="status" className="mx-auto my-4 max-w-112.5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">Your password is changed. Sign in with the new password.</p> : null}
+				{deleted === "1" ? <p role="status" className="mx-auto my-4 max-w-112.5 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm text-black">Your account is deleted. Thank you for trying WorkBridge.</p> : null}
 				<LoginForm next={safeNext} />
 			</section>
 		</section>

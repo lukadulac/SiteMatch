@@ -5,6 +5,7 @@ import {
 } from "@/components/dashboard/DashboardShell";
 import { ProviderProfileForm } from "@/components/dashboard/provider-profile-form";
 import { ProfilePhotoCard } from "@/components/profile/profile-photo-card";
+import { DeleteAccountPanel } from "@/components/dashboard/delete-account-panel";
 import { getOwnContactDetails, getOwnProviderTaxId } from "@/lib/auth/own-contact";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
@@ -161,6 +162,8 @@ export default async function ProviderProfilePage() {
       <DashboardPanel title="Provider Profile">
         <ProviderProfileForm profile={profile} providerProfile={providerProfile} />
       </DashboardPanel>
+
+      <DeleteAccountPanel email={contactResult.data.email} />
     </DashboardShell>
   );
 }

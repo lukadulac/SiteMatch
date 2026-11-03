@@ -12,8 +12,8 @@ const steps: Record<Audience, Array<{ title: string; body: string }>> = {
 			body: "Look through profiles, chat before you decide and pick the person who fits.",
 		},
 		{
-			title: "Work together in a workroom, then leave a review",
-			body: "Messages stay with the job. When the work is complete, tell others how it went.",
+			title: "Work together in one place",
+			body: "Keep the conversation in WorkBridge messages. A booked service also gets a shared workroom.",
 		},
 	],
 	freelancer: [
@@ -26,8 +26,8 @@ const steps: Record<Audience, Array<{ title: string; body: string }>> = {
 			body: "Find projects that fit, or let clients come to you through your services.",
 		},
 		{
-			title: "Deliver in the workroom and earn reviews",
-			body: "Mark the work complete and build your reputation one client at a time.",
+			title: "Deliver and mark the work complete",
+			body: "Keep every client conversation in one inbox and close each booked job in its workroom.",
 		},
 	],
 };

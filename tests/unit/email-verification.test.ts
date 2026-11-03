@@ -40,6 +40,14 @@ describe("email confirmation origin", () => {
     expect(getAuthSiteOrigin()).toBe("https://staging.vercel.app");
   });
 
+  it("uses the production domain, not the deployment URL, on Vercel production", () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("VERCEL_URL", "workbridge-abc123.vercel.app");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "workbridge.com");
+    expect(getAuthSiteOrigin()).toBe("https://workbridge.com");
+  });
+
   it("fails closed in production without a configured deployment origin", () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
     vi.stubEnv("VERCEL_URL", "");

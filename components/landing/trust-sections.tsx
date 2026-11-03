@@ -130,11 +130,11 @@ const faqs = [
 	},
 	{
 		question: "How do I choose the right freelancer?",
-		answer: "Look through profiles and services, chat before you hire and read reviews from earlier clients.",
+		answer: "Look through profiles and published services, compare prices and chat before you hire.",
 	},
 	{
 		question: "What happens after I hire someone?",
-		answer: "You both work in a shared workroom with messages. The freelancer marks the work complete, and the client leaves a review.",
+		answer: "You keep talking in WorkBridge messages. A booked service also gets a shared workroom, where the freelancer marks the work complete.",
 	},
 	{
 		question: "Is my data safe?",
