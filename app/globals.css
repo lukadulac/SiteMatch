@@ -113,3 +113,26 @@ select:autofill {
     outline: none;
   }
 }
+
+/* Brand accent: a permanent gradient border on a white card. */
+@utility brand-border {
+  border-color: transparent;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(90deg, #8b5cf6, #a855f7, #ec4899) border-box;
+}
+
+/* Brand accent: a thin gradient underline that follows wrapped lines of a headline. */
+@utility brand-text-underline {
+  background: linear-gradient(90deg, #8b5cf6, #a855f7, #ec4899) 0 96% / 100% 0.08em no-repeat;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Landing page mocks rise in when the audience switch shows them (see components/landing). */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

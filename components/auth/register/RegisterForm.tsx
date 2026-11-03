@@ -86,12 +86,18 @@ function useRegistrationAvatar() {
 	};
 }
 
-export default function RegisterForm({ next }: { next?: string | null }) {
+export default function RegisterForm({
+	next,
+	initialRole = null,
+}: {
+	next?: string | null;
+	initialRole?: RegisterRole | null;
+}) {
 	const [state, formAction, isPending] = useActionState(
 		registerAction,
 		initialAuthActionState,
 	);
-	const [selectedRole, setSelectedRole] = useState<RegisterRole | null>(null);
+	const [selectedRole, setSelectedRole] = useState<RegisterRole | null>(initialRole);
 	const avatar = useRegistrationAvatar();
 
 	// Submitting through onSubmit rather than the form's action keeps React from
