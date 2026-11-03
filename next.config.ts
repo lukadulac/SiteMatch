@@ -15,7 +15,16 @@ const securityHeaders = [
 	},
 	{
 		key: "Permissions-Policy",
-		value: "camera=(), microphone=(), geolocation=()",
+		value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
+	},
+	// Another site that opens WorkBridge in a window cannot reach back into it.
+	{
+		key: "Cross-Origin-Opener-Policy",
+		value: "same-origin",
+	},
+	{
+		key: "X-DNS-Prefetch-Control",
+		value: "off",
 	},
 ];
 
@@ -43,6 +52,8 @@ const nextConfig: NextConfig = {
 		},
 	},
 	productionBrowserSourceMaps: false,
+	// Do not advertise the framework in every response.
+	poweredByHeader: false,
 	async headers() {
 		return [
 			{

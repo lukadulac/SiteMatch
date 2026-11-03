@@ -74,8 +74,8 @@ export function LandingWhy() {
 				/>
 				<WhyCard
 					title="Everything in one place"
-					body="From the first message to the final review, the whole job stays together."
-					chips={["Messages", "Workroom", "Reviews"]}
+					body="From the first message to the finished job, the whole conversation stays together."
+					chips={["Messages", "Requests", "Workroom"]}
 				/>
 			</div>
 		</LandingSection>

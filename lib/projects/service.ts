@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
 import type {
@@ -709,6 +710,11 @@ export async function getPublicPublishedProjectById(
 	supabase: SupabaseClient<Database>,
 	projectId: string,
 ): Promise<ProjectResult<ProviderProjectDetail>> {
+	// A malformed id is a missing page, not a database error.
+	if (!z.uuid().safeParse(projectId).success) {
+		return { error: "Project not found." };
+	}
+
 	const { data: project, error: projectError } = await supabase
 		.from("projects")
 		.select("*")

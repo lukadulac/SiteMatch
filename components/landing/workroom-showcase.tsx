@@ -9,7 +9,7 @@ const messages = [
 const callouts = [
 	{ title: "Messages stay with the job", body: "No digging through email to find what you agreed." },
 	{ title: "One clear finish", body: "The freelancer marks the work complete." },
-	{ title: "A review to close it out", body: "The client leaves a review when the work is done." },
+	{ title: "Both sides see the status", body: "Requested, in progress or complete: nobody has to ask where things stand." },
 ];
 
 export function LandingWorkroomShowcase() {
@@ -27,7 +27,7 @@ export function LandingWorkroomShowcase() {
 					<div className="grid md:grid-cols-[280px_minmax(0,1fr)]">
 						<div className="flex flex-col gap-4 border-b border-line bg-panel-soft p-4 md:border-r md:border-b-0 md:p-6">
 							<span className="text-[13px] font-bold text-secondary">Workroom</span>
-							<p className="text-xl leading-tight font-bold tracking-[-0.01em]">New logo for a neighborhood bakery</p>
+							<p className="text-xl leading-tight font-bold tracking-[-0.01em]">Logo design with three concepts</p>
 							<Person initials="AE" name="Ana Example" role="Freelancer" />
 							<Person initials="BE" name="Bakery Example" role="Client" />
 							<div>

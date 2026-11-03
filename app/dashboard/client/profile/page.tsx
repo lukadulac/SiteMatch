@@ -5,6 +5,7 @@ import {
 } from "@/components/dashboard/DashboardShell";
 import { ClientProfileForm } from "@/components/dashboard/client-profile-form";
 import { ProfilePhotoCard } from "@/components/profile/profile-photo-card";
+import { DeleteAccountPanel } from "@/components/dashboard/delete-account-panel";
 import { getOwnContactDetails } from "@/lib/auth/own-contact";
 import { isClientProfileComplete } from "@/lib/auth/profile-completion";
 import { ensureUserProfile } from "@/lib/auth/provision";
@@ -135,6 +136,8 @@ export default async function ClientProfilePage() {
       <DashboardPanel title="Client Profile">
         <ClientProfileForm profile={profile} clientProfile={clientProfile} />
       </DashboardPanel>
+
+      <DeleteAccountPanel email={contactResult.data.email} />
     </DashboardShell>
   );
 }

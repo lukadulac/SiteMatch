@@ -9,6 +9,7 @@ import {
 	type ProviderServiceListingFormFields,
 	type ProviderServiceListingIntent,
 } from "@/lib/provider-services/schemas";
+import { ilikeAnyColumn } from "@/lib/supabase/postgrest-filter";
 import type { Database } from "@/types/supabase";
 
 type ProviderServiceResult<T> =
@@ -214,7 +215,7 @@ export async function getPublicPublishedProviderServices(
 
 	if (search) {
 		query = query.or(
-			`title.ilike.%${search}%,description.ilike.%${search}%,service_type_text.ilike.%${search}%,category_text.ilike.%${search}%`,
+			ilikeAnyColumn(["title", "description", "service_type_text", "category_text"], search),
 		);
 	}
 
@@ -261,6 +262,12 @@ export async function getPublicPublishedProviderServices(
 	query = query.range(offset, offset + pageSize - 1);
 
 	const { data, error, count } = await query;
+
+	// PostgREST answers a page past the last one with PGRST103 instead of an empty list;
+	// the empty page lets callers send the visitor back to a page that exists.
+	if (error?.code === "PGRST103") {
+		return emptyPublicProviderServicesResult(page, pageSize);
+	}
 
 	if (error) {
 		return { error: error.message };

@@ -194,4 +194,34 @@ describe("proxy", () => {
 			expect(redirectPath(response)).toBe("/dashboard/admin");
 		});
 	});
+
+	describe("Content-Security-Policy", () => {
+		it("gives a public page a nonce policy without touching Supabase", async () => {
+			const response = await proxy(request("/find-talent"));
+			const policy = response.headers.get("content-security-policy") ?? "";
+
+			expect(policy).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9+/=]+' 'strict-dynamic'/);
+			expect(redirectPath(response)).toBeNull();
+			expect(createSupabaseMiddlewareClient).not.toHaveBeenCalled();
+		});
+
+		it("forwards the nonce to rendering in the request headers", async () => {
+			const response = await proxy(request("/"));
+			const policy = response.headers.get("content-security-policy") ?? "";
+			const nonce = policy.match(/'nonce-([^']+)'/)?.[1];
+
+			expect(nonce).toBeTruthy();
+			expect(response.headers.get("x-middleware-request-x-nonce")).toBe(nonce);
+		});
+
+		it("sets a fresh nonce on every request, guarded pages included", async () => {
+			arrange({ id: "client-1" }, "client");
+
+			const first = (await proxy(request("/dashboard/client"))).headers.get("content-security-policy");
+			const second = (await proxy(request("/dashboard/client"))).headers.get("content-security-policy");
+
+			expect(first).toContain("'nonce-");
+			expect(first).not.toBe(second);
+		});
+	});
 });

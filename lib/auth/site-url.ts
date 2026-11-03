@@ -3,8 +3,14 @@ import { getVerificationReturnPath } from "@/lib/auth/email-verification";
 
 export function getAuthSiteOrigin() {
   // Never derive email destinations from untrusted Host/Origin request headers.
+  // On Vercel production, links must use the real domain: VERCEL_URL is the unique URL of one
+  // deployment, so an email sent today would point at an old build after the next deploy.
+  // Previews may fall back to it.
+  const vercelFallback = process.env.VERCEL_ENV === "production"
+    ? process.env.VERCEL_PROJECT_PRODUCTION_URL
+    : process.env.VERCEL_URL;
   const configured = process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+    (vercelFallback ? `https://${vercelFallback}` : undefined);
   if (!configured && process.env.NODE_ENV === "production") {
     throw new Error("Set NEXT_PUBLIC_SITE_URL before enabling authentication emails.");
   }

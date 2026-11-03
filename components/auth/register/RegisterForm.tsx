@@ -150,6 +150,12 @@ export default function RegisterForm({
 			) : null}
 
 			<div className="my-2 w-full">
+				<p className="mb-3 text-center text-sm text-secondary">
+					By creating an account you agree to the{" "}
+					<Link href="/terms" target="_blank" className="font-semibold text-black underline underline-offset-4">Terms of Service</Link>{" "}
+					and confirm you have read the{" "}
+					<Link href="/privacy" target="_blank" className="font-semibold text-black underline underline-offset-4">Privacy Policy</Link>.
+				</p>
 				<RegisterSubmitButton
 					label={selectedRole ? submitLabelByRole[selectedRole] : "Create account"}
 					pending={isPending}

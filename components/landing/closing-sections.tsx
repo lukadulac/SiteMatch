@@ -54,6 +54,8 @@ export function LandingFooter({ dashboardHref }: { dashboardHref: string | null 
 	const footerLinks = [
 		...browseLinks,
 		...(dashboardHref ? [{ href: dashboardHref, label: "Dashboard" }] : accountLinks),
+		{ href: "/privacy", label: "Privacy" },
+		{ href: "/terms", label: "Terms" },
 	];
 
 	return (

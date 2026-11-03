@@ -9,6 +9,7 @@ const ACTIVITY_WRITE_THROTTLE_MS = 30 * 1000;
 
 const LAST_ACTIVITY_STORAGE_KEY = "workbridge_last_activity_at";
 const LAST_SEEN_STORAGE_KEY = "workbridge_last_seen_at";
+const SESSION_STORAGE_KEY = "workbridge_session_id";
 
 function readTimestamp(key: string) {
 	const value = window.localStorage.getItem(key);
@@ -26,6 +27,17 @@ function writeTimestamp(key: string, timestamp = Date.now()) {
 	window.localStorage.setItem(key, String(timestamp));
 }
 
+/** The `session_id` claim of a Supabase access token: it changes with every sign-in. */
+function readSessionId(accessToken: string) {
+	try {
+		const payload = JSON.parse(atob(accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+
+		return typeof payload.session_id === "string" ? payload.session_id : null;
+	} catch {
+		return null;
+	}
+}
+
 export function IdleSessionTimeout() {
 	useEffect(() => {
 		const supabase = createSupabaseBrowserClient();
@@ -41,8 +53,11 @@ export function IdleSessionTimeout() {
 			isSigningOut = true;
 			window.localStorage.removeItem(LAST_ACTIVITY_STORAGE_KEY);
 			window.localStorage.removeItem(LAST_SEEN_STORAGE_KEY);
+			window.localStorage.removeItem(SESSION_STORAGE_KEY);
 
 			void supabase.auth.signOut().finally(() => {
+				// A full page load on purpose: it drops the signed-in user's cached pages from the client router.
+				// eslint-disable-next-line @next/next/no-location-assign-relative-destination
 				window.location.assign("/login");
 			});
 		};
@@ -112,6 +127,15 @@ export function IdleSessionTimeout() {
 		void supabase.auth.getSession().then(({ data: { session } }) => {
 			if (!session) {
 				return;
+			}
+
+			// A new sign-in starts fresh: timestamps left by an earlier session (one that was
+			// signed out elsewhere, or expired) must not end this one on its first page load.
+			const sessionId = readSessionId(session.access_token);
+			if (sessionId && window.localStorage.getItem(SESSION_STORAGE_KEY) !== sessionId) {
+				window.localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+				writeTimestamp(LAST_ACTIVITY_STORAGE_KEY);
+				writeTimestamp(LAST_SEEN_STORAGE_KEY);
 			}
 
 			checkTimeouts();

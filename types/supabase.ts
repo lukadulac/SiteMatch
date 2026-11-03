@@ -1276,6 +1276,7 @@ export type Database = {
       admin_moderate_listing: { Args: { target_type: string; target_id: string; decision: string; reason: string }; Returns: Json };
       admin_moderate_user: { Args: { target_user_id: string; decision: string; reason: string; suspension_end?: string | null }; Returns: Json };
       admin_confirm_auth_deleted: { Args: { target_user_id: string }; Returns: undefined };
+      delete_own_account: { Args: { confirm_email: string }; Returns: Json };
       admin_list_records: { Args: { resource: string; page_number?: number; filter_value?: string }; Returns: Json };
       admin_overview: { Args: Record<PropertyKey, never>; Returns: Json };
       accept_project_application: {
