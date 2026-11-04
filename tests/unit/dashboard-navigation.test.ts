@@ -15,6 +15,7 @@ describe("completeDashboardNavigation", () => {
       "/dashboard/client/service-requests",
       "/dashboard/client/workrooms",
       "/dashboard/messages",
+      "/dashboard/notifications",
       "/dashboard/client/profile",
     ]);
     expect(items[1]).toMatchObject({ active: true, count: 4 });

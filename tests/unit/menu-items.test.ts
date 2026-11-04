@@ -53,6 +53,7 @@ describe("getWorkspaceItems", () => {
 			"/dashboard/client/service-requests",
 			"/dashboard/client/workrooms",
 			"/dashboard/messages",
+			"/dashboard/notifications",
 		]);
 	});
 
