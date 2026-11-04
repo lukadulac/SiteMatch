@@ -1,5 +1,18 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+/** notifications.type: text with a check constraint, not a Postgres enum. */
+export type NotificationType =
+  | "application_received"
+  | "application_accepted"
+  | "application_rejected"
+  | "service_request_received"
+  | "service_request_accepted"
+  | "service_request_rejected"
+  | "workroom_completed";
+
+/** notifications.entity_type: text with a check constraint, not a Postgres enum. */
+export type NotificationEntityType = "project" | "application" | "service_request" | "workroom";
+
 export type Database = {
   public: {
     Tables: {
@@ -1201,11 +1214,11 @@ export type Database = {
           created_at: string;
           emailed_at: string | null;
           entity_id: string;
-          entity_type: "project" | "service_request";
+          entity_type: NotificationEntityType;
           id: string;
           read_at: string | null;
           title: string;
-          type: "application_received" | "service_request_received";
+          type: NotificationType;
           user_id: string;
         };
         ComputedFields: never;
@@ -1213,11 +1226,11 @@ export type Database = {
           created_at?: string;
           emailed_at?: string | null;
           entity_id: string;
-          entity_type: "project" | "service_request";
+          entity_type: NotificationEntityType;
           id?: string;
           read_at?: string | null;
           title: string;
-          type: "application_received" | "service_request_received";
+          type: NotificationType;
           user_id: string;
         };
         Update: {

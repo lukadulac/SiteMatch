@@ -435,13 +435,15 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** `/dashboard/notifications` (list, mark one/all read, link to item). Events: application accepted/rejected, service request accepted/rejected, workroom completed, review received.
 
+**Status:** Done on `feature/notifications-inbox`, except "review received": reviews do not exist yet (Task 9), so that event comes with them. Events are triggers like Task 13's. Acceptances are written when the workroom opens (an `after insert` on `service_workrooms`), so they link straight to the workroom; rejections fire on the status change, which also tells applicants when another provider is hired or the brief is cancelled. A rejected application links to the provider's closed applications, since an assigned brief has no provider page. `type` and `entity_type` stay text with check constraints; `types/supabase.ts` exports `NotificationType` and `NotificationEntityType` for them. The inbox shows the 50 most recent, opening one is a form post that marks it read and redirects, and "Notifications" joins the client and provider sidebars and the mobile drawer. pgTAP in `supabase/tests/database/notification-events.test.sql`. Checked in the browser as client and provider. Follow-up: the inbox prints times in the server's time zone (UTC on Vercel).
+
 **Acceptance criteria:**
-- [ ] Each event creates one notification for the right person
-- [ ] Opening marks it read and goes to its brief, request, workroom or review
-- [ ] "Mark all read" clears the header badge
+- [x] Each event creates one notification for the right person (all but review received)
+- [x] Opening marks it read and goes to its brief, request, workroom or review
+- [x] "Mark all read" clears the header badge
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run tests/unit/notifications.test.ts`
+- [x] Tests pass: `npx vitest run tests/unit/notifications.test.ts`
 
 **Dependencies:** Task 13 (workroom and review events need Tasks 8 and 9)
 

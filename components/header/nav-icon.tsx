@@ -1,4 +1,5 @@
 import {
+	Bell,
 	Briefcase,
 	FolderKanban,
 	Inbox,
@@ -22,6 +23,7 @@ const icons: Record<NavIconName, LucideIcon> = {
 	inbox: Inbox,
 	users: Users,
 	message: MessageSquare,
+	bell: Bell,
 	send: Send,
 	package: Package,
 	profile: UserRound,

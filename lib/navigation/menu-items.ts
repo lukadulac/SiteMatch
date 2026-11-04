@@ -7,6 +7,7 @@ export type NavIconName =
 	| "inbox"
 	| "users"
 	| "message"
+	| "bell"
 	| "send"
 	| "package"
 	| "profile"
@@ -68,6 +69,13 @@ const roleNavigation: Record<UserRole, NavConfigItem[]> = {
 			countFrom: "unreadMessages",
 			countKind: "unread",
 		},
+		{
+			href: "/dashboard/notifications",
+			label: "Notifications",
+			icon: "bell",
+			countFrom: "unreadNotifications",
+			countKind: "unread",
+		},
 		{ href: "/dashboard/client/profile", label: "Profile", icon: "profile", sidebarOnly: true },
 	],
 	provider: [
@@ -93,6 +101,13 @@ const roleNavigation: Record<UserRole, NavConfigItem[]> = {
 			label: "Messages",
 			icon: "message",
 			countFrom: "unreadMessages",
+			countKind: "unread",
+		},
+		{
+			href: "/dashboard/notifications",
+			label: "Notifications",
+			icon: "bell",
+			countFrom: "unreadNotifications",
 			countKind: "unread",
 		},
 		{ href: "/dashboard/provider/profile", label: "Profile", icon: "profile", sidebarOnly: true },
