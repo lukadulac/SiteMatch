@@ -1287,6 +1287,14 @@ export type Database = {
           conversation_id: string;
         }[];
       };
+      cancel_project: {
+        Args: { target_project_id: string };
+        Returns: {
+          project_id: string;
+          project_status: Database["public"]["Enums"]["project_status"];
+          rejected_applications: number;
+        }[];
+      };
       accept_provider_service_request: {
         Args: { target_request_id: string };
         Returns: {

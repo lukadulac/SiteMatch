@@ -236,13 +236,15 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** `cancel_project(target_project_id)` RPC moves `draft` / `published` / `in_discussion` to `cancelled` and rejects pending applications in one transaction. "Cancel brief" button with confirm on `/oglasi/[id]`.
 
+**Status:** Done on `feature/hiring-loop`. The status guard now also treats `cancelled` as owned by the hiring flow: a plain update cannot cancel a brief, and a cancelled brief cannot be reopened. The confirm is a `<details>` panel on `/oglasi/[id]` (no browser dialog) that names how many open applications will be rejected; it and "Edit listing" show only for draft, published and in-discussion briefs. pgTAP in `supabase/tests/database/cancel-project.test.sql`. Checked in the browser on the local stack.
+
 **Acceptance criteria:**
-- [ ] Cancelled briefs leave `/jobs` and show as cancelled in the client's list
-- [ ] Providers with pending applications see them rejected
-- [ ] `assigned` / `completed` briefs cannot be cancelled (RPC raises; button hidden)
+- [x] Cancelled briefs leave `/jobs` and show as cancelled in the client's list
+- [x] Providers with pending applications see them rejected
+- [x] `assigned` / `completed` briefs cannot be cancelled (RPC raises; button hidden)
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run tests/unit/projects-service.test.ts tests/unit/listing-actions.test.ts`
+- [x] Tests pass: `npx vitest run tests/unit/projects-service.test.ts tests/unit/listing-actions.test.ts`
 
 **Dependencies:** Task 1
 

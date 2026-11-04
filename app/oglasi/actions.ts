@@ -9,6 +9,7 @@ import {
   updateApplicationStatusSchema,
 } from "@/lib/projects/schemas";
 import {
+  cancelClientProject,
   createProject,
   markProjectApplicationViewedForClient,
   updateClientProject,
@@ -250,6 +251,34 @@ export async function updateClientProjectAction(
   revalidatePath("/oglasi");
   revalidatePath("/dashboard/client");
   redirect("/oglasi");
+}
+
+export async function cancelClientProjectAction(projectId: string) {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const result = await cancelClientProject(supabase, user.id, projectId);
+
+  if (result.error) {
+    redirect(
+      `/oglasi/${projectId}?applicationError=${encodeURIComponent(result.error)}`,
+    );
+  }
+
+  revalidatePath("/oglasi");
+  revalidatePath(`/oglasi/${projectId}`);
+  revalidatePath("/jobs");
+  revalidatePath("/dashboard/client");
+  revalidatePath("/dashboard/provider");
+  redirect(
+    `/oglasi/${projectId}?applicationStatus=${encodeURIComponent("Brief cancelled.")}`,
+  );
 }
 
 export async function updateClientApplicationStatusAction(

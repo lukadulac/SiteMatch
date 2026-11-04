@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	cancelClientProjectAction,
 	createClientProjectAction,
 	openApplicationConversationAction,
 	reviewApplicationAction,
@@ -12,6 +13,7 @@ import {
 } from "@/app/jobs/actions";
 import { ensureConversationForApplication } from "@/lib/messaging/service";
 import {
+	cancelClientProject,
 	createProject,
 	createProjectApplication,
 	markProjectApplicationViewedForClient,
@@ -42,6 +44,7 @@ vi.mock("@/lib/messaging/service", () => ({
 }));
 
 vi.mock("@/lib/projects/service", () => ({
+	cancelClientProject: vi.fn(),
 	createProject: vi.fn(),
 	createProjectApplication: vi.fn(),
 	markProjectApplicationViewedForClient: vi.fn(),
@@ -271,6 +274,47 @@ describe("updateClientApplicationStatusAction", () => {
 			expect(pathname).toBe(`/oglasi/${PROJECT_ID}`);
 			expect(params.get("applicationStatus")).toBe(message);
 		}
+	});
+});
+
+describe("cancelClientProjectAction", () => {
+	it("sends a signed-out visitor to the login page", async () => {
+		signIn(null);
+
+		const path = await expectRedirect(cancelClientProjectAction(PROJECT_ID));
+
+		expect(path).toBe("/login");
+		expect(cancelClientProject).not.toHaveBeenCalled();
+	});
+
+	it("confirms the cancellation on the listing page", async () => {
+		vi.mocked(cancelClientProject).mockResolvedValue({
+			data: { id: PROJECT_ID, status: "cancelled", rejectedApplications: 2 },
+		});
+
+		const { pathname, params } = await expectRedirectTo(
+			cancelClientProjectAction(PROJECT_ID),
+		);
+
+		expect(pathname).toBe(`/oglasi/${PROJECT_ID}`);
+		expect(params.get("applicationStatus")).toBe("Brief cancelled.");
+		expect(cancelClientProject).toHaveBeenCalledWith(
+			expect.anything(),
+			"client-1",
+			PROJECT_ID,
+		);
+	});
+
+	it("reports a refusal back on the listing page", async () => {
+		vi.mocked(cancelClientProject).mockResolvedValue({
+			error: "A brief that was assigned or completed cannot be cancelled.",
+		});
+
+		const { params } = await expectRedirectTo(cancelClientProjectAction(PROJECT_ID));
+
+		expect(params.get("applicationError")).toBe(
+			"A brief that was assigned or completed cannot be cancelled.",
+		);
 	});
 });
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  cancelClientProjectAction,
   openApplicationConversationAction,
   reviewApplicationAction,
   updateClientApplicationStatusAction,
@@ -194,6 +195,17 @@ export default async function ListingDetailsPage({
     (application) =>
       application.status !== "rejected" && application.status !== "withdrawn",
   );
+  const isOpen =
+    project.status === "draft" ||
+    project.status === "published" ||
+    project.status === "in_discussion";
+  const openApplicationCount = applications.filter(
+    (application) =>
+      application.status === "pending" ||
+      application.status === "viewed" ||
+      application.status === "shortlisted",
+  ).length;
+  const cancelAction = cancelClientProjectAction.bind(null, project.id);
 
   return (
     <section className="space-y-8 py-4 sm:py-8">
@@ -229,12 +241,38 @@ export default async function ListingDetailsPage({
             </p>
           </div>
 
-          <Link
-            href={`/oglasi/${project.id}/edit`}
-            className="inline-flex items-center justify-center rounded-2xl bg-linear-to-r from-violet-500 to-pink-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(168,85,247,0.25)] transition hover:opacity-90"
-          >
-            {project.status === "draft" ? "Continue editing" : "Edit listing"}
-          </Link>
+          {isOpen ? (
+            <div className="flex flex-col items-stretch gap-3 sm:items-end">
+              <Link
+                href={`/oglasi/${project.id}/edit`}
+                className="inline-flex items-center justify-center rounded-2xl bg-linear-to-r from-violet-500 to-pink-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(168,85,247,0.25)] transition hover:opacity-90"
+              >
+                {project.status === "draft" ? "Continue editing" : "Edit listing"}
+              </Link>
+              <details className="group sm:text-right">
+                <summary className="cursor-pointer list-none text-sm font-semibold text-red-700 transition hover:opacity-70">
+                  Cancel brief
+                </summary>
+                <div className="mt-3 max-w-xs rounded-2xl border border-red-200 bg-red-50 p-4 text-left text-sm text-red-700">
+                  <p>
+                    The brief leaves the marketplace and{" "}
+                    {openApplicationCount === 1
+                      ? "1 open application is"
+                      : `${openApplicationCount} open applications are`}{" "}
+                    rejected. This cannot be undone.
+                  </p>
+                  <form action={cancelAction} className="mt-3">
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                    >
+                      Yes, cancel brief
+                    </button>
+                  </form>
+                </div>
+              </details>
+            </div>
+          ) : null}
         </div>
       </section>
 
