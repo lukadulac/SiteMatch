@@ -20,6 +20,7 @@ export type NavCountKind = "unread" | "pending";
 
 export type NavCounts = {
 	unreadMessages: number;
+	unreadNotifications: number;
 	pendingServiceRequests: number;
 };
 

@@ -1196,6 +1196,43 @@ export type Database = {
           },
         ];
       };
+      notifications: {
+        Row: {
+          created_at: string;
+          emailed_at: string | null;
+          entity_id: string;
+          entity_type: "project" | "service_request";
+          id: string;
+          read_at: string | null;
+          title: string;
+          type: "application_received" | "service_request_received";
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          emailed_at?: string | null;
+          entity_id: string;
+          entity_type: "project" | "service_request";
+          id?: string;
+          read_at?: string | null;
+          title: string;
+          type: "application_received" | "service_request_received";
+          user_id: string;
+        };
+        Update: {
+          read_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       service_workrooms: {
         Row: {
           accepted_at: string;

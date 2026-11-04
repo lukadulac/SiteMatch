@@ -7,7 +7,7 @@ import {
 	getWorkspaceLabel,
 } from "@/lib/navigation/menu-items";
 
-const NO_COUNTS = { unreadMessages: 0, pendingServiceRequests: 0 };
+const NO_COUNTS = { unreadMessages: 0, unreadNotifications: 0, pendingServiceRequests: 0 };
 
 function activeHrefs(items: Array<{ href: string; active?: boolean }>) {
 	return items.filter((item) => item.active).map((item) => item.href);
@@ -69,7 +69,7 @@ describe("getWorkspaceItems", () => {
 	});
 
 	it("puts unread messages and pending requests on their rows", () => {
-		const items = getWorkspaceItems("provider", "/", { unreadMessages: 3, pendingServiceRequests: 2 });
+		const items = getWorkspaceItems("provider", "/", { unreadMessages: 3, unreadNotifications: 0, pendingServiceRequests: 2 });
 
 		expect(items.find((item) => item.href === "/dashboard/messages")).toMatchObject({
 			count: 3,
