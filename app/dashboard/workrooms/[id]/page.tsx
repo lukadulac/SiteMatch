@@ -55,6 +55,36 @@ function formatPrice({
 	return `${formattedPrice} fixed`;
 }
 
+function formatMoney(value: number) {
+	return new Intl.NumberFormat("en-US", {
+		style: "currency",
+		currency: "USD",
+		maximumFractionDigits: 0,
+	}).format(value);
+}
+
+function formatBudget({
+	budgetType,
+	budgetMin,
+	budgetMax,
+}: {
+	budgetType: string;
+	budgetMin: number | null;
+	budgetMax: number | null;
+}) {
+	if (budgetType === "negotiable") {
+		return "Negotiable";
+	}
+
+	if (budgetMin != null && budgetMax != null && budgetMin !== budgetMax) {
+		return `${formatMoney(budgetMin)} – ${formatMoney(budgetMax)}`;
+	}
+
+	const amount = budgetMin ?? budgetMax;
+
+	return amount != null ? formatMoney(amount) : null;
+}
+
 function partyLocation(party: { city: string | null; country: string | null } | null) {
 	return [party?.city, party?.country]
 		.filter((value): value is string => Boolean(value))
@@ -134,6 +164,9 @@ export default async function WorkroomDetailPage({
 		conversationsResult.data?.filter((conversation) => conversation.unread_count > 0) ??
 		[];
 	const service = workroom.service;
+	const project = workroom.project;
+	const application = workroom.application;
+	const title = service?.title ?? project?.title ?? "Accepted work";
 	const isCompleted = workroom.status === "completed";
 	const providerCanComplete = viewerRole === "provider" && !isCompleted;
 	const clientCanMessage = viewerRole === "client" && !isCompleted && conversationHref;
@@ -141,12 +174,43 @@ export default async function WorkroomDetailPage({
 	const price = service
 		? formatPrice({ priceType: service.price_type, startingPrice: service.starting_price })
 		: null;
-	const facts = [
-		{ label: "Price", value: price },
-		{ label: "Delivery", value: service?.delivery_estimate },
-		{ label: "Service type", value: service?.service_type_text },
-		{ label: "Category", value: service?.category_text },
-	].filter((fact): fact is { label: string; value: string } => Boolean(fact.value));
+	const facts = (
+		project
+			? [
+					{
+						label: "Agreed price",
+						value:
+							application?.proposed_price != null
+								? formatMoney(application.proposed_price)
+								: null,
+					},
+					{
+						label: "Delivery",
+						value:
+							application?.estimated_delivery_days != null
+								? `${application.estimated_delivery_days} days`
+								: null,
+					},
+					{
+						label: "Budget",
+						value: formatBudget({
+							budgetType: project.budget_type,
+							budgetMin: project.budget_min,
+							budgetMax: project.budget_max,
+						}),
+					},
+					{
+						label: "Deadline",
+						value: project.deadline_date ? formatWorkroomDate(project.deadline_date) : null,
+					},
+				]
+			: [
+					{ label: "Price", value: price },
+					{ label: "Delivery", value: service?.delivery_estimate },
+					{ label: "Service type", value: service?.service_type_text },
+					{ label: "Category", value: service?.category_text },
+				]
+	).filter((fact): fact is { label: string; value: string } => Boolean(fact.value));
 	const statusMessage =
 		workroomStatus && isCompleted && viewerRole === "provider"
 			? `${workroomStatus} ${firstName(otherName)} will see it as delivered.`
@@ -193,7 +257,7 @@ export default async function WorkroomDetailPage({
 				<header>
 					<WorkroomStatusBadge status={workroom.status} />
 					<h1 className="mt-2.5 text-[1.625rem] leading-tight font-bold tracking-[-0.015em] wrap-break-word sm:mt-3 sm:text-[2.125rem] sm:tracking-[-0.02em]">
-						{service?.title ?? "Accepted service"}
+						{title}
 					</h1>
 					<div className="mt-2 flex flex-wrap items-center gap-x-5 text-sm sm:text-[0.9375rem]">
 						<p className="text-secondary">
@@ -206,12 +270,19 @@ export default async function WorkroomDetailPage({
 									View service
 								</Link>
 							) : null}
-							<Link
-								href={`/dashboard/service-requests/${workroom.service_request_id}`}
-								className={secondaryLinkClasses}
-							>
-								View request
-							</Link>
+							{workroom.service_request_id ? (
+								<Link
+									href={`/dashboard/service-requests/${workroom.service_request_id}`}
+									className={secondaryLinkClasses}
+								>
+									View request
+								</Link>
+							) : null}
+							{project && viewerRole === "client" ? (
+								<Link href={`/oglasi/${project.id}`} className={secondaryLinkClasses}>
+									View brief
+								</Link>
+							) : null}
 						</div>
 					</div>
 				</header>
@@ -282,18 +353,26 @@ export default async function WorkroomDetailPage({
 								What was agreed
 							</h2>
 							<p className="text-[0.8125rem] text-secondary">
-								{viewerRole === "provider"
-									? `From ${firstName(otherName)}’s request`
-									: "From your request"}
+								{project
+									? viewerRole === "provider"
+										? `From ${firstName(otherName)}’s brief`
+										: "From your brief"
+									: viewerRole === "provider"
+										? `From ${firstName(otherName)}’s request`
+										: "From your request"}
 							</p>
 						</div>
 						<div className="mt-3 lg:mt-3.5">
 							<ExpandableText
-								text={workroom.service_request?.message ?? "No agreement summary available."}
+								text={
+									workroom.service_request?.message ??
+									project?.description ??
+									"No agreement summary available."
+								}
 							/>
 						</div>
 						{facts.length > 0 ? (
-							<dl className="mt-4 grid grid-cols-2 gap-2 lg:mt-5 lg:grid-cols-4 lg:gap-2.5">
+							<dl className="mt-4 grid grid-cols-2 gap-2 lg:mt-5 lg:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] lg:gap-2.5">
 								{facts.map((fact) => (
 									<div key={fact.label} className="min-w-0 rounded-2xl bg-panel-soft px-3.5 py-3">
 										<dt className="text-xs text-secondary lg:text-[0.8125rem]">{fact.label}</dt>

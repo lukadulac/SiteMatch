@@ -161,7 +161,7 @@ export function WorkroomCard({
 				<h2 className="min-w-0 text-base leading-snug font-semibold wrap-break-word sm:text-[1.0625rem]">
 					<Link href={`/dashboard/workrooms/${workroom.id}`} className="text-foreground">
 						<span aria-hidden="true" className="absolute inset-0 rounded-3xl" />
-						{workroom.service?.title ?? "Accepted service"}
+						{workroom.service?.title ?? workroom.project?.title ?? "Accepted work"}
 					</Link>
 				</h2>
 				<WorkroomStatusBadge status={workroom.status} size="sm" />
@@ -174,7 +174,9 @@ export function WorkroomCard({
 			</p>
 			<div className="mt-2.5 sm:flex sm:items-end sm:gap-5">
 				<p className="line-clamp-2 min-w-0 flex-1 text-sm leading-normal wrap-break-word text-secondary sm:text-[0.9375rem]">
-					{workroom.service_request?.message ?? "No agreement summary available."}
+					{workroom.service_request?.message ??
+						workroom.project?.description ??
+						"No agreement summary available."}
 				</p>
 				{workroom.conversation_id ? (
 					<Link

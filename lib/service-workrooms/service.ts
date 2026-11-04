@@ -29,7 +29,7 @@ export type ServiceWorkroomSummary = ServiceWorkroomRow & {
 	> | null;
 	project: Pick<
 		Database["public"]["Tables"]["projects"]["Row"],
-		"id" | "title" | "status"
+		"id" | "title" | "description" | "status"
 	> | null;
 	client: Pick<
 		Database["public"]["Tables"]["profiles"]["Row"],
@@ -111,7 +111,7 @@ type SupabaseClientWithWorkroomRpc = SupabaseClient<Database> & {
 };
 
 const workroomSummarySelect =
-	"id, service_request_id, service_id, application_id, project_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, status, price_type, starting_price), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at), project:projects!service_workrooms_project_id_fkey(id, title, status), client:profiles!service_workrooms_client_id_fkey(id, full_name, avatar_url, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, avatar_url, city, country)";
+	"id, service_request_id, service_id, application_id, project_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, status, price_type, starting_price), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at), project:projects!service_workrooms_project_id_fkey(id, title, description, status), client:profiles!service_workrooms_client_id_fkey(id, full_name, avatar_url, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, avatar_url, city, country)";
 
 const workroomDetailSelect =
 	"id, service_request_id, service_id, application_id, project_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, description, status, price_type, starting_price, delivery_estimate, service_type_text, category_text, created_at, published_at), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at, updated_at), project:projects!service_workrooms_project_id_fkey(id, title, description, status, budget_type, budget_min, budget_max, deadline_date), application:applications!service_workrooms_application_id_fkey(id, status, proposed_price, estimated_delivery_days, created_at), client:profiles!service_workrooms_client_id_fkey(id, full_name, avatar_url, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, avatar_url, city, country)";
@@ -518,4 +518,33 @@ export async function completeWorkroomForProvider(
 			status: workroom.workroom_status,
 		},
 	};
+}
+
+/** The workroom each accepted project application opened, keyed by application id. */
+export async function getWorkroomIdsByApplicationIds(
+	supabase: SupabaseClient<Database>,
+	applicationIds: string[],
+): Promise<Result<Map<string, string>>> {
+	if (applicationIds.length === 0) {
+		return { data: new Map() };
+	}
+
+	const { data, error } = await supabase
+		.from("service_workrooms")
+		.select("id, application_id")
+		.in("application_id", applicationIds);
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	const workroomByApplicationId = new Map<string, string>();
+
+	for (const workroom of data ?? []) {
+		if (workroom.application_id) {
+			workroomByApplicationId.set(workroom.application_id, workroom.id);
+		}
+	}
+
+	return { data: workroomByApplicationId };
 }

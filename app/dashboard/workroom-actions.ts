@@ -109,6 +109,9 @@ function revalidateWorkroomPaths(workroomId: string) {
 	revalidatePath("/dashboard/provider/services");
 	revalidatePath("/dashboard/client/workrooms");
 	revalidatePath("/dashboard/provider/workrooms");
+	revalidatePath("/dashboard/client/projects");
+	revalidatePath("/dashboard/provider/applications");
+	revalidatePath("/oglasi");
 	revalidatePath(`/dashboard/workrooms/${workroomId}`);
 }
 

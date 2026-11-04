@@ -5,6 +5,7 @@ import {
 	getClientWorkroomsPage,
 	getProviderWorkroomsPage,
 	getWorkroomDetailForParticipant,
+	getWorkroomIdsByApplicationIds,
 	getWorkroomStatusCounts,
 } from "@/lib/service-workrooms/service";
 import { parseWorkroomListQuery } from "@/lib/service-workrooms/schemas";
@@ -367,5 +368,32 @@ describe("completeWorkroomForProvider", () => {
 		);
 
 		expect(result.error).toBe("Workroom could not be completed.");
+	});
+});
+
+describe("getWorkroomIdsByApplicationIds", () => {
+	it("maps each accepted application to its workroom", async () => {
+		const stub = createSupabaseStub({
+			"service_workrooms.select": {
+				data: [{ id: WORKROOM_ID, application_id: APPLICATION_ID }],
+			},
+		});
+
+		const result = await getWorkroomIdsByApplicationIds(stub.client, [APPLICATION_ID]);
+
+		expect(result.data?.get(APPLICATION_ID)).toBe(WORKROOM_ID);
+		expect(stub.callsFor("service_workrooms.select")[0]?.filters).toContainEqual({
+			method: "in",
+			args: ["application_id", [APPLICATION_ID]],
+		});
+	});
+
+	it("skips the query when there are no applications", async () => {
+		const stub = createSupabaseStub({});
+
+		const result = await getWorkroomIdsByApplicationIds(stub.client, []);
+
+		expect(result.data?.size).toBe(0);
+		expect(stub.callKeys()).toHaveLength(0);
 	});
 });

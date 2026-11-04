@@ -13,6 +13,7 @@ import {
   getProjectApplicationsForClient,
 } from "@/lib/projects/service";
 import { getApplicationStatusMeta } from "@/lib/projects/application-status";
+import { getWorkroomIdsByApplicationIds } from "@/lib/service-workrooms/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Avatar } from "@/components/profile/avatar";
 
@@ -206,6 +207,21 @@ export default async function ListingDetailsPage({
       application.status === "shortlisted",
   ).length;
   const cancelAction = cancelClientProjectAction.bind(null, project.id);
+  const acceptedApplication = applications.find(
+    (application) => application.status === "accepted",
+  );
+  const workroomsResult = await getWorkroomIdsByApplicationIds(
+    supabase,
+    acceptedApplication ? [acceptedApplication.id] : [],
+  );
+
+  if (workroomsResult.error) {
+    throw new Error(workroomsResult.error);
+  }
+
+  const workroomId = acceptedApplication
+    ? workroomsResult.data?.get(acceptedApplication.id)
+    : undefined;
 
   return (
     <section className="space-y-8 py-4 sm:py-8">
@@ -272,6 +288,13 @@ export default async function ListingDetailsPage({
                 </div>
               </details>
             </div>
+          ) : workroomId ? (
+            <Link
+              href={`/dashboard/workrooms/${workroomId}`}
+              className="inline-flex items-center justify-center rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/85"
+            >
+              Open workroom
+            </Link>
           ) : null}
         </div>
       </section>
