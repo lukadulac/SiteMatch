@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDashboardPath, isAppRole, type UserRole } from "@/lib/auth/roles";
 import { getUnreadConversationCount } from "@/lib/messaging/service";
+import { getUnreadNotificationCount } from "@/lib/notifications/service";
 import type { NavCounts } from "@/lib/navigation/menu-items";
 import type { Database } from "@/types/supabase";
 
@@ -25,7 +26,11 @@ export type HeaderUser = {
 
 export type HeaderState = { user: HeaderUser | null };
 
-const NO_COUNTS: NavCounts = { unreadMessages: 0, pendingServiceRequests: 0 };
+const NO_COUNTS: NavCounts = {
+	unreadMessages: 0,
+	unreadNotifications: 0,
+	pendingServiceRequests: 0,
+};
 
 const roleCtas: Record<UserRole, HeaderCta> = {
 	client: { href: "/oglasi/novi", label: "Post a project", icon: "plus" },
@@ -43,8 +48,9 @@ async function loadCounts(
 	}
 
 	// A failed count hides its badge; it never takes the header down.
-	const [unread, pending] = await Promise.all([
+	const [unread, notifications, pending] = await Promise.all([
 		getUnreadConversationCount(supabase, userId),
+		getUnreadNotificationCount(supabase, userId),
 		role === "provider"
 			? supabase
 				.from("provider_service_requests")
@@ -56,6 +62,7 @@ async function loadCounts(
 
 	return {
 		unreadMessages: unread.data ?? 0,
+		unreadNotifications: notifications.data ?? 0,
 		pendingServiceRequests: pending && !pending.error ? pending.count ?? 0 : 0,
 	};
 }

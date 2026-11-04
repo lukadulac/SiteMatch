@@ -412,14 +412,16 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** `notifications` table (`user_id`, `type`, `entity_type`, `entity_id`, `title`, `read_at`, `emailed_at`, `created_at`; owner-only). Rows written inside `request_provider_service` and by a trigger on `applications` insert. Header bell with unread count plus unread messages.
 
+**Status:** Done on `feature/notifications-outbox`. Both events are written by `after insert` triggers (security definer, in `private`): the one on `provider_service_requests` fires exactly where `request_provider_service` inserts (users cannot insert requests), so the RPC itself is unchanged. `type` and `entity_type` are check-constrained to the two events so far; Task 14 widens them. Users get `select` and `update (read_at)` only. An application notification points at the brief (`entity_type = 'project'`) so the inbox can link to `/oglasi/[id]`. The bell sits next to Messages in the desktop header and counts toward the mobile menu's activity dot; it links to `/dashboard/notifications`, which Task 14 builds, so merge 13 with 14. pgTAP in `supabase/tests/database/notifications.test.sql`. Checked in the browser: the client's bell shows 2 after two applications.
+
 **Acceptance criteria:**
-- [ ] Requesting a service or applying creates exactly one notification for the other party
-- [ ] Header shows unread notifications and unread messages
-- [ ] Users read only their own notifications
+- [x] Requesting a service or applying creates exactly one notification for the other party
+- [x] Header shows unread notifications and unread messages
+- [x] Users read only their own notifications
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run tests/unit/notifications.test.ts`
-- [ ] Manual check: two browsers
+- [x] Tests pass: `npx vitest run tests/unit/notifications.test.ts`
+- [x] Manual check: one browser, data from the other side seeded (the provider's apply path is covered by pgTAP)
 
 **Dependencies:** Task 1
 

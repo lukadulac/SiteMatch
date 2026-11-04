@@ -22,7 +22,11 @@ export default function Header({ user }: HeaderProps) {
 		useMobileMenu();
 	const browseItems = getBrowseItems(pathname);
 	const hasActivity = Boolean(
-		user && user.counts.unreadMessages + user.counts.pendingServiceRequests > 0,
+		user &&
+			user.counts.unreadMessages +
+				user.counts.unreadNotifications +
+				user.counts.pendingServiceRequests >
+				0,
 	);
 
 	return (

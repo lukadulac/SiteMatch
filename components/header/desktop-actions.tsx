@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageSquare, Plus, ShieldCheck } from "lucide-react";
+import { Bell, MessageSquare, Plus, ShieldCheck } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
 import { Avatar } from "@/components/profile/avatar";
@@ -11,7 +11,7 @@ const focusRing =
 
 const ghostButton = `flex h-10 items-center rounded-lg px-4 text-[15px] font-semibold text-[#111] transition-colors hover:bg-zinc-100 ${focusRing}`;
 
-/** Right side of the desktop header: guest sign-up, or the role CTA, messages and account. */
+/** Right side of the desktop header: guest sign-up, or the role CTA, notifications, messages and account. */
 export function DesktopActions({ user }: { user: HeaderUser | null }) {
 	if (!user) {
 		return (
@@ -30,6 +30,7 @@ export function DesktopActions({ user }: { user: HeaderUser | null }) {
 	}
 
 	const unread = user.counts.unreadMessages;
+	const unreadNotifications = user.counts.unreadNotifications;
 
 	return (
 		<div className="ml-auto hidden items-center gap-2 lg:flex">
@@ -44,6 +45,25 @@ export function DesktopActions({ user }: { user: HeaderUser | null }) {
 						<Plus aria-hidden="true" className="size-[18px]" />
 					)}
 					{user.cta.label}
+				</Link>
+			) : null}
+
+			{user.role === "client" || user.role === "provider" ? (
+				<Link
+					href="/dashboard/notifications"
+					aria-label={
+						unreadNotifications > 0
+							? `Notifications, ${unreadNotifications} unread`
+							: "Notifications"
+					}
+					className={`relative grid size-11 place-items-center rounded-lg text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-[#111] ${focusRing}`}
+				>
+					<Bell aria-hidden="true" className="size-[22px]" />
+					{unreadNotifications > 0 ? (
+						<span className="absolute top-1 right-0.5 rounded-full ring-2 ring-white">
+							<CountBadge count={unreadNotifications} kind="unread" />
+						</span>
+					) : null}
 				</Link>
 			) : null}
 

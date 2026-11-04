@@ -28,6 +28,7 @@ describe("getHeaderState", () => {
 			},
 			"conversations.select": { data: [{ id: "c1" }, { id: "c2" }] },
 			"messages.select": { data: [{ conversation_id: "c1" }, { conversation_id: "c1" }] },
+			"notifications.select": { count: 4 },
 		});
 
 		const { user } = await getHeaderState(stub.client);
@@ -39,21 +40,28 @@ describe("getHeaderState", () => {
 			emailVerified: true,
 			profileHref: "/dashboard/client/profile",
 			cta: { href: "/oglasi/novi", label: "Post a project" },
-			counts: { unreadMessages: 1, pendingServiceRequests: 0 },
+			counts: { unreadMessages: 1, unreadNotifications: 4, pendingServiceRequests: 0 },
 		});
 		expect(stub.callKeys()).not.toContain("provider_service_requests.select");
+		expect(stub.callsFor("notifications.select")[0]?.filters).toEqual(
+			expect.arrayContaining([
+				{ method: "eq", args: ["user_id", "user-1"] },
+				{ method: "is", args: ["read_at", null] },
+			]),
+		);
 	});
 
 	it("counts pending service requests for providers", async () => {
 		const stub = stubFor({
 			"profiles.select": { data: { role: "provider", full_name: "Marko Ilić" } },
 			"conversations.select": { data: [] },
+			"notifications.select": { count: 0 },
 			"provider_service_requests.select": { count: 2 },
 		});
 
 		const { user } = await getHeaderState(stub.client);
 
-		expect(user?.counts).toEqual({ unreadMessages: 0, pendingServiceRequests: 2 });
+		expect(user?.counts).toEqual({ unreadMessages: 0, unreadNotifications: 0, pendingServiceRequests: 2 });
 		expect(user?.cta?.href).toBe("/dashboard/provider/services/post");
 	});
 
@@ -61,12 +69,13 @@ describe("getHeaderState", () => {
 		const stub = stubFor({
 			"profiles.select": { data: { role: "provider", full_name: "Marko Ilić" } },
 			"conversations.select": { error: { message: "boom" } },
+			"notifications.select": { error: { message: "boom" } },
 			"provider_service_requests.select": { error: { message: "boom" } },
 		});
 
 		const { user } = await getHeaderState(stub.client);
 
-		expect(user?.counts).toEqual({ unreadMessages: 0, pendingServiceRequests: 0 });
+		expect(user?.counts).toEqual({ unreadMessages: 0, unreadNotifications: 0, pendingServiceRequests: 0 });
 	});
 
 	it("flags an unconfirmed email", async () => {
@@ -87,7 +96,11 @@ describe("getHeaderState", () => {
 
 	it("falls back to the metadata role and the email name without a profile row", async () => {
 		const stub = stubFor(
-			{ "profiles.select": { data: null }, "conversations.select": { data: [] } },
+			{
+				"profiles.select": { data: null },
+				"conversations.select": { data: [] },
+				"notifications.select": { count: 0 },
+			},
 			{ ...USER, user_metadata: { role: "client" } },
 		);
 
