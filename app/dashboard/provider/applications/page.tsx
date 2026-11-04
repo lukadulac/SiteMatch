@@ -11,6 +11,7 @@ import {
 import { ensureUserProfile } from "@/lib/auth/provision";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getUnreadConversationCount } from "@/lib/messaging/service";
+import { getWorkroomIdsByApplicationIds } from "@/lib/service-workrooms/service";
 import {
   canMessageForApplicationStatus,
   canWithdrawForApplicationStatus,
@@ -84,9 +85,11 @@ function ApplicationSummaryCard({
 function ProviderApplicationCard({
   application,
   conversationId,
+  workroomId,
 }: {
   application: ProviderApplicationListItem;
   conversationId?: string;
+  workroomId?: string;
 }) {
   const statusMeta = getApplicationStatusMeta(application.status);
   const messageAction = application.project
@@ -140,12 +143,23 @@ function ProviderApplicationCard({
 
       {application.project ? (
         <div className="mt-5 flex flex-wrap gap-3">
-          <Link
-            href={`/jobs/${application.project.id}`}
-            className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
-          >
-            View brief
-          </Link>
+          {workroomId ? (
+            <Link
+              href={`/dashboard/workrooms/${workroomId}`}
+              className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/85"
+            >
+              Open workroom
+            </Link>
+          ) : null}
+          {application.project.status === "published" ||
+          application.project.status === "in_discussion" ? (
+            <Link
+              href={`/jobs/${application.project.id}`}
+              className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/3"
+            >
+              View brief
+            </Link>
+          ) : null}
           {canMessageForApplicationStatus(application.status) && messageAction ? (
             <form action={messageAction}>
               <button
@@ -185,6 +199,7 @@ function ApplicationSection({
   description,
   applications,
   conversationByApplicationId,
+  workroomByApplicationId,
   emptyMessage,
   totalCount,
 }: {
@@ -192,6 +207,7 @@ function ApplicationSection({
   description: string;
   applications: ProviderApplicationListItem[];
   conversationByApplicationId: Map<string, string>;
+  workroomByApplicationId: Map<string, string>;
   emptyMessage: string;
   totalCount: number;
 }) {
@@ -212,6 +228,7 @@ function ApplicationSection({
               key={application.id}
               application={application}
               conversationId={conversationByApplicationId.get(application.id)}
+              workroomId={workroomByApplicationId.get(application.id)}
             />
           ))
         ) : (
@@ -296,6 +313,12 @@ export default async function ProviderApplicationsPage({ searchParams }: { searc
       if (conversation.application_id) conversationByApplicationId.set(conversation.application_id, conversation.id);
     }
   }
+  const workroomsResult = await getWorkroomIdsByApplicationIds(
+    supabase,
+    applications.filter((application) => application.status === "accepted").map((application) => application.id),
+  );
+  if (workroomsResult.error) throw new Error(workroomsResult.error);
+  const workroomByApplicationId = workroomsResult.data ?? new Map<string, string>();
   const unreadConversationCount = unreadCountResult.data ?? 0;
 
   return (
@@ -345,6 +368,7 @@ export default async function ProviderApplicationsPage({ searchParams }: { searc
         description="Review proposals and open their project or conversation."
         applications={applications}
         conversationByApplicationId={conversationByApplicationId}
+        workroomByApplicationId={workroomByApplicationId}
         emptyMessage={status === "all" ? "No applications yet. Browse open briefs to send your first proposal." : "No applications match this status."}
         totalCount={totalCount}
       />

@@ -281,14 +281,16 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** Project workrooms in the existing lists and detail page (project title and brief link). `complete_service_workroom` also sets `projects.status = 'completed'` when `project_id` is set. Link to the workroom from the assigned brief and the provider's applications page.
 
+**Status:** Done on `feature/project-workroom-completion`. `complete_service_workroom` keeps its signature and now also completes an assigned brief; anon lost its execute grant on it. The workroom card and detail page use the brief's title and description; the detail shows agreed price, delivery, budget and deadline and links the client to `/oglasi/[id]` (providers have no brief page once it is assigned, since `/jobs/[id]` shows only open briefs). The assigned or completed brief shows "Open workroom", and an accepted application on `/dashboard/provider/applications` shows "Open workroom" instead of "View brief", which is now hidden for briefs that are no longer open. The detail's facts grid fits its tiles to their content (a single "Negotiable" was breaking mid-word). pgTAP in `supabase/tests/database/project-workroom-completion.test.sql`. Checked in the browser on the local stack: the client accepts, both sides open the workroom, the provider completes it, and the brief is `completed`.
+
 **Acceptance criteria:**
-- [ ] Both parties see and open the project workroom under `/dashboard/*/workrooms`
-- [ ] Provider marks complete → workroom and project both `completed`
-- [ ] Assigned brief and accepted application link to the workroom
+- [x] Both parties see and open the project workroom under `/dashboard/*/workrooms`
+- [x] Provider marks complete → workroom and project both `completed`
+- [x] Assigned brief and accepted application link to the workroom
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run tests/unit/service-workrooms.test.ts tests/unit/workroom-actions.test.ts`
-- [ ] Manual check: as client and provider
+- [x] Tests pass: `npx vitest run tests/unit/service-workrooms.test.ts tests/unit/workroom-actions.test.ts`
+- [x] Manual check: as client and provider
 
 **Dependencies:** Task 7
 
