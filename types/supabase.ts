@@ -1199,42 +1199,62 @@ export type Database = {
       service_workrooms: {
         Row: {
           accepted_at: string;
+          application_id: string | null;
           client_id: string;
           completed_at: string | null;
           created_at: string;
           id: string;
+          project_id: string | null;
           provider_id: string;
-          service_id: string;
-          service_request_id: string;
+          service_id: string | null;
+          service_request_id: string | null;
           status: Database["public"]["Enums"]["service_workroom_status"];
           updated_at: string;
         };
         ComputedFields: never;
         Insert: {
           accepted_at?: string;
+          application_id?: string | null;
           client_id: string;
           completed_at?: string | null;
           created_at?: string;
           id?: string;
+          project_id?: string | null;
           provider_id: string;
-          service_id: string;
-          service_request_id: string;
+          service_id?: string | null;
+          service_request_id?: string | null;
           status?: Database["public"]["Enums"]["service_workroom_status"];
           updated_at?: string;
         };
         Update: {
           accepted_at?: string;
+          application_id?: string | null;
           client_id?: string;
           completed_at?: string | null;
           created_at?: string;
           id?: string;
+          project_id?: string | null;
           provider_id?: string;
-          service_id?: string;
-          service_request_id?: string;
+          service_id?: string | null;
+          service_request_id?: string | null;
           status?: Database["public"]["Enums"]["service_workroom_status"];
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "service_workrooms_application_id_fkey";
+            columns: ["application_id"];
+            isOneToOne: true;
+            referencedRelation: "applications";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "service_workrooms_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: true;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "service_workrooms_client_id_fkey";
             columns: ["client_id"];
@@ -1285,6 +1305,7 @@ export type Database = {
           application_id: string;
           application_status: Database["public"]["Enums"]["application_status"];
           conversation_id: string;
+          workroom_id: string;
         }[];
       };
       cancel_project: {

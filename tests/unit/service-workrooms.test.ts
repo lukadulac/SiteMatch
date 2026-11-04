@@ -16,6 +16,23 @@ const SERVICE_ID = "service-1";
 const REQUEST_ID = "11111111-1111-4111-8111-111111111111";
 const WORKROOM_ID = "22222222-2222-4222-8222-222222222222";
 const CONVERSATION_ID = "33333333-3333-4333-8333-333333333333";
+const PROJECT_ID = "44444444-4444-4444-8444-444444444444";
+const APPLICATION_ID = "55555555-5555-4555-8555-555555555555";
+const PROJECT_CONVERSATION_ID = "66666666-6666-4666-8666-666666666666";
+
+function projectWorkroomRow(overrides: Record<string, unknown> = {}) {
+	return workroomRow({
+		id: "77777777-7777-4777-8777-777777777777",
+		service_request_id: null,
+		service_id: null,
+		application_id: APPLICATION_ID,
+		project_id: PROJECT_ID,
+		service: null,
+		service_request: null,
+		project: { id: PROJECT_ID, title: "Salon booking site", status: "assigned" },
+		...overrides,
+	});
+}
 
 function workroomRow(overrides: Record<string, unknown> = {}) {
 	return {
@@ -214,6 +231,62 @@ describe("workroom list queries", () => {
 			method: "range",
 			args: [0, 2],
 		});
+	});
+});
+
+describe("project workrooms", () => {
+	it("finds each workroom's conversation by its service request or its application", async () => {
+		const stub = createSupabaseStub({
+			"service_workrooms.select": {
+				data: [workroomRow(), projectWorkroomRow()],
+				count: 2,
+			},
+			"conversations.select": [
+				{ data: [conversationRow()] },
+				{ data: [{ id: PROJECT_CONVERSATION_ID, application_id: APPLICATION_ID }] },
+			],
+		});
+
+		const result = await getClientWorkroomsPage(stub.client, CLIENT_ID, {
+			status: "all",
+			page: 1,
+			pageSize: 10,
+			offset: 0,
+			wasNormalized: false,
+		});
+
+		expect(result.data?.workrooms.map((workroom) => workroom.conversation_id)).toEqual([
+			CONVERSATION_ID,
+			PROJECT_CONVERSATION_ID,
+		]);
+		const conversationCalls = stub.callsFor("conversations.select");
+		expect(conversationCalls[0]?.filters).toContainEqual({
+			method: "in",
+			args: ["service_request_id", [REQUEST_ID]],
+		});
+		expect(conversationCalls[1]?.filters).toContainEqual({
+			method: "in",
+			args: ["application_id", [APPLICATION_ID]],
+		});
+	});
+
+	it("loads a project workroom's detail and conversation without a service request", async () => {
+		const stub = createSupabaseStub({
+			"service_workrooms.select": { data: projectWorkroomRow() },
+			"conversations.select": {
+				data: [{ id: PROJECT_CONVERSATION_ID, application_id: APPLICATION_ID }],
+			},
+		});
+
+		const result = await getWorkroomDetailForParticipant(
+			stub.client,
+			PROVIDER_ID,
+			"77777777-7777-4777-8777-777777777777",
+		);
+
+		expect(result.data?.project?.title).toBe("Salon booking site");
+		expect(result.data?.conversation_id).toBe(PROJECT_CONVERSATION_ID);
+		expect(stub.callsFor("conversations.select")).toHaveLength(1);
 	});
 });
 

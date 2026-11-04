@@ -234,7 +234,9 @@ async function getWorkroomIdByServiceRequestIds(
 	const workroomByRequestId = new Map<string, string>();
 
 	for (const workroom of data ?? []) {
-		workroomByRequestId.set(workroom.service_request_id, workroom.id);
+		if (workroom.service_request_id) {
+			workroomByRequestId.set(workroom.service_request_id, workroom.id);
+		}
 	}
 
 	return { data: workroomByRequestId };

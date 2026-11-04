@@ -27,6 +27,10 @@ export type ServiceWorkroomSummary = ServiceWorkroomRow & {
 		Database["public"]["Tables"]["provider_service_requests"]["Row"],
 		"id" | "status" | "message" | "created_at"
 	> | null;
+	project: Pick<
+		Database["public"]["Tables"]["projects"]["Row"],
+		"id" | "title" | "status"
+	> | null;
 	client: Pick<
 		Database["public"]["Tables"]["profiles"]["Row"],
 		"id" | "full_name" | "avatar_url" | "city" | "country"
@@ -56,6 +60,21 @@ export type ServiceWorkroomDetail = ServiceWorkroomRow & {
 	service_request: Pick<
 		Database["public"]["Tables"]["provider_service_requests"]["Row"],
 		"id" | "status" | "message" | "created_at" | "updated_at"
+	> | null;
+	project: Pick<
+		Database["public"]["Tables"]["projects"]["Row"],
+		| "id"
+		| "title"
+		| "description"
+		| "status"
+		| "budget_type"
+		| "budget_min"
+		| "budget_max"
+		| "deadline_date"
+	> | null;
+	application: Pick<
+		Database["public"]["Tables"]["applications"]["Row"],
+		"id" | "status" | "proposed_price" | "estimated_delivery_days" | "created_at"
 	> | null;
 	client: Pick<
 		Database["public"]["Tables"]["profiles"]["Row"],
@@ -92,10 +111,10 @@ type SupabaseClientWithWorkroomRpc = SupabaseClient<Database> & {
 };
 
 const workroomSummarySelect =
-	"id, service_request_id, service_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, status, price_type, starting_price), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at), client:profiles!service_workrooms_client_id_fkey(id, full_name, avatar_url, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, avatar_url, city, country)";
+	"id, service_request_id, service_id, application_id, project_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, status, price_type, starting_price), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at), project:projects!service_workrooms_project_id_fkey(id, title, status), client:profiles!service_workrooms_client_id_fkey(id, full_name, avatar_url, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, avatar_url, city, country)";
 
 const workroomDetailSelect =
-	"id, service_request_id, service_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, description, status, price_type, starting_price, delivery_estimate, service_type_text, category_text, created_at, published_at), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at, updated_at), client:profiles!service_workrooms_client_id_fkey(id, full_name, avatar_url, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, avatar_url, city, country)";
+	"id, service_request_id, service_id, application_id, project_id, client_id, provider_id, status, accepted_at, completed_at, created_at, updated_at, service:provider_service_listings!service_workrooms_service_id_fkey(id, title, description, status, price_type, starting_price, delivery_estimate, service_type_text, category_text, created_at, published_at), service_request:provider_service_requests!service_workrooms_service_request_id_fkey(id, status, message, created_at, updated_at), project:projects!service_workrooms_project_id_fkey(id, title, description, status, budget_type, budget_min, budget_max, deadline_date), application:applications!service_workrooms_application_id_fkey(id, status, proposed_price, estimated_delivery_days, created_at), client:profiles!service_workrooms_client_id_fkey(id, full_name, avatar_url, city, country), provider:profiles!service_workrooms_provider_id_fkey(id, full_name, avatar_url, city, country)";
 
 function normalizeTotalPages(totalCount: number, pageSize: number) {
 	return totalCount === 0 ? 0 : Math.ceil(totalCount / pageSize);
@@ -128,54 +147,101 @@ function buildWorkroomPage<TWorkroom>({
 	};
 }
 
-async function getConversationIdByServiceRequestIds(
+type WorkroomSource = {
+	service_request_id: string | null;
+	application_id: string | null;
+};
+
+type ConversationLookup = {
+	byServiceRequestId: Map<string, string>;
+	byApplicationId: Map<string, string>;
+};
+
+/** A workroom's conversation is the one opened for its service request or application. */
+async function getConversationLookup(
 	supabase: SupabaseClient<Database>,
-	requestIds: string[],
-): Promise<Result<Map<string, string>>> {
-	if (requestIds.length === 0) {
-		return { data: new Map() };
-	}
+	workrooms: WorkroomSource[],
+): Promise<Result<ConversationLookup>> {
+	const requestIds = workrooms.flatMap((workroom) =>
+		workroom.service_request_id ? [workroom.service_request_id] : [],
+	);
+	const applicationIds = workrooms.flatMap((workroom) =>
+		workroom.application_id ? [workroom.application_id] : [],
+	);
+	const lookup: ConversationLookup = {
+		byServiceRequestId: new Map(),
+		byApplicationId: new Map(),
+	};
 
-	const { data, error } = await supabase
-		.from("conversations")
-		.select("id, service_request_id")
-		.in("service_request_id", requestIds);
+	if (requestIds.length > 0) {
+		const { data, error } = await supabase
+			.from("conversations")
+			.select("id, service_request_id")
+			.in("service_request_id", requestIds);
 
-	if (error) {
-		return { error: error.message };
-	}
+		if (error) {
+			return { error: error.message };
+		}
 
-	const conversationByRequestId = new Map<string, string>();
-
-	for (const conversation of data ?? []) {
-		if (conversation.service_request_id) {
-			conversationByRequestId.set(conversation.service_request_id, conversation.id);
+		for (const conversation of data ?? []) {
+			if (conversation.service_request_id) {
+				lookup.byServiceRequestId.set(conversation.service_request_id, conversation.id);
+			}
 		}
 	}
 
-	return { data: conversationByRequestId };
+	if (applicationIds.length > 0) {
+		const { data, error } = await supabase
+			.from("conversations")
+			.select("id, application_id")
+			.in("application_id", applicationIds);
+
+		if (error) {
+			return { error: error.message };
+		}
+
+		for (const conversation of data ?? []) {
+			if (conversation.application_id) {
+				lookup.byApplicationId.set(conversation.application_id, conversation.id);
+			}
+		}
+	}
+
+	return { data: lookup };
 }
 
-async function attachConversationIds<TWorkroom extends { service_request_id: string }>(
+function conversationIdFor(lookup: ConversationLookup, workroom: WorkroomSource) {
+	if (workroom.service_request_id) {
+		return lookup.byServiceRequestId.get(workroom.service_request_id) ?? null;
+	}
+
+	if (workroom.application_id) {
+		return lookup.byApplicationId.get(workroom.application_id) ?? null;
+	}
+
+	return null;
+}
+
+async function attachConversationIds<TWorkroom extends WorkroomSource>(
 	supabase: SupabaseClient<Database>,
 	workrooms: TWorkroom[],
 ): Promise<Result<Array<TWorkroom & { conversation_id: string | null }>>> {
-	const conversationResult = await getConversationIdByServiceRequestIds(
-		supabase,
-		workrooms.map((workroom) => workroom.service_request_id),
-	);
+	const lookupResult = await getConversationLookup(supabase, workrooms);
 
-	if (conversationResult.error) {
-		return { error: conversationResult.error };
+	if (lookupResult.error) {
+		return { error: lookupResult.error };
 	}
 
-	const conversationByRequestId = conversationResult.data ?? new Map<string, string>();
+	const lookup = lookupResult.data;
+
+	if (!lookup) {
+		return { error: "Workrooms could not be loaded." };
+	}
 
 	return {
 		data: workrooms.map((workroom) => ({
 			...workroom,
-			conversation_id:
-				conversationByRequestId.get(workroom.service_request_id) ?? null,
+			conversation_id: conversationIdFor(lookup, workroom),
 		})),
 	};
 }
@@ -412,22 +478,13 @@ export async function getWorkroomDetailForParticipant(
 	}
 
 	const workroom = data as Omit<ServiceWorkroomDetail, "conversation_id">;
-	const conversationResult = await getConversationIdByServiceRequestIds(
-		supabase,
-		[workroom.service_request_id],
-	);
+	const workroomResult = await attachConversationIds(supabase, [workroom]);
 
-	if (conversationResult.error) {
-		return { error: conversationResult.error };
+	if (workroomResult.error) {
+		return { error: workroomResult.error };
 	}
 
-	return {
-		data: {
-			...workroom,
-			conversation_id:
-				conversationResult.data?.get(workroom.service_request_id) ?? null,
-		},
-	};
+	return { data: workroomResult.data?.[0] ?? null };
 }
 
 export async function completeWorkroomForProvider(

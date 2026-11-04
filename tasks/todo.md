@@ -258,14 +258,16 @@ Spec: `SPEC.md` (shared rules and capability map) and `spec/<module-id>.md`. Pla
 
 **Description:** Extend `service_workrooms`: `service_request_id` / `service_id` nullable, add `application_id` / `project_id`, check exactly one source, unique index on `application_id`. `accept_project_application` creates the workroom; backfill for projects already `assigned`.
 
+**Status:** Done on `feature/project-workrooms`. Also a unique index on `project_id` (a brief is hired once). `accept_project_application` now also returns `workroom_id` (dropped and recreated, since the return type changed). The workroom service reads the project and application joins and finds a project workroom's conversation by `application_id`. pgTAP in `supabase/tests/database/project-workrooms.test.sql`; the backfill was checked by hand on the local stack (one workroom per assigned brief, a second run adds nothing). The list and detail pages still label project workrooms as a service, and the detail page links to the service request; Task 8 fixes the UI. Noticed, not changed: the smoke check "a client cannot undo a hire" expects `42501` when deleting an assigned brief, but `preserve_listing_chat` (admin moderation) refuses it first with `55000`. The delete is still blocked.
+
 **Acceptance criteria:**
-- [ ] Accepting an application creates exactly one active workroom linked to it
-- [ ] Service-request workrooms unchanged; existing workroom tests pass unchanged
-- [ ] Already-assigned projects get a workroom from the backfill
+- [x] Accepting an application creates exactly one active workroom linked to it
+- [x] Service-request workrooms unchanged; existing workroom tests pass unchanged
+- [x] Already-assigned projects get a workroom from the backfill
 
 **Verification:**
-- [ ] Tests pass: `npx vitest run tests/unit/service-workrooms.test.ts tests/unit/projects-service.test.ts`
-- [ ] Manual check: `supabase db reset` locally
+- [x] Tests pass: `npx vitest run tests/unit/service-workrooms.test.ts tests/unit/projects-service.test.ts`
+- [x] Manual check: migration applied locally (`supabase migration up`); backfill checked in a rolled-back transaction
 
 **Dependencies:** Task 1
 
