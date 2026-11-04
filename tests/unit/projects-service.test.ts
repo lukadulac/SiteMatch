@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createProjectSchema } from "@/lib/projects/schemas";
 import {
+	cancelClientProject,
 	createProject,
 	createProjectApplication,
 	getClientProjects,
@@ -755,6 +756,60 @@ describe("markProjectApplicationViewedForClient", () => {
 			expect(result.data).toEqual({ id: APPLICATION_ID, status });
 			expect(stub.callKeys()).not.toContain("applications.update");
 		}
+	});
+});
+
+describe("cancelClientProject", () => {
+	it("refuses a non-client", async () => {
+		const stub = createSupabaseStub({ "profiles.select": PROVIDER_ROLE });
+
+		const result = await cancelClientProject(stub.client, PROVIDER_ID, PROJECT_ID);
+
+		expect(result.error).toBe("Only clients can access this resource.");
+		expect(stub.callKeys()).not.toContain("rpc.cancel_project");
+	});
+
+	it("delegates to the transactional database function", async () => {
+		const stub = createSupabaseStub({
+			"profiles.select": CLIENT_ROLE,
+			"rpc.cancel_project": {
+				data: [
+					{
+						project_id: PROJECT_ID,
+						project_status: "cancelled",
+						rejected_applications: 2,
+					},
+				],
+			},
+		});
+
+		const result = await cancelClientProject(stub.client, CLIENT_ID, PROJECT_ID);
+
+		expect(result.data).toEqual({
+			id: PROJECT_ID,
+			status: "cancelled",
+			rejectedApplications: 2,
+		});
+		expect(stub.callsFor("rpc.cancel_project")[0]?.payload).toEqual({
+			target_project_id: PROJECT_ID,
+		});
+	});
+
+	it("passes the database refusal through", async () => {
+		const stub = createSupabaseStub({
+			"profiles.select": CLIENT_ROLE,
+			"rpc.cancel_project": {
+				error: {
+					message: "A brief that was assigned or completed cannot be cancelled.",
+				},
+			},
+		});
+
+		const result = await cancelClientProject(stub.client, CLIENT_ID, PROJECT_ID);
+
+		expect(result.error).toBe(
+			"A brief that was assigned or completed cannot be cancelled.",
+		);
 	});
 });
 

@@ -608,6 +608,46 @@ export async function updateClientProject(
 	return { data: updatedProject };
 }
 
+export async function cancelClientProject(
+	supabase: SupabaseClient<Database>,
+	userId: string,
+	projectId: string,
+): Promise<
+	ProjectResult<{
+		id: string;
+		status: Database["public"]["Enums"]["project_status"];
+		rejectedApplications: number;
+	}>
+> {
+	const clientState = await ensureClientUser(supabase, userId);
+
+	if (clientState.error) {
+		return { error: clientState.error };
+	}
+
+	const { data: cancelledRows, error } = await supabase.rpc("cancel_project", {
+		target_project_id: projectId,
+	});
+
+	if (error) {
+		return { error: error.message };
+	}
+
+	const cancelledProject = cancelledRows?.[0];
+
+	if (!cancelledProject) {
+		return { error: "Project could not be cancelled." };
+	}
+
+	return {
+		data: {
+			id: cancelledProject.project_id,
+			status: cancelledProject.project_status,
+			rejectedApplications: cancelledProject.rejected_applications,
+		},
+	};
+}
+
 export async function getPublishedProjectsForProviders(
 	supabase: SupabaseClient<Database>,
 	userId: string,
