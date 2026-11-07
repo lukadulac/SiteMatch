@@ -1,8 +1,8 @@
-import { clientBusinessTypeLabels } from "@/lib/auth/client-profile";
+import { clientBusinessTypeLabels } from "@/lib/contracts/auth/client-profile";
 import {
 	providerServiceCategoryLabels,
 	providerTypeLabels,
-} from "@/lib/auth/provider-profile";
+} from "@/lib/contracts/auth/provider-profile";
 import type {
 	PublicClientProfile,
 	PublicProfile,

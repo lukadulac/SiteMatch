@@ -8,7 +8,7 @@ import {
 	WorkroomStatusFilters,
 } from "@/components/workrooms/workroom-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
 import {
 	getClientWorkroomsPage,

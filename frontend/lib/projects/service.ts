@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isClientProfileComplete } from "@/lib/auth/profile-completion";
+import { isClientProfileComplete } from "@/lib/contracts/auth/profile-completion";
 import type {
 	CreateApplicationInput,
 	CreateProjectInput,

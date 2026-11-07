@@ -1,6 +1,8 @@
 import express, { type Request, type Response } from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
+import { env } from "../../src/config/env.js";
+import { getAuthCookieName } from "../../src/contracts/auth/cookie-name.js";
 import { createCookieMethods, createRequestClient } from "../../src/lib/supabase/request-client.js";
 import { AUTH_COOKIE, fakeSession, sessionCookieHeader } from "../helpers/session-cookies.js";
 
@@ -24,6 +26,8 @@ function setCookieHeaders(response: request.Response) {
 
 describe("createRequestClient", () => {
 	it("reads a session split across several chunked cookies", async () => {
+		// The name the proxy compares against (getAuthCookieName) is the one the library reads.
+		expect(AUTH_COOKIE).toBe(getAuthCookieName(env.SUPABASE_URL));
 		const cookie = sessionCookieHeader(fakeSession(USER_ID, now() + 3600, 6000));
 		expect(cookie.split("; ").length).toBeGreaterThan(2);
 
@@ -56,11 +60,11 @@ describe("createRequestClient", () => {
 		expect(written.every((line) => /;\s*Path=\//i.test(line))).toBe(true);
 	});
 
-	it("does not write cookies once the response has been sent", () => {
+	it("does not write cookies once the response has been sent", async () => {
 		const res = { headersSent: true, appendHeader: vi.fn(), setHeader: vi.fn() } as unknown as Response;
 		const methods = createCookieMethods({ headers: {} } as Request, res);
 
-		methods.setAll?.([{ name: `${AUTH_COOKIE}.0`, value: "x", options: { path: "/" } }], {
+		await methods.setAll?.([{ name: `${AUTH_COOKIE}.0`, value: "x", options: { path: "/" } }], {
 			"Cache-Control": "private, no-store",
 		});
 
@@ -68,11 +72,11 @@ describe("createRequestClient", () => {
 		expect(res.setHeader).not.toHaveBeenCalled();
 	});
 
-	it("appends one Set-Cookie per cookie and forwards the cache headers", () => {
+	it("appends one Set-Cookie per cookie and forwards the cache headers", async () => {
 		const res = { headersSent: false, appendHeader: vi.fn(), setHeader: vi.fn() } as unknown as Response;
 		const methods = createCookieMethods({ headers: {} } as Request, res);
 
-		methods.setAll?.(
+		await methods.setAll?.(
 			[
 				{ name: `${AUTH_COOKIE}.0`, value: "a", options: { path: "/" } },
 				{ name: `${AUTH_COOKIE}.1`, value: "b", options: { path: "/" } },

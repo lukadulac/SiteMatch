@@ -9,7 +9,7 @@ import ProviderFields from "@/components/auth/register/ProviderFields";
 import RoleSelector from "@/components/auth/register/RoleSelector";
 import SharedAccountFields from "@/components/auth/register/SharedAccountFields";
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
-import { getLoginHref } from "@/lib/auth/return-url";
+import { getLoginHref } from "@/lib/contracts/auth/return-url";
 import { MAX_REGISTRATION_AVATAR_BYTES, setAvatarFormField } from "@/lib/profiles/avatar";
 import { AvatarResizeError, resizeAvatar } from "@/lib/profiles/resize-avatar";
 

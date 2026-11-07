@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requestProviderServiceAction } from "@/app/find-talent/[id]/actions";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getLoginHref } from "@/lib/auth/return-url";
-import type { UserRole } from "@/lib/auth/roles";
+import { getLoginHref } from "@/lib/contracts/auth/return-url";
+import type { UserRole } from "@/lib/contracts/auth/roles";
 import { getActiveServiceRequest } from "@/lib/provider-service-requests/service";
 import {
 	formatProviderServicePrice,

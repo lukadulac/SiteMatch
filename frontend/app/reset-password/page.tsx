@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
-import { getVerificationReturnPath } from "@/lib/auth/email-verification";
+import { getVerificationReturnPath } from "@/lib/contracts/auth/email-verification";
 import { RECOVERY_COOKIE } from "@/lib/auth/recovery-cookie";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 

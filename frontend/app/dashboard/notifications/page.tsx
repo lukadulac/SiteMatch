@@ -5,7 +5,7 @@ import {
 	openNotificationAction,
 } from "@/app/dashboard/notification-actions";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { getUnreadConversationCount } from "@/lib/messaging/service";
 import {
 	getNotifications,

@@ -1,0 +1,31 @@
+// GENERATED from backend/src/contracts/auth/profile-completion.ts by scripts/sync-contracts.mjs. Do not edit;
+// change the backend file and run npm run contracts:sync.
+import type { Database } from "../supabase";
+
+type ClientCompletionProfile =
+  | Pick<
+      Database["public"]["Tables"]["client_profiles"]["Row"],
+      | "business_name"
+      | "business_type"
+      | "business_type_text"
+      | "project_idea"
+      | "interested_solution_types"
+      | "interested_solution_other_text"
+    >
+  | null;
+function hasText(value: string | null | undefined) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+export function isClientProfileComplete(profile: ClientCompletionProfile) {
+  if (!profile) {
+    return false;
+  }
+
+  return (
+    hasText(profile.business_name) &&
+    (profile.business_type !== "other" || hasText(profile.business_type_text)) &&
+    (!profile.interested_solution_types.includes("other") ||
+      hasText(profile.interested_solution_other_text))
+  );
+}

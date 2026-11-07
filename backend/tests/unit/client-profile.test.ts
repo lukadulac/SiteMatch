@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
 	clientProfileInputSchema,
 	parseClientProfileForm,
-} from "@/lib/auth/client-profile";
-import { buildFormData } from "../helpers/form-data";
+} from "../../src/contracts/auth/client-profile.js";
+import { buildFormData } from "../helpers/form-data.js";
 
 function baseClientProfile(overrides: Record<string, unknown> = {}) {
 	return {

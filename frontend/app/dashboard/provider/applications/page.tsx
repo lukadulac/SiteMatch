@@ -9,7 +9,7 @@ import {
   DashboardShell,
 } from "@/components/dashboard/DashboardShell";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { getUnreadConversationCount } from "@/lib/messaging/service";
 import { getWorkroomIdsByApplicationIds } from "@/lib/service-workrooms/service";
 import {

@@ -20,7 +20,7 @@ import {
   StatusChip,
 } from "@/components/dashboard/overview/overview-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import {
   getUnreadConversationCount,
   getUserConversations,

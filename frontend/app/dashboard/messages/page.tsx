@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { MessagingApp } from "@/components/messaging/messaging-app-client";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 

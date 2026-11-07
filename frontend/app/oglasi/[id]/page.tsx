@@ -7,7 +7,7 @@ import {
   updateClientApplicationStatusAction,
 } from "@/app/oglasi/actions";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import {
   getClientProjectById,
   getProjectApplicationsForClient,

@@ -8,7 +8,7 @@ import { ProfilePhotoCard } from "@/components/profile/profile-photo-card";
 import { DeleteAccountPanel } from "@/components/dashboard/delete-account-panel";
 import { getOwnContactDetails, getOwnProviderTaxId } from "@/lib/auth/own-contact";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 

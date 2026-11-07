@@ -40,7 +40,7 @@ then `npm run contracts:sync` to copy them to the frontend.
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`, with no
-secrets. Job `backend` (in `backend/`): `npm ci`, `npm run typecheck`, `npm test`,
+secrets. Job `backend` (in `backend/`): `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`,
 `npm run build`. Job `contracts`: `scripts/sync-contracts.mjs --check` and
 `scripts/check-boundaries.mjs`. Job `frontend` (in `frontend/`): `npm ci`, `npm run lint`, `npm run typecheck`,
 `npm test`, `npm run build` (with placeholder public Supabase variables). Job `database`

@@ -1,5 +1,5 @@
 import "server-only";
-import { getVerificationReturnPath } from "@/lib/auth/email-verification";
+import { getVerificationReturnPath } from "@/lib/contracts/auth/email-verification";
 
 export function getAuthSiteOrigin() {
   // Never derive email destinations from untrusted Host/Origin request headers.

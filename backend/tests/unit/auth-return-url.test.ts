@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getLoginHref, getSafeReturnPath } from "@/lib/auth/return-url";
+import { getLoginHref, getSafeReturnPath } from "../../src/contracts/auth/return-url.js";
 
 describe("getSafeReturnPath", () => {
 	it.each([

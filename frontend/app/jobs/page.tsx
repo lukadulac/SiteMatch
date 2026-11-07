@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
+import { getDashboardPath, type UserRole } from "@/lib/contracts/auth/roles";
 import { getPublicPublishedProjects } from "@/lib/projects/service";
 import { getJobsPageHref, JOBS_PAGE_SIZE, parseJobsPage } from "@/lib/projects/jobs-pagination";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

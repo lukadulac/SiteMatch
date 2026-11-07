@@ -12,7 +12,7 @@ import {
   clientBusinessTypes,
   clientSolutionTypeLabels,
   clientSolutionTypes,
-} from "@/lib/auth/client-profile";
+} from "@/lib/contracts/auth/client-profile";
 
 type ClientProfileFormProps = {
   profile: {

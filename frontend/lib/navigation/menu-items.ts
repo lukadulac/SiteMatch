@@ -1,4 +1,5 @@
-import type { UserRole } from "@/lib/auth/roles";
+import type { UserRole } from "@/lib/contracts/auth/roles";
+import type { NavCounts } from "@/lib/contracts/navigation/header";
 
 /** Icon keys, mapped to lucide components by `components/header/nav-icon.tsx`. */
 export type NavIconName =
@@ -19,11 +20,7 @@ export type NavIconName =
 
 export type NavCountKind = "unread" | "pending";
 
-export type NavCounts = {
-	unreadMessages: number;
-	unreadNotifications: number;
-	pendingServiceRequests: number;
-};
+export type { NavCounts };
 
 export type DashboardNavItem = {
 	href: string;

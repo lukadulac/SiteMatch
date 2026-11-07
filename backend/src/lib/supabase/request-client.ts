@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
 	createServerClient,
 	parseCookieHeader,
@@ -8,7 +9,7 @@ import {
 import { env } from "../../config/env.js";
 import type { Database } from "../../types/supabase.js";
 
-export type RequestSupabaseClient = ReturnType<typeof createRequestClient>;
+export type RequestSupabaseClient = SupabaseClient<Database>;
 
 export function createCookieMethods(req: Request, res: Response): CookieMethodsServer {
 	return {
@@ -33,8 +34,13 @@ export function createCookieMethods(req: Request, res: Response): CookieMethodsS
 }
 
 /** One client per request, acting as the signed-in user, so RLS and auth.uid() apply. */
-export function createRequestClient(req: Request, res: Response) {
-	return createServerClient<Database>(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
+export function createRequestClient(req: Request, res: Response): RequestSupabaseClient {
+	const client = createServerClient<Database>(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
 		cookies: createCookieMethods(req, res),
 	});
+
+	// @supabase/ssr is typed against the CommonJS build of supabase-js and this project imports
+	// the ES module build, so TypeScript sees two SupabaseClient classes. Only the type differs:
+	// the object is the one @supabase/ssr created.
+	return client as unknown as RequestSupabaseClient;
 }

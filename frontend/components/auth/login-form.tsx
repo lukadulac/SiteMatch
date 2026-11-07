@@ -8,7 +8,7 @@ import {
 	type AuthActionState,
 } from "@/app/(auth)/action-state";
 import { loginAction } from "@/app/(auth)/actions";
-import { getForgotPasswordHref, getRegistrationHref, getVerificationHref } from "@/lib/auth/email-verification";
+import { getForgotPasswordHref, getRegistrationHref, getVerificationHref } from "@/lib/contracts/auth/email-verification";
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
 
 function fieldError(state: AuthActionState, name: string): string | undefined {

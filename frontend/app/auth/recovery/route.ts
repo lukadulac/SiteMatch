@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getVerificationReturnPath } from "@/lib/auth/email-verification";
+import { getVerificationReturnPath } from "@/lib/contracts/auth/email-verification";
 import { RECOVERY_COOKIE, recoveryCookieOptions } from "@/lib/auth/recovery-cookie";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 

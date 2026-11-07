@@ -1,5 +1,5 @@
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
-import { getVerificationReturnPath } from "@/lib/auth/email-verification";
+import { getVerificationReturnPath } from "@/lib/contracts/auth/email-verification";
 
 export default async function VerifyEmailPage({ searchParams }: {
   searchParams: Promise<{ next?: string | string[]; error?: string | string[] }>;

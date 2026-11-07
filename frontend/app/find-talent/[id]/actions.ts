@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getLoginHref } from "@/lib/auth/return-url";
+import { getLoginHref } from "@/lib/contracts/auth/return-url";
 import { createServiceRequest } from "@/lib/provider-service-requests/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 

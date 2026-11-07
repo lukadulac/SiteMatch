@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { isClientProfileComplete } from "@/lib/auth/profile-completion";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { isClientProfileComplete } from "@/lib/contracts/auth/profile-completion";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { getClientProjects } from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 

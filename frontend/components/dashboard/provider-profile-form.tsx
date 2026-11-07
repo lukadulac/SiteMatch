@@ -13,7 +13,7 @@ import {
   providerServiceCategoryLabels,
   providerTypeLabels,
   providerTypes,
-} from "@/lib/auth/provider-profile";
+} from "@/lib/contracts/auth/provider-profile";
 
 type ProviderProfileFormProps = {
   profile: {

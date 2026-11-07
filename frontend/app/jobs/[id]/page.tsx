@@ -14,8 +14,8 @@ import {
 	formatDeadline,
 } from "@/components/projects/job-detail/format";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getLoginHref } from "@/lib/auth/return-url";
-import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
+import { getLoginHref } from "@/lib/contracts/auth/return-url";
+import { getDashboardPath, type UserRole } from "@/lib/contracts/auth/roles";
 import { getPublicProfile } from "@/lib/profiles/public-profile";
 import {
 	getProviderApplicationForProject,

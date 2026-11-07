@@ -5,7 +5,7 @@ import {
 	providerServiceCategoryLabels,
 	providerTypeLabels,
 	providerTypes,
-} from "@/lib/auth/provider-profile";
+} from "@/lib/contracts/auth/provider-profile";
 import type { RegisterFieldErrors } from "@/components/auth/register/RegisterForm";
 import { FieldError, FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 

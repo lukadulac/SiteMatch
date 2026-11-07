@@ -5,8 +5,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { AuthActionState } from "@/app/(auth)/action-state";
-import { clientProfileInputSchema } from "@/lib/auth/client-profile";
-import { providerProfileInputSchema } from "@/lib/auth/provider-profile";
+import { clientProfileInputSchema } from "@/lib/contracts/auth/client-profile";
+import { providerProfileInputSchema } from "@/lib/contracts/auth/provider-profile";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import {
 	AUTH_RATE_LIMITS,
@@ -17,14 +17,14 @@ import {
 	recordAuthRateLimitAttempt,
 	resetAuthRateLimit,
 } from "@/lib/auth/rate-limit";
-import { getSafeReturnPath } from "@/lib/auth/return-url";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getSafeReturnPath } from "@/lib/contracts/auth/return-url";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import {
   PLACE_NAME_MAX_LENGTH,
   PLACE_NAME_MIN_LENGTH,
   placeNameMessage,
   placeNamePattern,
-} from "@/lib/auth/place-name";
+} from "@/lib/contracts/auth/place-name";
 import { getEmailConfirmationUrl } from "@/lib/auth/site-url";
 import {
   MAX_REGISTRATION_AVATAR_BYTES,
@@ -34,7 +34,7 @@ import {
 } from "@/lib/profiles/avatar";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { passwordSchema } from "@/lib/auth/password";
+import { passwordSchema } from "@/lib/contracts/auth/password";
 
 const personNamePattern = /^[\p{L}\p{M}][\p{L}\p{M}'’. -]*$/u;
 const phonePattern = /^\+?[0-9().\-\s]{7,20}$/;

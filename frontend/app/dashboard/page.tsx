@@ -1,24 +1,19 @@
 import { redirect } from "next/navigation";
-import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { api } from "@/lib/api/server";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
+import type { SessionBootstrap } from "@/lib/contracts/session";
 
 export default async function DashboardPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // The backend creates the profile if needed; on failure it signs the user out.
+  const result = await api<SessionBootstrap>("/api/session/bootstrap", { method: "POST" });
 
-  if (!user) {
+  if (!result.ok) {
+    if (result.status >= 500) {
+      throw new Error(result.error);
+    }
+
     redirect("/login");
   }
 
-  const provisioned = await ensureUserProfile(supabase, user);
-
-  if (!provisioned.role) {
-    await supabase.auth.signOut();
-    redirect("/login");
-  }
-
-  redirect(getDashboardPath(provisioned.role));
+  redirect(getDashboardPath(result.data.role));
 }

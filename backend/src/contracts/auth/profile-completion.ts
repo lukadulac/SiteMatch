@@ -1,4 +1,4 @@
-import type { Database } from "@/lib/contracts/supabase";
+import type { Database } from "../../types/supabase.js";
 
 type ClientCompletionProfile =
   | Pick<

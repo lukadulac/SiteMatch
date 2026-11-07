@@ -16,6 +16,7 @@ const root = rootArg >= 0 ? resolve(args[rootArg + 1]) : join(dirname(fileURLToP
 const useAllowlist = !args.includes("--no-allowlist");
 
 const BROWSER_CLIENT = "frontend/lib/supabase/client.ts";
+const INTERNAL_SECRET_READER = "frontend/lib/api/internal.ts";
 
 const ALLOWLIST = {
 	"frontend-supabase-import": [
@@ -26,7 +27,6 @@ const ALLOWLIST = {
 		"frontend/lib/auth/provision.ts",
 		"frontend/lib/auth/rate-limit.ts",
 		"frontend/lib/messaging/service.ts",
-		"frontend/lib/navigation/header-state.ts",
 		"frontend/lib/notifications/service.ts",
 		"frontend/lib/profiles/avatar.ts",
 		"frontend/lib/profiles/public-profile.ts",
@@ -36,7 +36,6 @@ const ALLOWLIST = {
 		"frontend/lib/provider-services/service.ts",
 		"frontend/lib/service-workrooms/service.ts",
 		"frontend/lib/supabase/admin.ts",
-		"frontend/lib/supabase/middleware.ts",
 		"frontend/lib/supabase/server.ts",
 		"frontend/scripts/smoke-local.mjs",
 		"frontend/tests/helpers/supabase-stub.ts",
@@ -67,7 +66,6 @@ const ALLOWLIST = {
 		"frontend/lib/auth/provision.ts",
 		"frontend/lib/auth/rate-limit.ts",
 		"frontend/lib/messaging/service.ts",
-		"frontend/lib/navigation/header-state.ts",
 		"frontend/lib/notifications/service.ts",
 		"frontend/lib/profiles/avatar.ts",
 		"frontend/lib/profiles/public-profile.ts",
@@ -77,13 +75,25 @@ const ALLOWLIST = {
 		"frontend/lib/provider-services/service.ts",
 		"frontend/lib/service-workrooms/service.ts",
 		"frontend/lib/supabase/admin.ts",
-		"frontend/lib/supabase/middleware.ts",
 		"frontend/lib/supabase/server.ts",
-		"frontend/proxy.ts",
 		"frontend/scripts/smoke-local.mjs",
 		"frontend/tests/unit/profile-columns.test.ts",
 	],
 };
+
+// Code the backend now owns, with a frontend copy kept only for callers that have not moved
+// yet (spec/express-backend.md, EB2). An entry fails once its frontend copy is gone, so the
+// list shrinks with the copies; it must be empty by EB9.
+const TEMPORARY_COPIES = [
+	{ frontend: "frontend/lib/auth/account-access.ts", backend: "backend/src/modules/auth/account-access.ts", until: "EB3" },
+	{ frontend: "frontend/lib/auth/provision.ts", backend: "backend/src/modules/auth/provision.ts", until: "EB8" },
+	{ frontend: "frontend/lib/profiles/avatar.ts", backend: "backend/src/modules/profiles/avatar.ts", symbol: "findUploadedAvatarPath", until: "EB8" },
+	{ frontend: "frontend/lib/messaging/service.ts", backend: "backend/src/modules/messaging/service.ts", symbol: "getUnreadConversationCount", until: "EB8" },
+	{ frontend: "frontend/lib/notifications/service.ts", backend: "backend/src/modules/notifications/service.ts", symbol: "getUnreadNotificationCount", until: "EB8" },
+	{ frontend: "frontend/tests/helpers/supabase-stub.ts", backend: "backend/tests/helpers/supabase-stub.ts", until: "EB9" },
+	{ frontend: "frontend/tests/helpers/form-data.ts", backend: "backend/tests/helpers/form-data.ts", until: "EB9" },
+	{ frontend: "frontend/tests/unit/provision.test.ts", backend: "backend/tests/unit/provision.test.ts", until: "EB8" },
+];
 
 const SKIP_DIRS = new Set(["node_modules", ".next", "coverage", "dist", "out", ".vercel"]);
 const EXTENSIONS = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
@@ -151,6 +161,15 @@ for (const project of ["frontend", "backend"]) {
 			}
 		}
 
+		// The internal secret is read in one server-only place and never gets a public prefix.
+		if (project === "frontend" && !path.startsWith("frontend/tests/")) {
+			if (/NEXT_PUBLIC_INTERNAL/.test(source)) {
+				report("internal-secret", file, "NEXT_PUBLIC_INTERNAL");
+			} else if (/\bINTERNAL_API_SECRET\b/.test(source) && path !== INTERNAL_SECRET_READER) {
+				report("internal-secret", file, "INTERNAL_API_SECRET");
+			}
+		}
+
 		if (path.startsWith("backend/src/modules/")) {
 			for (const specifier of imports.filter((name) => name === "express" || name.startsWith("express/"))) {
 				report("module-imports-express", file, specifier);
@@ -159,10 +178,13 @@ for (const project of ["frontend", "backend"]) {
 
 		if (path.startsWith("backend/src/contracts/")) {
 			const contractsDir = join(root, "backend", "src", "contracts");
+			// The generated database types are synced to the frontend with the contracts.
+			const databaseTypes = join(root, "backend", "src", "types", "supabase.js");
 
 			for (const specifier of imports) {
+				const target = specifier.startsWith(".") ? resolve(dirname(file), specifier) : null;
 				const allowed = specifier === "zod" ||
-					(specifier.startsWith(".") && isInside(resolve(dirname(file), specifier), contractsDir));
+					(target !== null && (isInside(target, contractsDir) || target === databaseTypes));
 
 				if (!allowed) {
 					report("contracts-import", file, specifier);
@@ -181,6 +203,22 @@ const stale = Object.entries(allowlist).flatMap(([rule, files]) =>
 		.map((file) => `${rule}: ${file}`),
 );
 
+const staleCopies = useAllowlist
+	? TEMPORARY_COPIES.flatMap(({ frontend, backend, symbol }) => {
+		const backendPath = join(root, backend);
+		const frontendPath = join(root, frontend);
+
+		if (!existsSync(backendPath)) {
+			return [`temporary copy has no backend source: ${backend}`];
+		}
+
+		const stillCopied = existsSync(frontendPath) &&
+			(!symbol || new RegExp(`function\\s+${symbol}\\b`).test(readFileSync(frontendPath, "utf8")));
+
+		return stillCopied ? [] : [`temporary copy is gone, remove it from TEMPORARY_COPIES: ${frontend}${symbol ? ` (${symbol})` : ""}`];
+	})
+	: [];
+
 if (args.includes("--print-violations")) {
 	const byRule = {};
 	for (const { rule, file } of violations) {
@@ -190,7 +228,7 @@ if (args.includes("--print-violations")) {
 	process.exit(0);
 }
 
-if (failures.length > 0 || stale.length > 0) {
+if (failures.length > 0 || stale.length > 0 || staleCopies.length > 0) {
 	for (const { rule, file, detail } of failures) {
 		console.error(`${rule}: ${file} (${detail})`);
 	}
@@ -199,12 +237,17 @@ if (failures.length > 0 || stale.length > 0) {
 		console.error(`stale allowlist entry, remove it from scripts/check-boundaries.mjs: ${entry}`);
 	}
 
+	for (const entry of staleCopies) {
+		console.error(entry);
+	}
+
 	process.exit(1);
 }
 
-const allowlisted = violations.length;
+const allowlisted = new Set(violations.map((violation) => violation.file)).size;
+const copies = useAllowlist ? TEMPORARY_COPIES.length : 0;
 console.log(
-	allowlisted > 0
-		? `Boundaries hold (${new Set(violations.map((violation) => violation.file)).size} frontend files still allowlisted).`
+	allowlisted + copies > 0
+		? `Boundaries hold (${allowlisted} frontend files still allowlisted, ${copies} temporary copies).`
 		: "Boundaries hold.",
 );

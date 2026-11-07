@@ -5,14 +5,14 @@ import { redirect } from "next/navigation";
 import { withdrawProjectApplicationForProvider } from "@/lib/projects/service";
 import { z } from "zod";
 import type { DashboardActionState } from "@/app/dashboard/action-state";
-import { clientProfileInputSchema } from "@/lib/auth/client-profile";
+import { clientProfileInputSchema } from "@/lib/contracts/auth/client-profile";
 import {
 	PLACE_NAME_MAX_LENGTH,
 	PLACE_NAME_MIN_LENGTH,
 	placeNameMessage,
 	placeNamePattern,
-} from "@/lib/auth/place-name";
-import { providerProfileInputSchema } from "@/lib/auth/provider-profile";
+} from "@/lib/contracts/auth/place-name";
+import { providerProfileInputSchema } from "@/lib/contracts/auth/provider-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/contracts/supabase";
 

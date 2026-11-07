@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loginAction, logoutAction, registerAction } from "@/app/(auth)/actions";
 import { initialAuthActionState } from "@/app/(auth)/action-state";
-import { clientSolutionTypes } from "@/lib/auth/client-profile";
-import { providerServiceCategories } from "@/lib/auth/provider-profile";
+import { clientSolutionTypes } from "@/lib/contracts/auth/client-profile";
+import { providerServiceCategories } from "@/lib/contracts/auth/provider-profile";
 import { ensureUserProfile } from "@/lib/auth/provision";
 import {
 	checkAuthRateLimit,

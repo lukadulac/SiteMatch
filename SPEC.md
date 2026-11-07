@@ -54,6 +54,7 @@ Module ids are stable; never rename one.
 - React 19.2.4, TypeScript 5, Tailwind CSS 4
 - Supabase: Postgres 17 with RLS, Auth (email + password, confirm email on), Realtime for messages. `@supabase/ssr` 0.10, `@supabase/supabase-js` 2.104, CLI 2.121 as a dev dependency
 - zod 4 for input validation, Vitest 4 with v8 coverage
+- Backend lint: ESLint 9 with typescript-eslint (recommended sets plus the type-aware `no-floating-promises` and `no-misused-promises`); no stylistic rules, no Prettier
 - Hosted on Vercel; Resend for email (from `notifications`)
 
 ## Commands

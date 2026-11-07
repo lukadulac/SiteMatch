@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDashboardPath, isAppRole } from "@/lib/auth/roles";
+import { getDashboardPath, isAppRole } from "../../src/contracts/auth/roles.js";
 
 describe("isAppRole", () => {
 	it("accepts the three application roles", () => {

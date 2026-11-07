@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isClientProfileComplete } from "@/lib/auth/profile-completion";
+import { isClientProfileComplete } from "../../src/contracts/auth/profile-completion.js";
 
 type Profile = Parameters<typeof isClientProfileComplete>[0];
 

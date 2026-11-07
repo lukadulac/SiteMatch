@@ -640,7 +640,7 @@ Approved by accepting this spec. Install the latest compatible release and commi
 
 | Project | Runtime | Dev |
 |---|---|---|
-| `backend` | `express@5`, `helmet`, `multer`, `zod@4`, `@supabase/ssr@^0.10.2`, `@supabase/supabase-js@^2.104.0` | `typescript`, `tsx`, `vitest`, `@vitest/coverage-v8`, `supertest`, `@types/express`, `@types/multer`, `@types/supertest`, `@types/node` |
+| `backend` | `express@5`, `helmet`, `multer`, `zod@4`, `@supabase/ssr@^0.10.2`, `@supabase/supabase-js@^2.104.0` | `typescript`, `tsx`, `vitest`, `@vitest/coverage-v8`, `supertest`, `@types/express`, `@types/multer`, `@types/supertest`, `@types/node`, `eslint@^9`, `@eslint/js@^9`, `typescript-eslint` (approved by the person, 2026-11-07) |
 | `frontend` | No additions | No additions. `@supabase/ssr` stays only for `createBrowserClient`; `zod` stays for contracts |
 | Root | None | `supabase`, `concurrently` |
 
@@ -766,6 +766,14 @@ Limits and notes that apply to this design:
 - `frontend/lib/api/*`, `GET /api/session`, `POST /api/session/bootstrap`, `GET /api/me/header`; move `lib/auth/*` and `lib/navigation/header-state.ts`.
 - Rewrite `proxy.ts` guards on `/api/session`. Keep CSP and guard rules. Move the proxy test cases.
 - **Done when:** role guards behave as today; an expired access token refreshes once and the page renders signed-in; cookies are rotated in the browser; a stopped backend gives 503 on `/dashboard/*`.
+
+**EB2 notes (2026-11-07).**
+
+- **Temporary copies** (person's decision): the session endpoints need code that unmigrated frontend callers still use. The backend owns it; the frontend keeps a marked copy until its last caller moves. `TEMPORARY_COPIES` in `scripts/check-boundaries.mjs` lists each one and fails once a copy is gone, so the list must be emptied by EB9: `account-access.ts` (EB3); `provision.ts`, `findUploadedAvatarPath`, `getUnreadConversationCount`, `getUnreadNotificationCount` (EB8); the test helpers (EB9).
+- Pure helpers from `lib/auth/` (roles, return-url, email-verification, place-name, password, client-profile, provider-profile, profile-completion) and the header and session types are in `contracts/`. Contracts may import the generated database types; the sync rewrites that import to the frontend copy.
+- `GET /api/session` returns `{ user: { id }, role }`, or `null` for a signed-out or disabled visitor; `enabled` is not a separate field, because a disabled account is always `null`.
+- `frontend/lib/api/client.ts` and `errors.ts` are not created yet; they come with their first caller (EB4).
+- Local run against the local stack: role guards as before; an expired access token gives exactly one `token_refreshed` in the Auth log, the page renders signed in, the browser gets the rotated cookies, and they work on the next request; with the backend stopped, `/dashboard/*` and `/oglasi/novi` return 503 with no redirect and no `Set-Cookie`, and public pages still render.
 
 ### EB3: Auth flows
 

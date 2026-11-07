@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getHeaderState } from "@/lib/navigation/header-state";
-import { createSupabaseStub, type StubResponses } from "../helpers/supabase-stub";
+import { getHeaderState } from "../../src/modules/navigation/header-state.js";
+import { createSupabaseStub, type StubResponses } from "../helpers/supabase-stub.js";
 
 const USER = {
 	id: "user-1",

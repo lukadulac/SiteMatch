@@ -8,7 +8,7 @@ import {
 	ServiceRequestStatusBadge,
 } from "@/components/service-requests/service-request-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { getUserConversations } from "@/lib/messaging/service";
 import { getServiceRequestDetailForParticipant } from "@/lib/provider-service-requests/service";
 import { priceTypeLabel } from "@/lib/provider-services/formatters";

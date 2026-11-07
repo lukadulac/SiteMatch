@@ -1,5 +1,5 @@
 import RegisterForm, { type RegisterRole } from "@/components/auth/register/RegisterForm";
-import { getVerificationReturnPath } from "@/lib/auth/email-verification";
+import { getVerificationReturnPath } from "@/lib/contracts/auth/email-verification";
 
 type RegisterSearchParams = { next?: string | string[]; role?: string | string[] };
 

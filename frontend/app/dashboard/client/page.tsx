@@ -20,8 +20,8 @@ import {
 } from "@/components/dashboard/overview/overview-ui";
 import { ServiceRequestNotice } from "@/components/service-requests/service-request-ui";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
-import { isClientProfileComplete } from "@/lib/auth/profile-completion";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
+import { isClientProfileComplete } from "@/lib/contracts/auth/profile-completion";
 import { getUnreadConversationCount, getUserConversations } from "@/lib/messaging/service";
 import { getClientServiceRequestPreview } from "@/lib/provider-service-requests/service";
 import { getClientProjects } from "@/lib/projects/service";

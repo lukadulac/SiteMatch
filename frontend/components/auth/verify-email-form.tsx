@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { initialAuthActionState, type AuthActionState } from "@/app/(auth)/action-state";
 import { resendConfirmationAction } from "@/app/(auth)/verification-actions";
-import { getLoginHref } from "@/lib/auth/return-url";
+import { getLoginHref } from "@/lib/contracts/auth/return-url";
 
 type VerifyEmailFormProps = {
   email?: string;

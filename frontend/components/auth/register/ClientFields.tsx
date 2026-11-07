@@ -4,7 +4,7 @@ import {
 	clientBusinessTypes,
 	clientSolutionTypeLabels,
 	clientSolutionTypes,
-} from "@/lib/auth/client-profile";
+} from "@/lib/contracts/auth/client-profile";
 import type { RegisterFieldErrors } from "@/components/auth/register/RegisterForm";
 import { FieldError, FieldLabel, fieldClass, fieldError } from "@/components/auth/register/field-ui";
 

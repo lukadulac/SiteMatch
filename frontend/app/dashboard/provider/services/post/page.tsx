@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProviderServiceForm } from "@/components/provider-services/provider-service-form";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function PostProviderServicePage() {

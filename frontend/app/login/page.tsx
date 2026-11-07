@@ -1,5 +1,5 @@
 import { LoginForm } from "@/components/auth/login-form";
-import { getSafeReturnPath } from "@/lib/auth/return-url";
+import { getSafeReturnPath } from "@/lib/contracts/auth/return-url";
 
 type LoginPageProps = {
 	searchParams: Promise<{

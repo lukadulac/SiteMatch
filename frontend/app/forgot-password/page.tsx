@@ -1,5 +1,5 @@
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
-import { getVerificationReturnPath } from "@/lib/auth/email-verification";
+import { getVerificationReturnPath } from "@/lib/contracts/auth/email-verification";
 
 export default async function ForgotPasswordPage({ searchParams }: {
   searchParams: Promise<{ next?: string | string[]; error?: string | string[] }>;

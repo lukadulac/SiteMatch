@@ -29,7 +29,9 @@ const clean = {
 	"frontend/app/page.tsx": 'import { api } from "@/lib/api/server";\nconst x = Array.from(list);\n',
 	"backend/src/modules/projects/service.ts": 'import type { Result } from "../../contracts/result.js";\nsupabase.from("projects");\n',
 	"backend/src/routes/projects.ts": 'import { Router } from "express";\n',
-	"backend/src/contracts/roles.ts": 'import { z } from "zod";\nimport { x } from "./x.js";\n',
+	"frontend/lib/api/internal.ts": "export const secret = () => process.env.INTERNAL_API_SECRET;\n",
+	"frontend/tests/unit/api.test.ts": 'vi.stubEnv("INTERNAL_API_SECRET", "x");\n',
+	"backend/src/contracts/roles.ts": 'import { z } from "zod";\nimport { x } from "./x.js";\nimport type { Database } from "../types/supabase.js";\n',
 };
 
 afterEach(() => {
@@ -56,6 +58,8 @@ describe("check-boundaries.mjs", () => {
 		// Split, so the scan of this very file does not read it as an import.
 		["a backend import of frontend code", "backend/src/x.ts", ["import { a } from", '"../../frontend/lib/x";'].join(" "), "cross-project-import"],
 		["express in a module", "backend/src/modules/projects/handler.ts", 'import type { Request } from "express";', "module-imports-express"],
+		["the internal secret outside its reader", "frontend/lib/x.ts", "process.env.INTERNAL_API_SECRET;", "internal-secret"],
+		["a public internal secret", "frontend/components/x.tsx", "process.env.NEXT_PUBLIC_INTERNAL_API_SECRET;", "internal-secret"],
 		["a contracts import of a package", "backend/src/contracts/x.ts", 'import { createClient } from "@supabase/supabase-js";', "contracts-import"],
 		["a contracts import outside contracts", "backend/src/contracts/x.ts", 'import { env } from "../config/env.js";', "contracts-import"],
 	])("fails on %s", (_label, path, content, rule) => {

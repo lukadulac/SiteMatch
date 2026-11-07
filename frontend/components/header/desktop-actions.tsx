@@ -3,7 +3,7 @@ import { Bell, MessageSquare, Plus, ShieldCheck } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
 import { Avatar } from "@/components/profile/avatar";
-import type { HeaderUser } from "@/lib/navigation/header-state";
+import type { HeaderUser } from "@/lib/contracts/navigation/header";
 import { CountBadge } from "./nav-row";
 
 const focusRing =

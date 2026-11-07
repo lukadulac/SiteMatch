@@ -1,30 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getDashboardPath, isAppRole, type UserRole } from "@/lib/auth/roles";
-import { getUnreadConversationCount } from "@/lib/messaging/service";
-import { getUnreadNotificationCount } from "@/lib/notifications/service";
-import type { NavCounts } from "@/lib/navigation/menu-items";
-import type { Database } from "@/lib/contracts/supabase";
-
-export type HeaderCta = {
-	href: string;
-	label: string;
-	icon: "plus" | "shield";
-};
-
-export type HeaderUser = {
-	/** Null when neither the profile nor the auth metadata carries a known role. */
-	role: UserRole | null;
-	name: string;
-	/** profiles.avatar_url; null shows initials. */
-	avatarPath: string | null;
-	emailVerified: boolean;
-	dashboardHref: string;
-	profileHref: string;
-	cta: HeaderCta | null;
-	counts: NavCounts;
-};
-
-export type HeaderState = { user: HeaderUser | null };
+import { getDashboardPath, isAppRole, type UserRole } from "../../contracts/auth/roles.js";
+import type { HeaderCta, HeaderState, NavCounts } from "../../contracts/navigation/header.js";
+import { getUnreadConversationCount } from "../messaging/service.js";
+import { getUnreadNotificationCount } from "../notifications/service.js";
+import type { Database } from "../../types/supabase.js";
 
 const NO_COUNTS: NavCounts = {
 	unreadMessages: 0,

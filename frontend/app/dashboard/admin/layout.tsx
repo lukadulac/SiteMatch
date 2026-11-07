@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
 import { AdminNavigation } from "@/components/admin/admin-navigation";
 import { requireAdmin } from "@/lib/admin/service";
-import { getLoginHref } from "@/lib/auth/return-url";
+import { getLoginHref } from "@/lib/contracts/auth/return-url";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function AdminLayout({

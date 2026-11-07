@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "types/**/*.d.ts",
     "types/validator.ts",
+    // Generated from backend/src/contracts, and linted there.
+    "lib/contracts/**",
   ]),
 ]);
 

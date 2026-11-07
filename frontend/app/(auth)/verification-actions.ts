@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import type { AuthActionState } from "@/app/(auth)/action-state";
-import { confirmationEmailSchema } from "@/lib/auth/email-verification";
+import { confirmationEmailSchema } from "@/lib/contracts/auth/email-verification";
 import { getEmailConfirmationUrl } from "@/lib/auth/site-url";
 import { AUTH_RATE_LIMITS, createRateLimitKey, getRequestIp, recordAuthRateLimitAttempt } from "@/lib/auth/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

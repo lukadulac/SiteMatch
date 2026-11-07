@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getSafeReturnPath } from "@/lib/auth/return-url";
+import { getSafeReturnPath } from "./return-url.js";
 
 export const confirmationEmailSchema = z.string().trim().email("Enter a valid email address.").max(254);
 

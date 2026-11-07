@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { createPortal } from "react-dom";
 
-import type { HeaderUser } from "@/lib/navigation/header-state";
+import type { HeaderUser } from "@/lib/contracts/navigation/header";
 import { getBrowseItems } from "@/lib/navigation/menu-items";
 import { DesktopActions } from "./desktop-actions";
 import { Logo } from "./logo";

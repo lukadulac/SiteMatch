@@ -1,3 +1,5 @@
+// GENERATED from backend/src/contracts/auth/return-url.ts by scripts/sync-contracts.mjs. Do not edit;
+// change the backend file and run npm run contracts:sync.
 const APP_ORIGIN = "https://workbridge.local";
 
 function isLoginPath(pathname: string) {
@@ -17,6 +19,8 @@ export function getSafeReturnPath(value: unknown): string | null {
 		return null;
 	}
 
+	// Control characters in a redirect target are rejected on purpose.
+	// eslint-disable-next-line no-control-regex
 	if (/[\u0000-\u001F\u007F\\]/.test(candidate)) {
 		return null;
 	}
@@ -32,6 +36,7 @@ export function getSafeReturnPath(value: unknown): string | null {
 	if (
 		!decoded.startsWith("/") ||
 		decoded.startsWith("//") ||
+		// eslint-disable-next-line no-control-regex
 		/[\u0000-\u001F\u007F\\]/.test(decoded)
 	) {
 		return null;

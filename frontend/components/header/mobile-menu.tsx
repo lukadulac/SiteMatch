@@ -13,7 +13,7 @@ import {
 
 import { logoutAction } from "@/app/(auth)/actions";
 import { Avatar } from "@/components/profile/avatar";
-import type { HeaderUser } from "@/lib/navigation/header-state";
+import type { HeaderUser } from "@/lib/contracts/navigation/header";
 import { getBrowseItems, getWorkspaceItems, getWorkspaceLabel } from "@/lib/navigation/menu-items";
 import { Logo } from "./logo";
 import { BrowseRow, WorkspaceRow } from "./nav-row";

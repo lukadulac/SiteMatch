@@ -5,8 +5,8 @@ import {
   type ClientProjectFormInitialValues,
 } from "@/components/projects/client-project-form";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { isClientProfileComplete } from "@/lib/auth/profile-completion";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { isClientProfileComplete } from "@/lib/contracts/auth/profile-completion";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { getProjectFormMeta } from "@/lib/projects/queries";
 import { getClientProjectById } from "@/lib/projects/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

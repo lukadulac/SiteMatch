@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getLoginHref } from "@/lib/auth/return-url";
-import { getVerificationHref, getVerificationReturnPath } from "@/lib/auth/email-verification";
+import { getLoginHref } from "@/lib/contracts/auth/return-url";
+import { getVerificationHref, getVerificationReturnPath } from "@/lib/contracts/auth/email-verification";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {

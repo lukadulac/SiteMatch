@@ -6,7 +6,7 @@
 // backend/src/contracts/ is the source of truth. Never edit frontend/lib/contracts/ by hand.
 
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -31,8 +31,16 @@ function banner(source) {
 }
 
 // The backend uses NodeNext ("./roles.js"); the frontend resolves extensionless imports.
-function toFrontendImports(source) {
-	return source.replace(/(from\s+["']\.{1,2}\/[^"']+?)\.js(["'])/g, "$1$2");
+// An import of the generated database types points at the frontend's copy instead.
+function toFrontendImports(source, sourceFile, targetFile) {
+	return source.replace(/(from\s+["'])(\.{1,2}\/[^"']+?)\.js(["'])/g, (_match, start, specifier, end) => {
+		if (resolve(dirname(sourceFile), specifier) === typesSource.replace(/\.ts$/, "")) {
+			const typesCopy = relative(dirname(targetFile), join(target, "supabase"));
+			return `${start}${typesCopy.startsWith(".") ? typesCopy : `./${typesCopy}`}${end}`;
+		}
+
+		return `${start}${specifier}${end}`;
+	});
 }
 
 /** Map of target path → expected content. */
@@ -40,8 +48,8 @@ function expectedFiles() {
 	const files = new Map();
 
 	for (const file of listFiles(contractsSource)) {
-		const content = banner(file) + toFrontendImports(readFileSync(file, "utf8"));
-		files.set(join(target, relative(contractsSource, file)), content);
+		const targetFile = join(target, relative(contractsSource, file));
+		files.set(targetFile, banner(file) + toFrontendImports(readFileSync(file, "utf8"), file, targetFile));
 	}
 
 	files.set(join(target, "supabase.ts"), banner(typesSource) + readFileSync(typesSource, "utf8"));

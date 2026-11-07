@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { initialAuthActionState } from "@/app/(auth)/action-state";
 import { requestPasswordResetAction } from "@/app/(auth)/password-reset-actions";
-import { getLoginHref } from "@/lib/auth/return-url";
+import { getLoginHref } from "@/lib/contracts/auth/return-url";
 
 type ForgotPasswordFormProps = {
 	next?: string | null;

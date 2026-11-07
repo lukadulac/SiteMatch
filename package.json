@@ -6,7 +6,7 @@
 		"dev:frontend": "npm --prefix frontend run dev",
 		"dev:backend": "npm --prefix backend run dev",
 		"build": "npm --prefix backend run build && npm --prefix frontend run build",
-		"lint": "npm --prefix frontend run lint",
+		"lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
 		"typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
 		"test": "npm --prefix backend test && npm --prefix frontend test",
 		"smoke": "npm --prefix frontend run smoke",

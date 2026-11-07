@@ -1,3 +1,5 @@
+// TEMPORARY COPY: the backend's backend/src/modules/auth/account-access.ts is the source. Delete this file when its
+// last frontend caller moves (EB3); listed in scripts/check-boundaries.mjs.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/contracts/supabase";
 

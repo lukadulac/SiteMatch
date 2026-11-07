@@ -1,0 +1,167 @@
+// Moved from frontend/lib/auth/provision.ts (ensureUserProfile). Until EB8 the frontend keeps a temporary copy for
+// callers that have not moved yet; see TEMPORARY_COPIES in scripts/check-boundaries.mjs.
+import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { isAppRole, type UserRole } from "../../contracts/auth/roles.js";
+import { findUploadedAvatarPath } from "../profiles/avatar.js";
+import type { Database } from "../../types/supabase.js";
+
+type ProvisionResult = {
+  error?: string;
+  role?: UserRole;
+};
+
+function getStringValue(value: unknown) {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+function getNumberValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+export async function ensureUserProfile(
+  supabase: SupabaseClient<Database>,
+  user: User,
+): Promise<ProvisionResult> {
+  const { data: existingProfile, error: existingProfileError } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (existingProfileError) {
+    return { error: existingProfileError.message };
+  }
+
+  if (existingProfile && isAppRole(existingProfile.role)) {
+    return { role: existingProfile.role };
+  }
+
+  const metadata =
+    user.user_metadata && typeof user.user_metadata === "object"
+      ? user.user_metadata
+      : {};
+
+  const role = getStringValue(metadata.role);
+
+  if (role !== "client" && role !== "provider") {
+    return { error: "Your account is missing a valid role." };
+  }
+
+  const fullName =
+    getStringValue(metadata.full_name) ??
+    getStringValue(user.user_metadata?.name) ??
+    getStringValue(user.email?.split("@")[0]) ??
+    "New user";
+
+  // A picture chosen on the registration form was stored before the account had
+  // a profile row; link it now.
+  const avatarPath = await findUploadedAvatarPath(supabase, user.id);
+
+  const { error: profileError } = await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      role,
+      full_name: fullName,
+      email: user.email ?? "",
+      phone: getStringValue(metadata.phone),
+      country: getStringValue(metadata.country),
+      city: getStringValue(metadata.city),
+      ...(avatarPath ? { avatar_url: avatarPath } : {}),
+    },
+    // email and phone are not readable columns, and rewriting them on conflict would
+    // read them back, so an existing row is left alone.
+    { onConflict: "id", ignoreDuplicates: true },
+  );
+
+  if (profileError) {
+    return { error: profileError.message };
+  }
+
+  if (role === "client") {
+    const { error } = await supabase.from("client_profiles").upsert(
+      {
+        user_id: user.id,
+        business_name: getStringValue(metadata.business_name) ?? fullName,
+        business_type: getStringValue(metadata.business_type),
+        business_type_text: getStringValue(metadata.business_type_text),
+        business_tax_id: getStringValue(metadata.business_tax_id),
+        project_idea: getStringValue(metadata.project_idea),
+        interested_solution_types: Array.isArray(metadata.interested_solution_types)
+          ? metadata.interested_solution_types.filter(
+              (value): value is string => typeof value === "string" && value.trim() !== "",
+            )
+          : [],
+        interested_solution_other_text: getStringValue(
+          metadata.interested_solution_other_text,
+        ),
+      },
+      { onConflict: "user_id" },
+    );
+
+    if (error) {
+      return { error: error.message };
+    }
+  }
+
+  if (role === "provider") {
+    const providerType = getStringValue(metadata.provider_type);
+    const safeProviderType =
+      providerType === "agency" ||
+      providerType === "company" ||
+      providerType === "studio" ||
+      providerType === "other"
+        ? providerType
+        : "freelancer";
+
+    const rawServiceCategories: Database["public"]["Enums"]["provider_service_category"][] =
+      Array.isArray(metadata.service_categories)
+        ? metadata.service_categories.filter(
+            (
+              value,
+            ): value is Database["public"]["Enums"]["provider_service_category"] =>
+              typeof value === "string" && value.trim() !== "",
+          )
+        : [];
+    const serviceCategories: Database["public"]["Enums"]["provider_service_category"][] =
+      rawServiceCategories.length > 0 ? rawServiceCategories : ["other"];
+    const serviceCategoryOtherText =
+      getStringValue(metadata.service_category_other_text) ??
+      getStringValue(metadata.headline) ??
+      "Legacy provider category";
+
+    const { error } = await supabase.from("provider_profiles").upsert(
+      {
+        user_id: user.id,
+        provider_type: safeProviderType,
+        tax_id: getStringValue(metadata.tax_id),
+        years_of_experience: getNumberValue(metadata.years_of_experience),
+        portfolio_url: getStringValue(metadata.portfolio_url),
+        social_link: getStringValue(metadata.social_link),
+        service_categories: serviceCategories,
+        service_category_other_text: serviceCategoryOtherText,
+        about: getStringValue(metadata.about),
+      },
+      // tax_id is not a readable column, and rewriting it on conflict would read
+      // it back, so an existing row is left alone.
+      { onConflict: "user_id", ignoreDuplicates: true },
+    );
+
+    if (error) {
+      return { error: error.message };
+    }
+  }
+
+  return { role };
+}

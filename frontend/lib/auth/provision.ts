@@ -1,5 +1,7 @@
+// TEMPORARY COPY: the backend's backend/src/modules/auth/provision.ts is the source. Delete this file when its
+// last frontend caller moves (EB8); listed in scripts/check-boundaries.mjs.
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import { isAppRole, type UserRole } from "@/lib/auth/roles";
+import { isAppRole, type UserRole } from "@/lib/contracts/auth/roles";
 import { findUploadedAvatarPath } from "@/lib/profiles/avatar";
 import type { Database } from "@/lib/contracts/supabase";
 

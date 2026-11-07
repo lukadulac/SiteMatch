@@ -1,4 +1,4 @@
-import type { Database } from "@/lib/contracts/supabase";
+import type { Database } from "../../types/supabase.js";
 
 export type UserRole = Database["public"]["Enums"]["user_role"];
 export type ProviderType = Database["public"]["Enums"]["provider_type"];

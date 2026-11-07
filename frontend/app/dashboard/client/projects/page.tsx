@@ -6,7 +6,7 @@ import {
 } from "@/components/dashboard/DashboardShell";
 import { DashboardListPagination, DashboardStatusFilters, DASHBOARD_LIST_PAGE_SIZE, dashboardListHref, parseDashboardPage, parseDashboardStatus } from "@/components/dashboard/DashboardListControls";
 import { ensureUserProfile } from "@/lib/auth/provision";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath } from "@/lib/contracts/auth/roles";
 import { getUnreadConversationCount } from "@/lib/messaging/service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
