@@ -20,11 +20,12 @@ npx supabase migration repair --status applied 20260901000000 20260902114500 202
 
 ## Local database
 
-Requires Docker. The CLI is a dev dependency, so use `npx supabase`.
+Requires Docker. The CLI is a dev dependency of the root `package.json`, so run
+`npm install` and `npx supabase` from the repository root.
 
 1. `npx supabase start` builds a local database from every migration plus
    `seed.sql` (taxonomy reference data) and prints its URL and keys.
-2. Point the app at it in `.env.local` (it overrides `.env`):
+2. Point the app at it in `frontend/.env.local` (it overrides `frontend/.env`):
    `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`,
    `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key from npx supabase status>`,
    `NEXT_PUBLIC_SITE_URL=http://localhost:3000`.
@@ -33,14 +34,14 @@ Requires Docker. The CLI is a dev dependency, so use `npx supabase`.
    migrations.
 
 After changing the schema, regenerate types with
-`npx supabase gen types typescript --local > types/supabase.ts`.
+`npx supabase gen types typescript --local > frontend/types/supabase.ts` (from the root).
 
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`, with no
-secrets. Job `checks`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`,
-`npm run build` (with placeholder public Supabase variables). Job `database`:
-`npx supabase start` builds a database from `supabase/migrations` and `seed.sql` on the
+secrets. Job `frontend` (in `frontend/`): `npm ci`, `npm run lint`, `npm run typecheck`,
+`npm test`, `npm run build` (with placeholder public Supabase variables). Job `database`
+(from the root): `npm ci`, then `npx supabase start` builds a database from `supabase/migrations` and `seed.sql` on the
 runner's Docker, then `npx supabase test db`. To reproduce the database job locally on a
 fresh stack: `npx supabase stop --no-backup`, then the same two commands. Branch protection
 that requires both jobs is a GitHub setting a repository admin turns on after the first run.

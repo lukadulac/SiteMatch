@@ -29,6 +29,7 @@ Success: every module's success criteria are met, CI is green on `main`, and eac
 | `admin` | Verify providers, deactivate users | 20, 21 | security-hardening | [spec](spec/admin.md) |
 | `account` | Change password and email, delete account | 22, 23 | password-reset, hiring-loop | [spec](spec/account.md) |
 | `polish` | Landing page, route boundaries, metadata, `/jobs` pagination | 19, 24, 25 | — | [spec](spec/polish.md) |
+| `express-backend` | Move the server-side logic from Next.js to an Express API: `frontend/` and `backend/` | EB0–EB9 | — | [spec](spec/express-backend.md) |
 
 Build order: schema-baseline → security-hardening → ci → password-reset → hiring-loop → reviews → provider-taxonomy → notifications → matching → admin → account → polish
 
@@ -43,7 +44,7 @@ Module ids are stable; never rename one.
 | Account deletion | Anonymise app data, then delete the auth user with the service-role key (server only) | account |
 | "Enterprise" nav item | Removed | polish |
 | Landing page design | No Figma; follows the existing UI | polish |
-| Branching | Every task on one branch, `feat/daddy-is-here`, one commit per task in build order; no per-module branches. A person pushes it and opens the PR. | all |
+| Branching | One branch per task from `main`, and a PR into `main`. Claude Code commits and pushes only when the person asks. | all |
 | Where work happens | Only on this machine: code, the local Supabase stack, Docker. Nothing is pushed, deployed or sent to an outside service. Production steps are done by a person after merge to `main`. | all |
 | RLS and RPC tests | pgTAP tests run by `supabase test db` (no new npm dependency) | security-hardening onward |
 
@@ -58,19 +59,23 @@ Module ids are stable; never rename one.
 ## Commands
 
 ```
+                                                 # App commands run in frontend/; the root package.json
+                                                 # forwards dev, build, lint, typecheck, test and smoke.
+                                                 # Supabase commands run from the root.
+Install:        npm install && npm --prefix frontend install
 Dev:            npm run dev                      # Next.js on http://localhost:3000
 Build:          npm run build
 Lint:           npm run lint
 Typecheck:      npx tsc --noEmit                 # npm run typecheck once `ci` lands
 Test:           npm test                         # vitest run
-One test file:  npx vitest run tests/unit/<name>.test.ts
+One test file:  npx vitest run tests/unit/<name>.test.ts   # in frontend/
 Coverage:       npm run test:coverage
 
 Local DB start: npx supabase start               # builds from migrations + seed.sql
 Local DB reset: npx supabase db reset            # rebuild after pulling or adding migrations
 DB tests:       npx supabase test db             # pgTAP tests in supabase/tests/database
 New migration:  npx supabase migration new <name>
-Types:          npx supabase gen types typescript --local --schema public > types/supabase.ts
+Types:          npx supabase gen types typescript --local --schema public > frontend/types/supabase.ts
                 # then format to the existing style (Prettier defaults, print width 100)
 Local DB stop:  npx supabase stop
 Local mail:     http://127.0.0.1:54324           # Mailpit, catches auth emails
@@ -78,9 +83,11 @@ Local mail:     http://127.0.0.1:54324           # Mailpit, catches auth emails
 
 Production only, by a person, after the branch is merged to `main`: `npx supabase link --project-ref fnbpwevsubtcdnrfjjak` (the repo stays unlinked during development), then `npx supabase migration repair …` (once, for the baseline) and `npx supabase db push`. Each module spec lists its post-merge steps; the build workflow never runs them.
 
-Local setup that keeps work on this machine: `.env.local` points the app at the local stack (`.env` points at production), Next.js and Supabase CLI telemetry are disabled (`npx next telemetry disable`, `npx supabase telemetry disable`), and the Supabase project is unlinked (`npx supabase unlink`), so a command without `--local` fails instead of reaching production.
+Local setup that keeps work on this machine: `frontend/.env.local` points the app at the local stack (`frontend/.env` points at production), Next.js and Supabase CLI telemetry are disabled (`npx next telemetry disable`, `npx supabase telemetry disable`), and the Supabase project is unlinked (`npx supabase unlink`), so a command without `--local` fails instead of reaching production.
 
 ## Project Structure
+
+The Next.js project lives in `frontend/` (paths below up to `tests/` are relative to it). `supabase/`, `spec/`, `tasks/`, `.github/` and `SPEC.md` stay at the repository root; the root `package.json` holds only the Supabase CLI and forwarding scripts (see `spec/express-backend.md`).
 
 ```
 app/                      Routes (App Router). Server actions in app/**/actions.ts

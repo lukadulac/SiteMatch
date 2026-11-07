@@ -14,10 +14,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  checks:
-    name: checks
+  frontend:
+    name: frontend
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
     env:
       # Placeholders: the build only needs the variables to exist. CI has no secrets.
       NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
@@ -31,6 +34,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - run: npm ci
       - run: npm run lint
@@ -51,7 +55,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: package-lock.json
 
+      # Installs the Supabase CLI from the root package.json.
       - run: npm ci
 
       # Builds the local database from supabase/migrations and supabase/seed.sql. A migration

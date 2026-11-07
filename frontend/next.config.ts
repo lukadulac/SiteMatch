@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const securityHeaders = [
@@ -44,7 +45,14 @@ const developmentServerActionOrigins =
 		? ["localhost:3000", "127.0.0.1:3000", "0.0.0.0:3000", "192.168.1.5:3000"]
 		: [];
 
+// frontend/ is its own npm project; the repository root's lockfile only holds the Supabase CLI.
+const projectRoot = path.resolve(__dirname);
+
 const nextConfig: NextConfig = {
+	turbopack: {
+		root: projectRoot,
+	},
+	outputFileTracingRoot: projectRoot,
 	experimental: {
 		serverActions: {
 			allowedOrigins: developmentServerActionOrigins,

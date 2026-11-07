@@ -119,7 +119,7 @@ export function extractProfileChainSelects(source: string, table = "profiles"): 
 
 /** The columns the migrations grant to signed-in users on a table (the last such grant wins). */
 function readGrantedProfileColumns(table = "profiles") {
-	const migrations = listFiles(join(root, "supabase", "migrations"), /\.sql$/)
+	const migrations = listFiles(join(root, "..", "supabase", "migrations"), /\.sql$/)
 		.sort()
 		.map((file) => readFileSync(file, "utf8"))
 		.join("\n");

@@ -11,6 +11,8 @@ import { createClient } from "@supabase/supabase-js";
 
 function readLocalStack() {
 	const output = execSync("npx supabase status -o env", {
+		// The Supabase CLI is installed in the repository root, next to supabase/.
+		cwd: new URL("../..", import.meta.url),
 		encoding: "utf8",
 		stdio: ["ignore", "pipe", "ignore"],
 	});

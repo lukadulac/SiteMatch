@@ -36,7 +36,7 @@ function findRpcCalls() {
 }
 
 function readMigrations() {
-	return listFiles(join(root, "supabase", "migrations"), [".sql"])
+	return listFiles(join(root, "..", "supabase", "migrations"), [".sql"])
 		.map((file) => readFileSync(file, "utf8"))
 		.join("\n");
 }
