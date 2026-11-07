@@ -34,17 +34,20 @@ Requires Docker. The CLI is a dev dependency of the root `package.json`, so run
    migrations.
 
 After changing the schema, regenerate types with
-`npx supabase gen types typescript --local > frontend/types/supabase.ts` (from the root).
+`npx supabase gen types typescript --local > backend/src/types/supabase.ts` (from the root),
+then `npm run contracts:sync` to copy them to the frontend.
 
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`, with no
-secrets. Job `frontend` (in `frontend/`): `npm ci`, `npm run lint`, `npm run typecheck`,
+secrets. Job `backend` (in `backend/`): `npm ci`, `npm run typecheck`, `npm test`,
+`npm run build`. Job `contracts`: `scripts/sync-contracts.mjs --check` and
+`scripts/check-boundaries.mjs`. Job `frontend` (in `frontend/`): `npm ci`, `npm run lint`, `npm run typecheck`,
 `npm test`, `npm run build` (with placeholder public Supabase variables). Job `database`
 (from the root): `npm ci`, then `npx supabase start` builds a database from `supabase/migrations` and `seed.sql` on the
 runner's Docker, then `npx supabase test db`. To reproduce the database job locally on a
 fresh stack: `npx supabase stop --no-backup`, then the same two commands. Branch protection
-that requires both jobs is a GitHub setting a repository admin turns on after the first run.
+that requires the jobs is a GitHub setting a repository admin turns on after the first run.
 
 ## Reading profiles
 

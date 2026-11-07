@@ -8,7 +8,7 @@ import {
 	type ProviderServiceActionState,
 } from "@/app/dashboard/provider/services/action-state";
 import { createProviderServiceListingAction } from "@/app/dashboard/provider/services/actions";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 type MetaOption = {
 	id: string;

@@ -3,7 +3,7 @@ import { getDashboardPath, isAppRole, type UserRole } from "@/lib/auth/roles";
 import { getUnreadConversationCount } from "@/lib/messaging/service";
 import { getUnreadNotificationCount } from "@/lib/notifications/service";
 import type { NavCounts } from "@/lib/navigation/menu-items";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 export type HeaderCta = {
 	href: string;

@@ -62,6 +62,20 @@ const nextConfig: NextConfig = {
 	productionBrowserSourceMaps: false,
 	// Do not advertise the framework in every response.
 	poweredByHeader: false,
+	// The browser only sees this origin. fallback runs after every Next.js route, so a route
+	// moves to the Express backend (spec/express-backend.md) when its Next.js handler is deleted.
+	async rewrites() {
+		const backend = process.env.BACKEND_URL;
+		if (!backend) throw new Error("Set BACKEND_URL.");
+		return {
+			beforeFiles: [],
+			afterFiles: [],
+			fallback: [
+				{ source: "/api/:path*", destination: `${backend}/api/:path*` },
+				{ source: "/auth/:path*", destination: `${backend}/auth/:path*` },
+			],
+		};
+	},
 	async headers() {
 		return [
 			{

@@ -61,9 +61,11 @@ Module ids are stable; never rename one.
 ```
                                                  # App commands run in frontend/; the root package.json
                                                  # forwards dev, build, lint, typecheck, test and smoke.
+                                                 # Backend commands run in backend/.
                                                  # Supabase commands run from the root.
-Install:        npm install && npm --prefix frontend install
-Dev:            npm run dev                      # Next.js on http://localhost:3000
+Install:        npm install && npm --prefix backend install && npm --prefix frontend install
+Dev:            npm run dev                      # backend :4000 + Next.js on http://localhost:3000
+All checks:     npm run check                    # lint, typecheck, tests, contracts, boundaries
 Build:          npm run build
 Lint:           npm run lint
 Typecheck:      npx tsc --noEmit                 # npm run typecheck once `ci` lands
@@ -75,7 +77,8 @@ Local DB start: npx supabase start               # builds from migrations + seed
 Local DB reset: npx supabase db reset            # rebuild after pulling or adding migrations
 DB tests:       npx supabase test db             # pgTAP tests in supabase/tests/database
 New migration:  npx supabase migration new <name>
-Types:          npx supabase gen types typescript --local --schema public > frontend/types/supabase.ts
+Types:          npx supabase gen types typescript --local --schema public > backend/src/types/supabase.ts
+                # then npm run contracts:sync (copies it to frontend/lib/contracts/supabase.ts)
                 # then format to the existing style (Prettier defaults, print width 100)
 Local DB stop:  npx supabase stop
 Local mail:     http://127.0.0.1:54324           # Mailpit, catches auth emails
@@ -87,7 +90,7 @@ Local setup that keeps work on this machine: `frontend/.env.local` points the ap
 
 ## Project Structure
 
-The Next.js project lives in `frontend/` (paths below up to `tests/` are relative to it). `supabase/`, `spec/`, `tasks/`, `.github/` and `SPEC.md` stay at the repository root; the root `package.json` holds only the Supabase CLI and forwarding scripts (see `spec/express-backend.md`).
+The Next.js project lives in `frontend/` (paths below up to `tests/` are relative to it); the Express API skeleton is in `backend/`, and `scripts/` holds `sync-contracts.mjs` and `check-boundaries.mjs`. `supabase/`, `spec/`, `tasks/`, `.github/` and `SPEC.md` stay at the repository root; the root `package.json` holds only the Supabase CLI and forwarding scripts (see `spec/express-backend.md`).
 
 ```
 app/                      Routes (App Router). Server actions in app/**/actions.ts
@@ -101,7 +104,7 @@ lib/<area>/service.ts     Data access: takes a SupabaseClient, returns { data } 
 lib/<area>/queries.ts     Read-only queries shared by pages
 lib/supabase/             Supabase clients (browser, server, middleware) and env
 proxy.ts                  Role guards for /dashboard/* and /oglasi/novi
-types/supabase.ts         Generated database types; never edit by hand
+lib/contracts/            Generated copy of backend/src/contracts and the database types; never edit by hand
 supabase/migrations/      Schema history; the only way to change the schema
 supabase/tests/database/  pgTAP tests for RLS policies and RPCs
 supabase/seed.sql         Taxonomy reference data for local databases

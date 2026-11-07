@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 type AuthRateLimitScope = "login_email_ip" | "login_ip" | "register_ip";
 

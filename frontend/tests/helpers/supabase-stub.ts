@@ -1,5 +1,5 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 /**
  * Minimal stand-in for a Supabase client.

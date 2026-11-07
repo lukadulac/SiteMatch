@@ -10,7 +10,7 @@ import {
 	type ProviderServiceListingIntent,
 } from "@/lib/provider-services/schemas";
 import { ilikeAnyColumn } from "@/lib/supabase/postgrest-filter";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 type ProviderServiceResult<T> =
 	| { data: T; error?: never }

@@ -867,6 +867,21 @@ Changing the database, leaving Supabase, replacing Realtime, new features, publi
 - The rewrite passed multiple `Set-Cookie` headers, `Cache-Control`, and a 302 with a path-scoped cookie and relative `Location`.
 - The backend saw `Host` as itself, `x-forwarded-host` as the frontend, and the browser's `Origin`, even a forged one. It also received a client-supplied `x-forwarded-for` unchanged. These are the reasons for `originGuard` and the IP rules.
 
+**EB1, local run (2026-11-07)** (`npm run dev`: Next.js 16.4.5 on :3000 with the `fallback` rewrites → Express 5.3 on :4000, `@supabase/ssr` 0.10.2):
+
+| Check | Result |
+|---|---|
+| Multiple `Set-Cookie` through the rewrite (`POST /api/_diag`) | Pass: both `wb_diag_a` and `wb_diag_b` arrive |
+| Large `Cookie` header (4 chunks, 10,890 bytes) | Pass: backend counts 4 cookies, 10,890 bytes |
+| `Origin` at the backend | Pass: the browser's origin; `Host` is the backend, `x-forwarded-host` the frontend |
+| Forged `x-forwarded-for: 6.6.6.6` | Arrives unchanged (`req.ip` too), as expected locally; the BFF and `x-client-ip` rules cover it |
+| `Cache-Control` | Pass: `private, no-store` unchanged |
+| Forged `Origin` on a write | 403 `Invalid request origin.` |
+| An existing Next.js route (`/api/projects/meta`) | Still served by Next.js; unknown `/api/*` reaches Express (404 `Not found.`) |
+| Chunked session read and refresh write in `createRequestClient` | Pass (Vitest, real `@supabase/ssr`) |
+
+**EB1, Vercel staging:** not run yet. A person deploys `backend` as a second Vercel project and repeats the table above through the frontend domain; record the results here, then remove `_diag`.
+
 **Sources:**
 
 - [Upgrade to Express v5](https://expressjs.com/en/guide/migrating-5/)

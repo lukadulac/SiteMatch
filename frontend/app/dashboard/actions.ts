@@ -14,7 +14,7 @@ import {
 } from "@/lib/auth/place-name";
 import { providerProfileInputSchema } from "@/lib/auth/provider-profile";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 function normalizeWhitespace(value: string) {
 	return value.trim().replace(/\s+/g, " ");

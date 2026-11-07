@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adminListSchema, moderationSchema } from "@/lib/admin/schemas";
 import { removeUserAvatarFolder } from "@/lib/profiles/avatar";
-import type { Database, Json } from "@/types/supabase";
+import type { Database, Json } from "@/lib/contracts/supabase";
 
 type Client = SupabaseClient<Database>;
 export type AdminResult =

@@ -5,7 +5,7 @@ import {
 	type WorkroomListQuery,
 	type WorkroomStatusFilter,
 } from "@/lib/service-workrooms/schemas";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 type Result<T> =
 	| { data: T; error?: never }

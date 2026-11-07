@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { removeUserAvatarFolder } from "@/lib/profiles/avatar";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 type Client = SupabaseClient<Database>;
 

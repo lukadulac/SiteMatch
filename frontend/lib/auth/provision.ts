@@ -1,7 +1,7 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { isAppRole, type UserRole } from "@/lib/auth/roles";
 import { findUploadedAvatarPath } from "@/lib/profiles/avatar";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 type ProvisionResult = {
   error?: string;

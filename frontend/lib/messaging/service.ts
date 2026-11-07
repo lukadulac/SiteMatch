@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SendMessageInput } from "@/lib/messaging/schemas";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 type Result<T> =
   | { data: T; error?: never }

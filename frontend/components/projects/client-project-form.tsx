@@ -10,7 +10,7 @@ import {
   createClientProjectAction,
   updateClientProjectAction,
 } from "@/app/oglasi/actions";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 const MULTI_VALUE_SEPARATOR = "||";
 

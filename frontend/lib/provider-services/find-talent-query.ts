@@ -1,5 +1,5 @@
 import z from "zod";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 export const FIND_TALENT_DEFAULT_PAGE = 1;
 export const FIND_TALENT_DEFAULT_PAGE_SIZE = 10;

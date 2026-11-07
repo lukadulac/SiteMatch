@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import z from "zod";
-import { Constants, type Database } from "@/types/supabase";
+import { Constants, type Database } from "@/lib/contracts/supabase";
 
 const enums = Constants.public.Enums;
 

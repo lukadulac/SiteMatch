@@ -8,7 +8,7 @@ import {
 	type ServiceRequestListQuery,
 	type ServiceRequestStatusFilter,
 } from "@/lib/provider-service-requests/schemas";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 type ServiceRequestResult<T> =
 	| { data: T; error?: never }

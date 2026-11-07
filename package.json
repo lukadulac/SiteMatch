@@ -2,15 +2,21 @@
 	"name": "sitematch",
 	"private": true,
 	"scripts": {
-		"dev": "npm --prefix frontend run dev",
-		"build": "npm --prefix frontend run build",
+		"dev": "concurrently --names backend,frontend --prefix-colors blue,green \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+		"dev:frontend": "npm --prefix frontend run dev",
+		"dev:backend": "npm --prefix backend run dev",
+		"build": "npm --prefix backend run build && npm --prefix frontend run build",
 		"lint": "npm --prefix frontend run lint",
-		"typecheck": "npm --prefix frontend run typecheck",
-		"test": "npm --prefix frontend test",
+		"typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
+		"test": "npm --prefix backend test && npm --prefix frontend test",
 		"smoke": "npm --prefix frontend run smoke",
-		"check": "npm run lint && npm run typecheck && npm test"
+		"contracts:sync": "node scripts/sync-contracts.mjs",
+		"contracts:check": "node scripts/sync-contracts.mjs --check",
+		"boundaries": "node scripts/check-boundaries.mjs",
+		"check": "npm run lint && npm run typecheck && npm test && npm run contracts:check && npm run boundaries"
 	},
 	"devDependencies": {
+		"concurrently": "^9.2.5",
 		"supabase": "^2.121.0"
 	}
 }

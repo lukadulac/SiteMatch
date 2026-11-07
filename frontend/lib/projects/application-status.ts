@@ -1,4 +1,4 @@
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 export type ApplicationStatus =
 	Database["public"]["Enums"]["application_status"];

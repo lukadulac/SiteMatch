@@ -7,7 +7,7 @@ import type {
 	UpdateProjectInput,
 	UpdateApplicationStatusInput,
 } from "@/lib/projects/schemas";
-import type { Database } from "@/types/supabase";
+import type { Database } from "@/lib/contracts/supabase";
 
 function slugify(value: string) {
 	return value
